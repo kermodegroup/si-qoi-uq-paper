@@ -1,5 +1,5 @@
 {
- "git": "e7baccec27b9063c84aa679b1bde740a93ad09c4",
+ "git": "862ae662c1eafcc81fc45eaa8b90b3667b81ad92",
  "dirty": true,
  "packages": {
   "jax": "0.11.2",
@@ -27,6 +27,10 @@
  },
  "runs": "/storage/eng/essswb/projects/ace-jax/runs/si_qoi_uq_blr",
  "wall_s": {
+  "diag/o4d20": 186.79921317100525,
+  "delta/o4d20": 1148.8583528995514,
+  "committee/o4d20/cr3 (cpu-process s)": 20556.470199108124,
+  "committee/o4d20/posterior (cpu-process s)": 20437.454775571823,
   "diag/o3d12": 15.543296575546265,
   "delta/o3d12": 99.34293389320374,
   "committee/o3d12/cr3 (cpu-process s)": 1988.3049068450928,
