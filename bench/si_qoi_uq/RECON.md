@@ -219,3 +219,12 @@ CPU-h, **if** each run reloads the model. A driver that keeps one process per te
   are snapshotted in `runs/si_qoi_uq/ard_snapshot/` as an ablation. POPS needs no change (its mean is the BLR mean), so its fits and
   harness results are linked into the new root after checking that the members are identical.
 - Not redone at the BLR fit: the 3 r_cut cluster sensitivity.
+- **Pending: rerun with fixed ARD** (ace-jax #136; a fix is being prepared in another session). At n = 20 the o3d12
+  difference is within noise. CR3 × λ_F at 95 %: ARD 19/20 [0.75, 1.00] (RMS z 1.03, median σ/tol 2.85) against
+  BLR 17/20 [0.62, 0.97] (1.29, 2.52). The BLR intervals are sharper, and its mean is more accurate (o3d12
+  E 15.8 against 22.0 meV/atom). When the fix lands, follow these steps:
+  1. Refit both models with `fits.sh` (cr3 and kappa) into a fresh `SIQ_RUNS` root.
+  2. Link the POPS fits.
+  3. Rerun `run.py --stage diagnostics --stage samples`, `committee.sh` (cr3 with `--mean-first`,
+     posterior, and cr3lamFrec with `SIQ_RECORD=1`), `--stage delta`, and `--all`.
+  Compare against `runs/si_qoi_uq_blr` and `runs/si_qoi_uq/ard_snapshot`.
