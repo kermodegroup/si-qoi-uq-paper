@@ -76,7 +76,7 @@ def write_scale_csv(models):
             rows += json.load(open(p))
     if not rows:
         return
-    RESULTS.mkdir(exist_ok=True)
+    RESULTS.mkdir(parents=True, exist_ok=True)
     with open(RESULTS / "scale_diagnostics.csv", "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=["model", "factor", "kind", "breakdown", "label", "n", "rms_z", "q68", "q95"])
         w.writeheader()
@@ -164,7 +164,7 @@ def stage_assemble(models, log=print):
         extras[m] = ex
         joint[m] = assemble.joint(m, ex)
     cov = assemble.coverage(rows)
-    RESULTS.mkdir(exist_ok=True)
+    RESULTS.mkdir(parents=True, exist_ok=True)
     assemble.write_csv(RESULTS / "qoi_uq.csv", rows)
     assemble.write_csv(RESULTS / "delta_vs_committee.csv", dvc)
     assemble.write_csv(RESULTS / "coverage.csv", cov)
