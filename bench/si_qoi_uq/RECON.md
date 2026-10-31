@@ -234,3 +234,14 @@ CPU-h, **if** each run reloads the model. A driver that keeps one process per te
 - **PR 137 acceptance run** (2026-10-31): head 54e5274, in a detached checkout `.worktrees/pr137-accept`, run
   with `SIQ_ACEJAX_SRC=<checkout>/src` (`fits.sh`, `committee.sh`) into `runs/si_qoi_uq_ard137`. Same flags
   as the earlier ARD fits; the PR's defaults are QR solver and floor cond 1e22.
+
+## Why the interstitial formation energies are confidently wrong (2026-10-31)
+
+`analysis/defect_resid.py` and `analysis/defect_trend.py` → `results/defect_trend.json`. Each defect cell's energy error
+(DFT − model), minus a bulk-diamond reference at the same F_rms², is regressed on F_rms² (thermal ⟨u²⟩). At F → 0
+the interstitial error is +1.60 ± 0.06 eV (o3d12) and +0.41 ± 0.03 eV (o4d20). The relaxed-interstitial QoI errors
+are +1.18/+1.45/+1.74 and +0.37/+0.41/+0.60 eV. All 103 training interstitial cells are hot MD (median RMS force
+0.76 eV/Å), so the relaxed defect is an extrapolation along a bias shared by every interstitial cluster. The CR3
+jackknife, the posterior and the committees cannot see it, while on training-like cells the intervals are calibrated (z RMS 0.85–1.13).
+Divacancy shows the same trend (no QoI). The vacancy does not: −0.24 / +0.04 eV predicted, +0.11 / +0.88 eV observed.
+Candidate UQ remedy, untested: jackknife clusters coarser than a configuration (whole config types).
