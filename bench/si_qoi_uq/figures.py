@@ -10,6 +10,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 
+from .assemble import Z95  # noqa: E402
 from .propagate import COVER_KEYS, KEYS  # noqa: E402
 
 SURFACE, INK, MUTED, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e4e3df"
@@ -187,6 +188,34 @@ def scales_fig(results, out, models):
     _save(fig, out, "fig5_scale_diagnostics")
 
 
+def model_compare(results, out, models, meth="CR3-headline", sc="lam_F"):
+    """Per QoI, (Q - Q_DFT) / tolerance for each model with its 95 % interval, DFT as a cross at 0: the bigger
+    model's intervals are tighter while coverage stays similar.  Symmetric-log axis, linear within +-1 tolerance."""
+    rows = _rows(results)
+    cov = {(r["model"], r["method"], r["scale"]): r for r in csv.DictReader(open(results / "coverage.csv"))}
+    fig, ax = plt.subplots(figsize=(11, 4.6), facecolor=SURFACE)
+    _style(ax)
+    x = np.arange(len(COVER_KEYS))
+    ax.axhspan(-1, 1, color="#ecebe6", zorder=0, label="± 1 tolerance")
+    ax.axhline(0, color=GRID, lw=0.8, zorder=1)
+    order = [m for m in ("o4d20", "o3d12") if m in models]
+    for j, m in enumerate(order):
+        r = {q["qoi"]: q for q in rows if q["model"] == m and q["method"] == meth and q["scale"] == sc}
+        e = np.array([(r[k]["mean"] - r[k]["dft"]) / r[k]["tol"] if k in r else np.nan for k in COVER_KEYS])
+        h = np.array([Z95 * r[k]["sigma"] / r[k]["tol"] if k in r else np.nan for k in COVER_KEYS])
+        c = cov.get((m, meth, sc), {})
+        lab = f"{m}: {c.get('k95', '?')}/{c.get('n', '?')} inside 95 %, median σ/tol {float(c.get('median_sigma_over_tol', 'nan')):.2f}"
+        ax.errorbar(x + (j - 0.5) * 0.28, e, yerr=h, fmt=MARK[j], ms=6, color=CAT[j], ecolor=CAT[j], elinewidth=2,
+                    capsize=3, mec=SURFACE, mew=0.8, label=lab, zorder=3)
+    ax.scatter(x, np.zeros(len(x)), marker="x", s=46, color=INK, linewidths=1.6, label="DFT (CASTEP)", zorder=4)
+    ax.set_yscale("symlog", linthresh=1.0)
+    ax.set_xticks(x, [short(k) for k in COVER_KEYS], rotation=60, ha="right")
+    ax.set_ylabel("(Q − Q_DFT) / tolerance  (symlog)", color=INK, fontsize=8)
+    ax.legend(fontsize=8, frameon=False, ncol=2, loc="lower left", bbox_to_anchor=(0, 1.0))
+    fig.tight_layout()
+    _save(fig, out, "fig6_model_compare")
+
+
 def all_figures(results, out, runs, models, extras):
     strip(results, out, models)
     coverage_bars(results, out, models)
@@ -194,4 +223,5 @@ def all_figures(results, out, runs, models, extras):
     correlation(runs, out, m3, extras[m3])
     elastic(out, [m for m in models if m in extras], extras)
     scales_fig(results, out, models)
+    model_compare(results, out, models)
     json.dump({"correlation_model": m3}, open(out / "figures.json", "w"))
