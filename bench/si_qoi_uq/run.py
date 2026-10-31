@@ -7,14 +7,17 @@ Heavy stages (diagnostics, delta, committee) belong on mnf148/lestrade, not in a
 Large intermediates live under $SIQ_RUNS (/storage/.../runs/si_qoi_uq); `results/` and `figures/` here
 hold only what the report reads.
 """
-import argparse, json, pathlib, time
+import argparse, json, os, pathlib, time
 
 import numpy as np
 
 from .harness import RUNS
 
 HERE = pathlib.Path(__file__).parent
-RESULTS, FIGURES = HERE / "results", HERE / "figures"
+# SIQ_RESULTS: write results/, figures/ and REPORT.md under another directory (an ablation or acceptance run that
+# must not overwrite the headline in this package)
+OUTDIR = pathlib.Path(os.environ["SIQ_RESULTS"]) if os.environ.get("SIQ_RESULTS") else HERE
+RESULTS, FIGURES = OUTDIR / "results", OUTDIR / "figures"
 MODELS = ("o4d20", "o3d12")
 K = 200
 SEEDS = {"cr3": 20261031, "posterior": 20261032, "pops": 20261033}     # committee draws (spec §4b, §6)
@@ -252,7 +255,7 @@ def main():
             continue
         if s == "report":
             from .report import write_report
-            write_report(RESULTS, HERE / "REPORT.md")
+            write_report(RESULTS, OUTDIR / "REPORT.md")
             continue
         for m in a.models:
             r = STAGES[s](m)
