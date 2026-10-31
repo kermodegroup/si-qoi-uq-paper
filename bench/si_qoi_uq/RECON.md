@@ -182,3 +182,11 @@ CPU-h, **if** each run reloads the model. A driver that keeps one process per te
 - **Harness E(V) points.** `lattice_tetragonal` skips E(V) points whose relaxation fails. Some wide samples
   then have fewer than 12 points (one has none: NaN). The QoI is the harness's own minimum over the points
   that remain.
+- **POPS members (B2).** With the ace-jax default `pops_leverage_pct = 0`, the hypercube's min/max bounds
+  are set by low-leverage rows, whose corrections r_i/h_i are unbounded. On o3d12 the members spread the
+  bulk-diamond energy by about 7e9 meV/atom (auto ridge) and 5e8 meV/atom (ridge blr). Almost every harness
+  relaxation then fails (`results/member_widths.csv`, `pops_committee_finished.csv`). These are reported
+  as the spec's B2: failed. A labelled variant uses leverage percentile 50, keeping only rows at or above
+  the median leverage (popsregression uses a leverage percentile; recalled, not re-checked): at the auto
+  ridge its members spread 73 meV/atom and 0.031 eV/Å, and it is run in full (B2lev50). At ridge blr the
+  members are still unphysical (1.6e5 meV/atom), so that set is not run.

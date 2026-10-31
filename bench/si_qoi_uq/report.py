@@ -136,6 +136,13 @@ def write_report(results, out):
         if miss:
             L.append(f"- {m}: QoIs with fewer than 200 finished λ = 1 committee runs: " +
                      ", ".join(f"{r['qoi']} ({int(r['K_ok'])})" for r in miss) + ".")
+    mw = results / "member_widths.csv"
+    if mw.exists():
+        for r in _read(mw):
+            if r["set"].startswith("pops"):
+                L.append(f"- {r['model']}, POPS set `{r['set']}`: member spread on bulk diamond "
+                         f"{r['sd_E_meV_per_atom']:.3g} meV/atom, {r['mean_sd_F_eV_A']:.3g} eV/Å "
+                         "(`member_widths.csv`; CR3 rows there for comparison).")
     pf = results / "pops_committee_finished.csv"
     if pf.exists():
         pr = _read(pf)

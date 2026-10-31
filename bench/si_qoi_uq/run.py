@@ -164,8 +164,29 @@ def stage_assemble(models, log=print):
     json.dump(joint, open(RESULTS / "joint_tests.json", "w"), indent=1)
     write_scale_csv(models)
     figures.all_figures(RESULTS, FIGURES, RUNS, list(extras), extras)
+    member_widths(list(extras))
     write_metadata(list(extras))
     log(f"assembled {len(rows)} rows for {list(extras)}")
+
+
+def member_widths(models):
+    """Spread of the energy per atom and of the force components over each member set, on a rattled 8-atom
+    diamond cell (rows exact: E and F are linear in theta) -> results/member_widths.csv."""
+    from ase.build import bulk
+    from .assemble import write_csv
+    from .linear import observable_rows
+    rows = []
+    for m in models:
+        lin = lin_for(m, "cr3")
+        at = bulk("Si", "diamond", a=5.46, cubic=True)
+        at.rattle(0.03, seed=0)
+        bE, BF, _ = observable_rows(at, lin)
+        for p in sorted((RUNS / "samples").glob(f"{m}_*.npz")):
+            z = np.load(p)
+            th = z["theta"]
+            rows.append(dict(model=m, set=p.stem[len(m) + 1:], K=len(th), sd_E_meV_per_atom=1e3 * float(np.std(th @ bE)) / len(at),
+                             mean_sd_F_eV_A=float(np.std(th @ BF.T, 0).mean())))
+    write_csv(RESULTS / "member_widths.csv", rows)
 
 
 def write_metadata(models):
