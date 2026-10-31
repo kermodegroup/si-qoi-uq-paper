@@ -9,7 +9,7 @@ is the POPS hypercube covariance.  Writes pops_box.npz (c_star, support, lo, hi,
 
     python -m bench.si_qoi_uq.pops_fit o3d12|o4d20
 """
-import pathlib, subprocess, sys
+import json, pathlib, subprocess, sys
 
 import numpy as np
 
@@ -44,19 +44,20 @@ def main():
             "--out", str(out)]
     cli.main(argv)
     path, ridge = kept["path"], kept["ridge"]
-    rd = ridge if not isinstance(ridge, dict) else ridge             # PopsRidgePath takes either form
-    A, coef, keepm = path._coef(rd, 0.0)
-    W, _ = path.rows.moment_sums(coef)
-    support = hypercube_support(A @ W @ A, 1.0e-8)
-    lo, hi = path.rows.projection_bounds(coef, keepm, A @ support)
-    c_star = np.asarray(path.c_star_at(path._mean_for(rd)))
     git = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True,
                          cwd=pathlib.Path(__file__).parent).stdout.strip()
-    np.savez(out / "pops_box.npz", c_star=c_star, support=np.asarray(support), lo=np.asarray(lo),
-             hi=np.asarray(hi), ridge=np.asarray(ridge if not isinstance(ridge, dict) else [ridge[q] for q in "EFV"]),
-             git=git)
-    print("pops box:", support.shape, "ridge", ridge)
-
+    # one ridge per member set: the predictions use one per quantity, a parameter committee needs one -- the
+    # auto-selected force ridge (o3d12: E = F = V = 1e-14); and "blr" (c* the BLR mean, A the BLR posterior),
+    # since 1e-14 relative sits at the eigendecomposition's resolution, where A is roundoff (RECON)
+    for name, rd in (("pops_box", ridge["F"] if isinstance(ridge, dict) else ridge), ("pops_box_blr", "blr")):
+        A, coef, keepm = path._coef(rd, 0.0)
+        W, _ = path.rows.moment_sums(coef)
+        support = hypercube_support(A @ W @ A, 1.0e-8)
+        lo, hi = path.rows.projection_bounds(coef, keepm, A @ support)
+        c_star = np.asarray(path.c_star)                         # the mean the predictions used (POPS_MEAN)
+        np.savez(out / f"{name}.npz", c_star=c_star, support=np.asarray(support), lo=np.asarray(lo),
+                 hi=np.asarray(hi), ridge=str(rd), ridge_selected=json.dumps(ridge), git=git)
+        print(f"{name}: support {support.shape}, ridge {rd}")
 
 if __name__ == "__main__":
     main()

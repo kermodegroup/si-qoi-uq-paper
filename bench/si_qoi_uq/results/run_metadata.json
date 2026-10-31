@@ -1,0 +1,37 @@
+{
+ "git": "b48322fec1e4951654e56d785cf749a2f6d1dae9",
+ "dirty": true,
+ "packages": {
+  "jax": "0.11.2",
+  "jaxlib": "0.11.2",
+  "numpy": "2.5.3",
+  "scipy": "1.18.1",
+  "ase": "3.29.0",
+  "matscipy": null,
+  "phonopy": null
+ },
+ "python": "3.14.4",
+ "host": "lestrade.scrtp.warwick.ac.uk",
+ "seeds": {
+  "fit": 0,
+  "cr3": 20261031,
+  "posterior": 20261032,
+  "pops": 20261033
+ },
+ "K": 200,
+ "harness": {
+  "path": "~/silicon-testing-framework (py3 port)",
+  "env": {
+   "SI_TESTS_ELASTIC_FMAX": "1e-3"
+  }
+ },
+ "runs": "/storage/eng/essswb/projects/ace-jax/runs/si_qoi_uq",
+ "wall_s": {
+  "diag/o3d12": 14.783494472503662,
+  "delta/o3d12": 216.25810027122498,
+  "committee/o3d12/cr3 (cpu-process s)": 2145.6130034923553,
+  "committee/o3d12/posterior (cpu-process s)": 2114.757533788681,
+  "committee/o3d12/cr3lamF (cpu-process s)": 686.1480159759521
+ },
+ "hardware": "fits, diagnostics, delta, committees: lestrade (32 cores, 62 GB) and mnf148 (32 cores, 256 GB)"
+}

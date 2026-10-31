@@ -163,6 +163,14 @@ def qois(name, root=ROOT):
     sys.path.insert(0, str(REPO / "bench" / "si_qoi"))
     import compare
     compare.FW = str(root)
+    if not getattr(compare.ev_min, "_siq", False):         # a sample whose every E(V) point failed: NaN, not a crash
+        ev = compare.ev_min
+
+        def ev_min(d):
+            k = [k for k in d if k.endswith("E_vs_V")]
+            return ev(d) if k and len(d[k[0]]) else (np.nan, np.nan)
+        ev_min._siq = True
+        compare.ev_min = ev_min
     q = compare.qois(name)
     ref = compare.qois("CASTEP")
     if "_phonon_f" in q and "_phonon_f" in ref and q["_phonon_f"].shape == ref["_phonon_f"].shape:

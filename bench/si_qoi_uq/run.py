@@ -93,32 +93,125 @@ def stage_samples(m, log=print):
                              lin.theta_hat[None] + lamF * (xi @ L.T), lin, theta_mean=lin.theta_hat,
                              seed=SEEDS[name], lam=lamF)
                 log(f"{m} cr3 at lam_F = {lamF:.4g}")
-    box = fit_dir(m, "pops") / "pops_box.npz"
-    if box.exists():
+    for tag, fname in (("pops", "pops_box.npz"), ("popsblr", "pops_box_blr.npz")):
+        box = fit_dir(m, "pops") / fname
+        if not box.exists():
+            continue
         b = np.load(box)
         u = np.random.default_rng(SEEDS["pops"]).uniform(b["lo"], b["hi"], size=(K, len(b["lo"])))
         cs = np.asarray(b["c_star"])
         th = cs[None] + u @ np.asarray(b["support"]).T
-        if th.shape[1] != lin.p:                      # POPS c* may omit or include the E0 column like the fit
+        if lin.e0_cols and th.shape[1] == lin.p - lin.NZ:   # POPS fixes the lsq E0 (as prefit): no E0 column,
+            th = np.concatenate([th, np.zeros((K, lin.NZ))], 1)   # i.e. a zero shift of E0_pre
+            cs = np.concatenate([cs, np.zeros(lin.NZ)])
+        if th.shape[1] != lin.p:
             raise ValueError(f"POPS width {th.shape[1]} vs {lin.p}")
-        save_samples(out / f"{m}_pops.npz", f"{m}_pops", fit_dir(m, "cr3") / "model.npz", th, lin,
-                     theta_mean=cs, seed=SEEDS["pops"])
-        log(f"{m} pops: {th.shape}")
+        save_samples(out / f"{m}_{tag}.npz", f"{m}_{tag}", fit_dir(m, "cr3") / "model.npz", th, lin,
+                     theta_mean=cs, seed=SEEDS["pops"], ridge=str(b["ridge"]))
+        log(f"{m} {tag}: {th.shape}")
 
 
-STAGES = {"diagnostics": stage_diagnostics, "samples": stage_samples}
+def stage_delta(m, log=print):
+    """Spec §4a: implicit-differentiation rows at theta_hat (from the mean run's relaxed frames), and the JAX
+    re-implementation of both elastic routes on the CR3 lam = 1 samples (the energy route has no harness
+    committee) -> RUNS/delta/<m>.npz, <m>_checks.json."""
+    from .propagate import delta_rows, elastic_committee
+    lin = lin_for(m, "cr3")
+    t = time.time()
+    G, checks, extra = delta_rows(lin, f"SIQ_{m}_cr3", log=log)
+    s = np.load(RUNS / "samples" / f"{m}_cr3.npz")
+    el = elastic_committee(lin, s["theta"], extra["a0"])
+    out = RUNS / "delta"
+    out.mkdir(parents=True, exist_ok=True)
+    keys = sorted(G)
+    np.savez(out / f"{m}.npz", keys=np.array(keys), G=np.stack([G[k] for k in keys]), da0=extra["da0"],
+             elastic_committee=el)
+    json.dump({"checks": {k: [float(v[0]) if v[0] is not None else None,
+                              None if v[1] is None else float(v[1]), v[2]] for k, v in checks.items()},
+               "a0": extra["a0"], "seconds": time.time() - t}, open(out / f"{m}_checks.json", "w"), indent=1)
+    log(f"{m}: {len(keys)} delta rows in {time.time() - t:.0f} s")
+
+
+def stage_assemble(models, log=print):
+    """Spec §4c-§6 tables, joint tests, figures and run metadata, over the models whose inputs exist."""
+    from . import assemble, figures
+    rows, dvc, cov, joint, extras = [], [], [], {}, {}
+    for m in models:
+        if not (RUNS / "delta" / f"{m}.npz").exists() or not (RUNS / "diag" / f"{m}_scales.json").exists():
+            log(f"{m}: delta or diagnostics missing, skipped")
+            continue
+        r, d, ex = assemble.model_tables(m, K, log=log)
+        rows += r
+        dvc += d
+        extras[m] = ex
+        joint[m] = assemble.joint(m, ex)
+    cov = assemble.coverage(rows)
+    RESULTS.mkdir(exist_ok=True)
+    assemble.write_csv(RESULTS / "qoi_uq.csv", rows)
+    assemble.write_csv(RESULTS / "delta_vs_committee.csv", dvc)
+    assemble.write_csv(RESULTS / "coverage.csv", cov)
+    json.dump(joint, open(RESULTS / "joint_tests.json", "w"), indent=1)
+    write_scale_csv(models)
+    figures.all_figures(RESULTS, FIGURES, RUNS, list(extras), extras)
+    write_metadata(list(extras))
+    log(f"assembled {len(rows)} rows for {list(extras)}")
+
+
+def write_metadata(models):
+    import platform, subprocess, importlib.metadata as md
+    git = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=HERE).stdout.strip()
+    dirty = bool(subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, cwd=HERE).stdout.strip())
+    pk = {}
+    for p in ("jax", "jaxlib", "numpy", "scipy", "ase", "matscipy", "phonopy"):
+        try:
+            pk[p] = md.version(p)
+        except md.PackageNotFoundError:
+            pk[p] = None
+    walls = {}
+    for m in models:
+        for v in ("cr3", "kappa", "pops"):
+            st = RUNS / "fits" / m / v / "timings.json"
+            if st.exists():
+                walls[f"fit/{m}/{v}"] = json.load(open(st)).get("total")
+        for f in (RUNS / "diag" / f"{m}_scales.json", RUNS / "delta" / f"{m}_checks.json"):
+            if f.exists():
+                walls[f"{f.parent.name}/{m}"] = json.load(open(f)).get("seconds")
+        for s in ("cr3", "posterior", "cr3lamF", "pops"):
+            tot = 0.0
+            for t in (RUNS / "logs").glob(f"committee_{m}_{s}_*.times.json"):
+                tot += sum(json.load(open(t)).values())
+            if tot:
+                walls[f"committee/{m}/{s} (cpu-process s)"] = tot
+    meta = {"git": git, "dirty": dirty, "packages": pk, "python": platform.python_version(), "host": platform.node(),
+            "seeds": {"fit": 0, **SEEDS}, "K": K, "harness": {"path": "~/silicon-testing-framework (py3 port)",
+            "env": {"SI_TESTS_ELASTIC_FMAX": "1e-3"}}, "runs": str(RUNS), "wall_s": walls,
+            "hardware": "fits, diagnostics, delta, committees: lestrade (32 cores, 62 GB) and mnf148 (32 cores, 256 GB)"}
+    json.dump(meta, open(RESULTS / "run_metadata.json", "w"), indent=1)
+
+
+STAGES = {"diagnostics": stage_diagnostics, "samples": stage_samples, "delta": stage_delta}
+GLOBAL = {"assemble": stage_assemble}
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--all", action="store_true")
-    ap.add_argument("--stage", choices=list(STAGES), action="append", default=[])
+    ap.add_argument("--stage", choices=list(STAGES) + list(GLOBAL) + ["report"], action="append", default=[])
     ap.add_argument("--models", nargs="*", default=list(MODELS))
     a = ap.parse_args()
     import jax
     jax.config.update("jax_enable_x64", True)
-    stages = list(STAGES) if a.all else a.stage
+    # --all: the report from existing intermediates (the heavy per-model stages run on the compute nodes first;
+    # a stage whose output exists is not redone)
+    stages = ["assemble", "report"] if a.all else a.stage
     for s in stages:
+        if s in GLOBAL:
+            GLOBAL[s](a.models)
+            continue
+        if s == "report":
+            from .report import write_report
+            write_report(RESULTS, HERE / "REPORT.md")
+            continue
         for m in a.models:
             r = STAGES[s](m)
             if s == "diagnostics":
