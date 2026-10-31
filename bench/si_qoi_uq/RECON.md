@@ -200,3 +200,22 @@ CPU-h, **if** each run reloads the model. A driver that keeps one process per te
   diamond. Results are in `results/lamF_physical.csv`, `lamF_physical_filter.json`, and the coverage rows
   `CR3-committee-lamF-{full,physical}`. The 2.0 Å threshold was set from silicon's 2.35 Å bond, not tuned. Note that 2.2 Å would
   reject 125 members, including members as compact as the mean model itself (2.24 Å).
+
+## BLR posterior (decision, 2026-10-31): supersedes the ARD fits for the headline
+
+- The o4d20 `--uq ard` fit (sequential, shared noise; GPU run) is degenerate. Its evidence optimiser never
+  left the box floor: every a_k = a_floor = 4.30, the projected gradient is 0, and cond(S) ≈ 7e15 in all three evidence
+  fits. Its mean, solved by a Cholesky of S, is far less accurate than the benchmark o4d20. Test RMSE: E 16.4
+  against 3.5 meV/atom, F 0.125 against 0.082 eV/Å, V 59.6 against 29.7 meV/atom. o3d12 behaved the same,
+  more mildly (E 21.4 against 15.9).
+- Cause: the BLR fit is ARD at its start point (a_k = −2 log σ_c, `ARDEvidence.h0`), but 12 nats (o4d20) below
+  the ARD floor log(λ_max/1e14). At the BLR prior, cond(S) is beyond a float64 Cholesky, and the BLR fit solves
+  by QR instead.
+- **Decision: keep the benchmark's own BLR fits** (θ̂ = their posterior mean at `theta_map.json`). Build the
+  CR3 shape and the B1 posterior around them (`blr_cr3.py`): the A factor by `posterior_from_qr` (L Lᵀ = A),
+  chol(S) = D⁻¹L in ARD's coordinates, then the existing whole-configuration `press_scores` and `shape_factor`.
+  The QR mean reproduces the benchmark model's coefficients to 1.7e-6 relative (o3d12).
+- Runs live in `runs/si_qoi_uq_blr` (`SIQ_RUNS`). The ARD-based runs stay in `runs/si_qoi_uq`, and their results
+  are snapshotted in `runs/si_qoi_uq/ard_snapshot/` as an ablation. POPS needs no change (its mean is the BLR mean), so its fits and
+  harness results are linked into the new root after checking that the members are identical.
+- Not redone at the BLR fit: the 3 r_cut cluster sensitivity.

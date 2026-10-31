@@ -64,6 +64,8 @@ def model_tables(m, K=200, log=print):
         facs.append(("cr3_ell3", _lin(m, "cr3_ell3").factor("cr3")))
     sd_delta = {f: {k: float(np.linalg.norm(L.T @ g)) for k, g in G.items()} for f, L in facs}
     C = {s: _committee(m, s, K) for s in ("cr3", "posterior", "cr3lamF") + tuple(p for p, _ in POPS_SETS)}
+    if C["cr3lamF"] is None:                     # the recorded re-run holds the same members (run.py stage_samples)
+        C["cr3lamF"] = _committee(m, "cr3lamFrec", K)
     Qpops = harness_values(f"SIQ_{m}_pops") if any(C[p] is not None for p, _ in POPS_SETS) else None
     n_ok = {s: (None if c is None else (~np.isnan(c)).sum(0)) for s, c in C.items()}
     rows, dvc, pops_fail = [], [], []
