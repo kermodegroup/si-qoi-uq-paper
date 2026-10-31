@@ -1,5 +1,5 @@
 {
- "git": "24f680ea0d374e21dbb931e870b5a57c0cdb8d7d",
+ "git": "aeea2ba5785c61f59d355e144465e9149bd64e98",
  "dirty": true,
  "packages": {
   "jax": "0.11.2",
@@ -27,11 +27,12 @@
  },
  "runs": "/storage/eng/essswb/projects/ace-jax/runs/si_qoi_uq",
  "wall_s": {
-  "diag/o3d12": 14.783494472503662,
+  "diag/o3d12": 23.196189880371094,
   "delta/o3d12": 216.25810027122498,
   "committee/o3d12/cr3 (cpu-process s)": 2145.6130034923553,
   "committee/o3d12/posterior (cpu-process s)": 2114.757533788681,
-  "committee/o3d12/cr3lamF (cpu-process s)": 2294.4371404647827
+  "committee/o3d12/cr3lamF (cpu-process s)": 3233.2382798194885,
+  "committee/o3d12/pops (cpu-process s)": 1028.6545732021332
  },
  "hardware": "fits, diagnostics, delta, committees: lestrade (32 cores, 62 GB) and mnf148 (32 cores, 256 GB)"
 }

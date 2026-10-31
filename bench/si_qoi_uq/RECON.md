@@ -190,3 +190,7 @@ CPU-h, **if** each run reloads the model. A driver that keeps one process per te
   the median leverage (popsregression uses a leverage percentile; recalled, not re-checked): at the auto
   ridge its members spread 73 meV/atom and 0.031 eV/Å, and it is run in full (B2lev50). At ridge blr the
   members are still unphysical (1.6e5 meV/atom), so that set is not run.
+- POPS default committees were stopped early, once their members had been shown to fail: `pops` after
+  about 125 of 200 members (every relaxing test failed) and `popsblr` after about 14 (single relaxations ran
+  for over 10 min). The exact counts are in `results/pops_committee_finished.csv`. That is below the spec's K ≥ 50 floor, which is meant for budget cuts, not for members that
+  cannot be evaluated. They are reported as failed, with their attempted counts.
