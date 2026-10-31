@@ -151,6 +151,35 @@ def model_tables(m, K=200, log=print):
         if ek in sd_delta["cr3"]:                              # elastic energy route (delta; JAX committee below)
             for sname, lv in lam.items():
                 add("CR3-delta-energy-route", sname, lv, i, k, Qhat[i], lv * sd_delta["cr3"][ek])
+    # lam_F committee re-run with every relaxed structure recorded, members filtered (physical.py), against
+    # the spec's rescaled lam = 1 committee (RECON Q4)
+    phys, phys_summary = [], None
+    if (RUNS / "samples" / f"{m}_cr3lamFrec.npz").exists() and attempted(f"{m}_cr3lamFrec", K) == K:
+        from .physical import filter_committee, min_distance
+        from .harness import ROOT, TESTS
+        mask, recs, phys_summary = filter_committee(f"{m}_cr3lamFrec", K)
+        phys_summary["mean_model_d_min"] = min_distance(
+            [ROOT / "test-runner" / f"model-SIQ_{m}_cr3-test-{t}" for t in TESTS])
+        phys_summary["members"] = [{k_: r[k_] for k_ in ("k", "failed", "n_tests_done", "d_min", "unstable")}
+                                   for r in recs]
+        CF = np.stack([r["Q"] for r in recs])
+        lF = lam["lam_F"]
+        for i, k in enumerate(KEYS):
+            cc = None if C["cr3"] is None else C["cr3"][:, i]
+            s1, r1 = (csd(cc), robust_sd(cc)) if cc is not None else (None, None)
+            sa, ra = csd(CF[:, i]), robust_sd(CF[:, i])
+            sp, rp = csd(CF[mask, i]), robust_sd(CF[mask, i])
+            if sa is not None:
+                add("CR3-committee-lamF-full", "lam_F", lF, i, k, Qhat[i], sa, CF[:, i], Qhat[i])
+            if sp is not None:
+                add("CR3-committee-lamF-physical", "lam_F", lF, i, k, Qhat[i], sp, CF[mask, i], Qhat[i])
+            phys.append(dict(model=m, qoi=k, lam_F=lF,
+                             sigma_rescaled=None if s1 is None else lF * s1,
+                             sigma_full_all=sa, sigma_full_physical=sp,
+                             ratio_physical_vs_rescaled=None if (sp is None or not s1) else sp / (lF * s1),
+                             robust_rescaled=None if r1 is None else lF * r1, robust_full_all=ra, robust_full_physical=rp,
+                             K_finished_all=int(np.isfinite(CF[:, i]).sum()),
+                             K_finished_physical=int(np.isfinite(CF[mask, i]).sum())))
     # elastic: delta vs the JAX re-implementation's committee, both routes (lam = 1)
     el = dz["elastic_committee"]                              # (K, route, 3)
     for r, route in enumerate(("stress", "energy")):
@@ -160,7 +189,8 @@ def model_tables(m, K=200, log=print):
             dvc.append(dict(model=m, qoi=f"{k} [{route} route, JAX committee]", sigma_delta_lam1=sdel,
                             sigma_committee_lam1=scom, ratio=sdel / scom, flagged=abs(sdel / scom - 1) > DELTA_TOL))
     extra = {"Qhat": Qhat, "ref": ref, "C": C, "G": G, "Lc": Lc, "Lp": Lp, "lam": lam, "qb1": qb1,
-             "sd_delta": sd_delta, "elastic_committee": el, "Qpops": Qpops, "pops_finished": pops_fail}
+             "sd_delta": sd_delta, "elastic_committee": el, "Qpops": Qpops, "pops_finished": pops_fail,
+             "lamF_physical": phys, "lamF_physical_summary": phys_summary}
     return rows, dvc, extra
 
 

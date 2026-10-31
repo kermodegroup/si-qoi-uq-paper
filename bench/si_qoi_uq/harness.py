@@ -99,8 +99,9 @@ def _record_relaxations(store):
         setattr(utilities, fn, wrap)
 
 
-def run(samples_npz, ks, tests=TESTS, root=ROOT, force=False, mean=False, log=print):
-    """Run `tests` for samples ks of samples_npz (mean=True: the npz's theta_mean, tag without index)."""
+def run(samples_npz, ks, tests=TESTS, root=ROOT, force=False, mean=False, record=False, log=print):
+    """Run `tests` for samples ks of samples_npz (mean=True: the npz's theta_mean, tag without index).
+    record: keep every member's relaxed structures (siq_relaxed.xyz), as the mean run always does."""
     os.environ.update(ENV)
     import jax
     jax.config.update("jax_enable_x64", True)
@@ -117,7 +118,7 @@ def run(samples_npz, ks, tests=TESTS, root=ROOT, force=False, mean=False, log=pr
         if str(d) not in sys.path:
             sys.path.insert(0, str(d))
     _strip_calc_write()
-    store = {"on": mean, "frames": []}
+    store = {"on": mean or record, "frames": []}
     _record_relaxations(store)
     runner = root / "test-runner"
     times = {}
@@ -194,6 +195,7 @@ def main():
     r.add_argument("samples")
     r.add_argument("--ks", default=None, help="sample indices, e.g. 0-49,60 (default: all)")
     r.add_argument("--mean", action="store_true", help="run the npz's theta_mean instead of its samples")
+    r.add_argument("--record", action="store_true", help="keep each member's relaxed structures")
     r.add_argument("--tests", nargs="*", default=list(TESTS))
     r.add_argument("--force", action="store_true")
     r.add_argument("--times", default=None, help="write per-(sample, test) wall times here (json)")
@@ -203,7 +205,7 @@ def main():
         return
     setup()
     K = len(np.load(a.samples)["theta"])
-    times = run(a.samples, _ks(a.ks) if a.ks else range(K), a.tests, force=a.force, mean=a.mean,
+    times = run(a.samples, _ks(a.ks) if a.ks else range(K), a.tests, force=a.force, mean=a.mean, record=a.record,
                 log=lambda m: print(m, flush=True))
     if a.times:
         json.dump(times, open(a.times, "w"), indent=1)

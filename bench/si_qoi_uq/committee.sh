@@ -1,5 +1,5 @@
 #!/bin/bash
-# committee.sh <samples.npz> <nproc> [--mean-first]: the harness for every sample, split over nproc
+# committee.sh <samples.npz> <nproc> [--mean-first] [--record]: the harness for every sample, split over nproc
 # processes (4 threads each), on this node.  Run detached on lestrade/mnf148.
 set -uo pipefail
 S=$1; P=$2
@@ -16,7 +16,7 @@ fi
 K=$($PY -c "import numpy as np; print(len(np.load('$S')['theta']))")
 for i in $(seq 0 $((P - 1))); do
   ks=$(seq -s, $i $P $((K - 1)))
-  $PY -m bench.si_qoi_uq.harness run "$S" --ks "$ks" --times "$LOG/committee_${tag}_$i.times.json" \
+  $PY -m bench.si_qoi_uq.harness run "$S" --ks "$ks" ${SIQ_RECORD:+--record} --times "$LOG/committee_${tag}_$i.times.json" \
     > "$LOG/committee_${tag}_$i.log" 2>&1 &
 done
 wait

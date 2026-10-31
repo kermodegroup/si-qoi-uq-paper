@@ -102,6 +102,11 @@ def stage_samples(m, log=print):
                              lin.theta_hat[None] + lamF * (xi @ L.T), lin, theta_mean=lin.theta_hat,
                              seed=SEEDS[name], lam=lamF)
                 log(f"{m} cr3 at lam_F = {lamF:.4g}")
+                # the same members again, re-run with every relaxed structure recorded for the physicality
+                # filter (physical.py): a separate tag, so the first lam_F run stays as it was
+                save_samples(out / f"{m}_cr3lamFrec.npz", f"{m}_cr3lamFrec", fit_dir(m, "cr3") / "model.npz",
+                             lin.theta_hat[None] + lamF * (xi @ L.T), lin, theta_mean=lin.theta_hat,
+                             seed=SEEDS[name], lam=lamF)
     for tag, fname in (("pops", "pops_box.npz"), ("popsblr", "pops_box_blr.npz"),
                        ("popslev50", "pops_box_lev50.npz"), ("popsblrlev50", "pops_box_blr_lev50.npz")):
         box = fit_dir(m, "pops") / fname
@@ -160,6 +165,11 @@ def stage_assemble(models, log=print):
     assemble.write_csv(RESULTS / "qoi_uq.csv", rows)
     assemble.write_csv(RESULTS / "delta_vs_committee.csv", dvc)
     assemble.write_csv(RESULTS / "coverage.csv", cov)
+    ph = [r for ex in extras.values() for r in ex["lamF_physical"]]
+    if ph:
+        assemble.write_csv(RESULTS / "lamF_physical.csv", ph)
+        json.dump({m: ex["lamF_physical_summary"] for m, ex in extras.items() if ex["lamF_physical_summary"]},
+                  open(RESULTS / "lamF_physical_filter.json", "w"), indent=1, default=float)
     assemble.write_csv(RESULTS / "pops_committee_finished.csv", [r for ex in extras.values() for r in ex["pops_finished"]])
     json.dump(joint, open(RESULTS / "joint_tests.json", "w"), indent=1)
     write_scale_csv(models)

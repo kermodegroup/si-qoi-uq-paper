@@ -6,7 +6,9 @@ import numpy as np
 HEAD = ("CR3-headline", "lam_F")
 TABLE_METHODS = [("CR3-headline", "lam_F", "CR3, λ_F"), ("CR3-headline", "lam_V", "CR3, λ_V"),
                  ("CR3-headline", "lam_E", "CR3, λ_E"), ("CR3-headline", "lam_pool", "CR3, λ_pool"),
-                 ("CR3-delta", "lam_F", "CR3 delta only, λ_F"), ("CR3-committee", "lam_F", "CR3 committee only, λ_F"),
+                 ("CR3-delta", "lam_F", "CR3 delta only, λ_F"), ("CR3-committee", "lam_F", "CR3 committee only, λ_F (λ = 1 run, rescaled)"),
+                 ("CR3-committee-lamF-full", "lam_F", "CR3 committee, full λ_F re-run, all members"),
+                 ("CR3-committee-lamF-physical", "lam_F", "CR3 committee, full λ_F re-run, physical members"),
                  ("B3-headline", "lam_1", "B3: CR3, λ = 1"), ("B1-headline", "q_b1", "B1: posterior × q̂"),
                  ("B2-committee", "lam_1", "B2: POPS (auto ridge)"), ("B2blr-committee", "lam_1", "B2: POPS (ridge blr)"),
                  ("B2lev50-committee", "lam_1", "B2 variant: POPS, leverage pct 50"),
@@ -107,6 +109,26 @@ def write_report(results, out):
     L += ["", "Robust σ is half the 16–84 % range. Where delta/robust ≈ 1, the disagreement comes from a tail of "
           "members that change basin. It is not curvature in the bulk of the committee.", ""]
 
+    pf_ = results / "lamF_physical.csv"
+    if pf_.exists():
+        ph = _read(pf_)
+        filt = json.load(open(results / "lamF_physical_filter.json"))
+        L += ["## λ_F committee: rescaled against the full re-run (`lamF_physical.csv`, `lamF_physical_filter.json`)", ""]
+        for m, fs in filt.items():
+            L.append(f"{m}: the same 200 members drawn at λ_F = {_f(ph[0]['lam_F'])} and re-run. Accepted "
+                     f"{fs['accepted']}/{fs['K']}, rejected for a failed test {fs['rejected_failed']}, "
+                     f"for collapse (a relaxed distance < {fs['d_min_threshold']:g} Å) {fs['rejected_collapse']}, and for "
+                     f"Born instability {fs['rejected_unstable']} (reasons overlap). The mean model's shortest relaxed distance is "
+                     f"{_f(fs['mean_model_d_min'])} Å. Accepted at 1.8 / 2.0 / 2.2 Å: "
+                     + " / ".join(str(v) for v in fs["accepted_at_threshold"].values()) + ".")
+        L += ["", "| model | QoI | σ rescaled (λ_F × λ=1 SD) | σ full, all | σ full, physical | physical / rescaled | "
+              "robust: rescaled / all / physical | K physical |", "|---|---|---|---|---|---|---|---|"]
+        for r in ph:
+            L.append(f"| {r['model']} | {r['qoi']} | {r['sigma_rescaled']:.3g} | {r['sigma_full_all']:.3g} | "
+                     f"{r['sigma_full_physical']:.3g} | {_f(r['ratio_physical_vs_rescaled'])} | "
+                     f"{r['robust_rescaled']:.3g} / {r['robust_full_all']:.3g} / {r['robust_full_physical']:.3g} | "
+                     f"{int(r['K_finished_physical'])} |")
+        L.append("")
     L += ["## Elastic constants: stress and energy routes (CR3, λ_F; `qoi_uq.csv`)", "",
           "| model | QoI | Q̂ | DFT | σ stress route | σ energy route |", "|---|---|---|---|---|---|"]
     for m in models:
