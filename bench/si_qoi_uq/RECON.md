@@ -141,3 +141,23 @@ CPU-h, **if** each run reloads the model. A driver that keeps one process per te
 - **Q7. Compute placement.** The ARD fit of o4d20 (p = 5476; the BLR fit took 53 min and 10.5 GB on
   lestrade) plus a PRESS jackknife with exact per-cluster solves would exceed this session's 16 GB cap.
   Run the fits and committees detached on mnf148 or lestrade.
+
+## Decisions (James Kermode, 2026-10-31)
+
+- Q1: delta method (implicit differentiation) for the smooth subset: elastic constants (stress and
+  energy routes), phases, defects, (100) surface and decohesion. γ_us and phonons are committee only.
+  Discrete max/argmin steps use the fixed-index (envelope) rule and are flagged in §4c.
+- Q2: the phonon RMS is excluded from coverage (n = 20). Its predicted spread is reported against the
+  observed RMS separately.
+- Q3: headline fits use `--ard-cluster-size inf` (whole configurations). The default (3 r_cut) is a
+  sensitivity run.
+- Q4: committees at λ = 1, with QoI deviations rescaled for each λ. One full re-run at λ_F checks the
+  nonlinearity.
+- Q6: code under `bench/si_qoi_uq/` (repository convention), run as `python -m bench.si_qoi_uq.run --all`.
+- Fits: `--noise shared` (the accuracy-cost fits) is refused by `--uq ard` in joint mode, which
+  refits σ_E, σ_F and σ_V by its own evidence. On o3d12 the joint fit chose σ_E/σ_F ≈ 29 (shared: 1), giving
+  a force-dominated mean. Test RMSE joint ARD against the benchmark BLR: E 78.7 against 15.9 meV/atom,
+  V 191 against 104 meV/atom, F 0.133 against 0.158 eV/Å. All three ARD precisions ended at their lower bound.
+  **Decision (2026-10-31): `--ard-mode sequential --noise shared`**, which keeps the benchmark's noise
+  ratios, with ARD on the precisions only (`fits.sh`). The joint-mode o3d12 outputs are kept in
+  `fits/o3d12/joint_*` for comparison.
