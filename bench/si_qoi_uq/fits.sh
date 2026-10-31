@@ -3,7 +3,8 @@
 # Same data, basis and flags as the accuracy-cost fits (runs/accuracy_cost/ace/<model>/cmd.txt), plus the UQ
 # flags.  --ard-mode sequential keeps --noise shared (the benchmark's noise ratios; joint mode refits sigma_E/F/V
 # by evidence, which on o3d12 gave sigma_E/sigma_F ~ 29 and a force-dominated mean: RECON "Fits").  Seed 0.
-# Launch detached on mnf148/lestrade (o4d20 > 10 GB).
+# Launch detached on mnf148/lestrade (o4d20 > 10 GB).  GPU: SIQ_GPU_VENV=<venv with a CUDA jax> runs this
+# worktree's source (PYTHONPATH) under that venv on the GPU, without touching .venv (identical jax 0.11.2).
 set -euo pipefail
 M=$1; V=$2
 DATA=/storage/eng/essswb/projects/ace-jax/data/si_accuracy_cost
@@ -21,7 +22,14 @@ case $V in
 esac
 mkdir -p "$OUT"
 cd "$(dirname "$0")/../.."
-export JAX_ENABLE_X64=1 JAX_PLATFORMS=cpu
-exec /usr/bin/time -v .venv/bin/aj fit --train $DATA/train.xyz --test $DATA/test.xyz $BASIS --rcut 5.0 \
+export JAX_ENABLE_X64=1
+if [ -n "${SIQ_GPU_VENV:-}" ]; then
+  export PYTHONPATH=$PWD/src XLA_PYTHON_CLIENT_PREALLOCATE=false JAX_PLATFORMS=cuda
+  AJ=("$SIQ_GPU_VENV/bin/python" -m ace_jax.cli)
+else
+  export JAX_PLATFORMS=cpu
+  AJ=(.venv/bin/aj)
+fi
+exec /usr/bin/time -v "${AJ[@]}" fit --train $DATA/train.xyz --test $DATA/test.xyz $BASIS --rcut 5.0 \
   --virial-key virial --weights $DATA/weights_acejax.json --e0 lsq --rungs map --m-per-species 0 \
   --noise shared --ard-mode sequential --configs-per-batch 1 --seed 0 $UQ --out "$OUT" > "$OUT/fit.log" 2>&1
