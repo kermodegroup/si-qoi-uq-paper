@@ -49,15 +49,19 @@ def main():
     # one ridge per member set: the predictions use one per quantity, a parameter committee needs one -- the
     # auto-selected force ridge (o3d12: E = F = V = 1e-14); and "blr" (c* the BLR mean, A the BLR posterior),
     # since 1e-14 relative sits at the eigendecomposition's resolution, where A is roundoff (RECON)
-    for name, rd in (("pops_box", ridge["F"] if isinstance(ridge, dict) else ridge), ("pops_box_blr", "blr")):
-        A, coef, keepm = path._coef(rd, 0.0)
+    rF = ridge["F"] if isinstance(ridge, dict) else ridge
+    # leverage percentile 50: only the high-leverage half of the rows define members (ace-jax's default 0 keeps
+    # every row, and the min/max box is then set by low-leverage rows whose corrections r_i / h_i explode)
+    for name, rd, lev in (("pops_box", rF, 0.0), ("pops_box_blr", "blr", 0.0),
+                          ("pops_box_lev50", rF, 50.0), ("pops_box_blr_lev50", "blr", 50.0)):
+        A, coef, keepm = path._coef(rd, lev)
         W, _ = path.rows.moment_sums(coef)
         support = hypercube_support(A @ W @ A, 1.0e-8)
         lo, hi = path.rows.projection_bounds(coef, keepm, A @ support)
         c_star = np.asarray(path.c_star)                         # the mean the predictions used (POPS_MEAN)
         np.savez(out / f"{name}.npz", c_star=c_star, support=np.asarray(support), lo=np.asarray(lo),
-                 hi=np.asarray(hi), ridge=str(rd), ridge_selected=json.dumps(ridge), git=git)
-        print(f"{name}: support {support.shape}, ridge {rd}")
+                 hi=np.asarray(hi), ridge=str(rd), leverage_pct=lev, ridge_selected=json.dumps(ridge), git=git)
+        print(f"{name}: support {support.shape}, ridge {rd}, leverage pct {lev}")
 
 if __name__ == "__main__":
     main()

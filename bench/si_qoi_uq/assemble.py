@@ -12,6 +12,7 @@ from .harness import RUNS
 from .propagate import COVER_KEYS, KEYS, PHONON, DELTA_TOL, clopper, committee, dft, harness_values, joint_test, tol_abs
 
 Z68, Z95 = 1.0, 1.959963984540054
+POPS_SETS = (("pops", "B2"), ("popsblr", "B2blr"), ("popslev50", "B2lev50"), ("popsblrlev50", "B2blrlev50"))
 
 
 def _lin(m, v):
@@ -26,6 +27,15 @@ def _committee(m, set_, K):
         return None
     C = committee(f"{m}_{set_}", K)
     return None if np.all(np.isnan(C)) else C
+
+
+K_MIN = 50                       # spec §4b: a committee needs >= 50 finished members for a QoI
+
+
+def csd(c):
+    """Committee SD of one QoI, None when fewer than K_MIN members finished (failed relaxations are NaN)."""
+    c = c[~np.isnan(c)]
+    return float(np.std(c, ddof=1)) if len(c) >= K_MIN else None
 
 
 def robust_sd(c):
@@ -43,11 +53,14 @@ def model_tables(m, K=200, log=print):
     dz = np.load(RUNS / "delta" / f"{m}.npz")
     G = dict(zip([str(k) for k in dz["keys"]], dz["G"]))
     Lc, Lp = _lin(m, "cr3").factor("cr3"), _lin(m, "kappa").factor("posterior")
-    sd_delta = {f: {k: float(np.linalg.norm(L.T @ g)) for k, g in G.items()} for f, L in (("cr3", Lc), ("posterior", Lp))}
-    C = {s: _committee(m, s, K) for s in ("cr3", "posterior", "cr3lamF", "pops", "popsblr")}
-    Qpops = harness_values(f"SIQ_{m}_pops") if (C["pops"] is not None or C["popsblr"] is not None) else None
+    facs = [("cr3", Lc), ("posterior", Lp)]
+    if "lam_cr3_ell3" in sc and (RUNS / "fits" / m / "cr3_ell3" / "posterior.npz").exists():
+        facs.append(("cr3_ell3", _lin(m, "cr3_ell3").factor("cr3")))
+    sd_delta = {f: {k: float(np.linalg.norm(L.T @ g)) for k, g in G.items()} for f, L in facs}
+    C = {s: _committee(m, s, K) for s in ("cr3", "posterior", "cr3lamF") + tuple(p for p, _ in POPS_SETS)}
+    Qpops = harness_values(f"SIQ_{m}_pops") if any(C[p] is not None for p, _ in POPS_SETS) else None
     n_ok = {s: (None if c is None else (~np.isnan(c)).sum(0)) for s, c in C.items()}
-    rows, dvc = [], []
+    rows, dvc, pops_fail = [], [], []
 
     def add(method, scale, lv, i, k, mean, sig, comm=None, center=None):
         r0 = ref[i]
@@ -69,14 +82,14 @@ def model_tables(m, K=200, log=print):
 
     for i, k in enumerate(KEYS):
         cc = None if C["cr3"] is None else C["cr3"][:, i]
-        s_comm1 = None if cc is None else float(np.nanstd(cc, ddof=1))
+        s_comm1 = None if cc is None else csd(cc)
         s_del1 = sd_delta["cr3"].get(k)
         flagged = None
         if s_del1 is not None and s_comm1:
             flagged = abs(s_del1 / s_comm1 - 1) > DELTA_TOL
         lamF_full = lamF_rob = None
         if C["cr3lamF"] is not None:
-            lamF_full = float(np.nanstd(C["cr3lamF"][:, i], ddof=1))
+            lamF_full = csd(C["cr3lamF"][:, i])
             lamF_rob = robust_sd(C["cr3lamF"][:, i])
         rob1 = None if cc is None else robust_sd(cc)
         n_bad = None
@@ -101,26 +114,32 @@ def model_tables(m, K=200, log=print):
             method_tag = "B3" if sname == "lam_1" else "CR3"
             if s_del1 is not None:
                 add(f"{method_tag}-delta", sname, lv, i, k, Qhat[i], lv * s_del1)
-            if cc is not None:
+            if s_comm1 is not None:
                 add(f"{method_tag}-committee", sname, lv, i, k, Qhat[i], lv * s_comm1, cc, Qhat[i])
             hs = s_comm1 if (flagged or s_del1 is None) else s_del1
             if hs is not None:
                 add(f"{method_tag}-headline", sname, lv, i, k, Qhat[i], lv * hs)
         sp_del = sd_delta["posterior"].get(k)
         cp = None if C["posterior"] is None else C["posterior"][:, i]
-        sp_comm = None if cp is None else float(np.nanstd(cp, ddof=1))
+        sp_comm = None if cp is None else csd(cp)
         if sp_del is not None:
             add("B1-delta", "q_b1", qb1, i, k, Qhat[i], qb1 * sp_del)
-        if cp is not None:
+        if sp_comm is not None:
             add("B1-committee", "q_b1", qb1, i, k, Qhat[i], qb1 * sp_comm, cp, Qhat[i])
         fl1 = sp_del is not None and sp_comm and abs(sp_del / sp_comm - 1) > DELTA_TOL
         hs = sp_comm if (fl1 or sp_del is None) else sp_del
         if hs is not None:
             add("B1-headline", "q_b1", qb1, i, k, Qhat[i], qb1 * hs)
-        for cs_, meth in (("pops", "B2-committee"), ("popsblr", "B2blr-committee")):
+        for cs_, meth in ((p, f"{b}-committee") for p, b in POPS_SETS):
             if C[cs_] is not None:                            # both member sets share POPS's mean c*
                 cpo = C[cs_][:, i]
-                add(meth, "lam_1", 1.0, i, k, Qpops[i], float(np.nanstd(cpo, ddof=1)), cpo, Qpops[i])
+                sg = csd(cpo)
+                if sg is not None:
+                    add(meth, "lam_1", 1.0, i, k, Qpops[i], sg, cpo, Qpops[i])
+                pops_fail.append(dict(model=m, set=cs_, qoi=k, K_finished=int((~np.isnan(cpo)).sum())))
+        if "cr3_ell3" in sd_delta and k in sd_delta["cr3_ell3"]:      # sensitivity: default clusters, delta only
+            for sname, lv in sc["lam_cr3_ell3"].items():
+                add("CR3ell3-delta", f"lam_{sname}", lv, i, k, Qhat[i], lv * sd_delta["cr3_ell3"][k])
         ek = f"energy:{k}"
         if ek in sd_delta["cr3"]:                              # elastic energy route (delta; JAX committee below)
             for sname, lv in lam.items():
@@ -134,7 +153,7 @@ def model_tables(m, K=200, log=print):
             dvc.append(dict(model=m, qoi=f"{k} [{route} route, JAX committee]", sigma_delta_lam1=sdel,
                             sigma_committee_lam1=scom, ratio=sdel / scom, flagged=abs(sdel / scom - 1) > DELTA_TOL))
     extra = {"Qhat": Qhat, "ref": ref, "C": C, "G": G, "Lc": Lc, "Lp": Lp, "lam": lam, "qb1": qb1,
-             "sd_delta": sd_delta, "elastic_committee": el, "Qpops": Qpops}
+             "sd_delta": sd_delta, "elastic_committee": el, "Qpops": Qpops, "pops_finished": pops_fail}
     return rows, dvc, extra
 
 
@@ -170,7 +189,7 @@ def joint(m, extra):
     for name, lv, cset, L in cases:
         r = {}
         if C[cset] is not None:
-            ok = [i for i in idx if np.isfinite(ref[i]) and (~np.isnan(C[cset][:, i])).sum() > 10]
+            ok = [i for i in idx if np.isfinite(ref[i]) and (~np.isnan(C[cset][:, i])).sum() >= K_MIN]
             X = C[cset][:, ok]
             X = X[~np.isnan(X).any(1)]
             S = lv ** 2 * np.cov(X, rowvar=False)
@@ -181,13 +200,13 @@ def joint(m, extra):
         ii = [KEYS.index(k) for k in dk]
         r["delta"] = dict(qois=dk, **joint_test(Qhat[ii] - ref[ii], S))
         res[name] = r
-    for cs_, name in (("pops", "B2/lam_1"), ("popsblr", "B2blr/lam_1")):
+    for cs_, name in ((p, f"{b}/lam_1") for p, b in POPS_SETS):
         if C[cs_] is None:
             continue
-        ok = [i for i in idx if np.isfinite(ref[i]) and (~np.isnan(C[cs_][:, i])).sum() > 10]
+        ok = [i for i in idx if np.isfinite(ref[i]) and (~np.isnan(C[cs_][:, i])).sum() >= K_MIN]
         X = C[cs_][:, ok]
         X = X[~np.isnan(X).any(1)]
-        if len(X) > len(ok):
+        if ok and len(X) > len(ok):
             res[name] = {"committee": dict(qois=[KEYS[i] for i in ok], K_rows=len(X),
                                            **joint_test(extra["Qpops"][ok] - ref[ok], np.cov(X, rowvar=False)))}
     return res

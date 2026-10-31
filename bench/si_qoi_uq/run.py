@@ -38,7 +38,12 @@ def stage_diagnostics(m, log=print):
     if np.abs(lin.theta_hat - linp.theta_hat).max() > 1e-10:
         raise ValueError(f"{m}: cr3 and kappa fits have different means")
     t = time.time()
-    res = test_scores(lin, {"cr3": lin.factor("cr3"), "posterior": linp.factor("posterior")}, log=log)
+    facs = {"cr3": lin.factor("cr3"), "posterior": linp.factor("posterior")}
+    if (fit_dir(m, "cr3_ell3") / "posterior.npz").exists():        # RECON Q3 sensitivity: default 3 r_cut clusters
+        le = lin_for(m, "cr3_ell3")
+        if np.abs(le.theta_hat - lin.theta_hat).max() < 1e-10:
+            facs["cr3_ell3"] = le.factor("cr3")
+    res = test_scores(lin, facs, log=log)
     out = RUNS / "diag"
     out.mkdir(parents=True, exist_ok=True)
     np.savez(out / f"{m}.npz", **{k: v for k, v in res.items() if k not in ("sd", "n_dropped")},
@@ -46,7 +51,11 @@ def stage_diagnostics(m, log=print):
     rows, lam = scales(res, "cr3")
     rows_p, lam_p = scales(res, "posterior")
     q = conformal_q(res, "posterior")
+    if "cr3_ell3" in facs:
+        rows_e, lam_e = scales(res, "cr3_ell3")
+        rows_p += rows_e
     summary = {"model": m, "lam_cr3": lam, "lam_posterior_rms": lam_p, "q_b1": q,
+               **({"lam_cr3_ell3": lam_e} if "cr3_ell3" in facs else {}),
                "q_b1_level": 0.6827, "n_dropped_rows": res["n_dropped"], "seconds": time.time() - t}
     json.dump(summary, open(out / f"{m}_scales.json", "w"), indent=1)
     for r in rows + rows_p:
@@ -93,7 +102,8 @@ def stage_samples(m, log=print):
                              lin.theta_hat[None] + lamF * (xi @ L.T), lin, theta_mean=lin.theta_hat,
                              seed=SEEDS[name], lam=lamF)
                 log(f"{m} cr3 at lam_F = {lamF:.4g}")
-    for tag, fname in (("pops", "pops_box.npz"), ("popsblr", "pops_box_blr.npz")):
+    for tag, fname in (("pops", "pops_box.npz"), ("popsblr", "pops_box_blr.npz"),
+                       ("popslev50", "pops_box_lev50.npz"), ("popsblrlev50", "pops_box_blr_lev50.npz")):
         box = fit_dir(m, "pops") / fname
         if not box.exists():
             continue
@@ -150,6 +160,7 @@ def stage_assemble(models, log=print):
     assemble.write_csv(RESULTS / "qoi_uq.csv", rows)
     assemble.write_csv(RESULTS / "delta_vs_committee.csv", dvc)
     assemble.write_csv(RESULTS / "coverage.csv", cov)
+    assemble.write_csv(RESULTS / "pops_committee_finished.csv", [r for ex in extras.values() for r in ex["pops_finished"]])
     json.dump(joint, open(RESULTS / "joint_tests.json", "w"), indent=1)
     write_scale_csv(models)
     figures.all_figures(RESULTS, FIGURES, RUNS, list(extras), extras)

@@ -8,7 +8,10 @@ TABLE_METHODS = [("CR3-headline", "lam_F", "CR3, λ_F"), ("CR3-headline", "lam_V
                  ("CR3-headline", "lam_E", "CR3, λ_E"), ("CR3-headline", "lam_pool", "CR3, λ_pool"),
                  ("CR3-delta", "lam_F", "CR3 delta only, λ_F"), ("CR3-committee", "lam_F", "CR3 committee only, λ_F"),
                  ("B3-headline", "lam_1", "B3: CR3, λ = 1"), ("B1-headline", "q_b1", "B1: posterior × q̂"),
-                 ("B2-committee", "lam_1", "B2: POPS (auto ridge)"), ("B2blr-committee", "lam_1", "B2: POPS (ridge blr)")]
+                 ("B2-committee", "lam_1", "B2: POPS (auto ridge)"), ("B2blr-committee", "lam_1", "B2: POPS (ridge blr)"),
+                 ("B2lev50-committee", "lam_1", "B2 variant: POPS, leverage pct 50"),
+                 ("B2blrlev50-committee", "lam_1", "B2 variant: POPS, ridge blr, leverage pct 50"),
+                 ("CR3ell3-delta", "lam_F", "sensitivity: CR3 3 r_cut clusters, delta, own λ_F")]
 
 
 def _read(path):
@@ -133,6 +136,16 @@ def write_report(results, out):
         if miss:
             L.append(f"- {m}: QoIs with fewer than 200 finished λ = 1 committee runs: " +
                      ", ".join(f"{r['qoi']} ({int(r['K_ok'])})" for r in miss) + ".")
+    pf = results / "pops_committee_finished.csv"
+    if pf.exists():
+        pr = _read(pf)
+        for m in models:
+            for st in sorted({r["set"] for r in pr if r["model"] == m}):
+                rr = [r for r in pr if r["model"] == m and r["set"] == st and r["qoi"] != "phonon_f rms vs DFT (THz)"]
+                ok = sum(r["K_finished"] >= 50 for r in rr)
+                L.append(f"- {m}, POPS set `{st}`: {ok} of {len(rr)} coverage QoIs have >= 50 of 200 members finished "
+                         f"(median finished per QoI {int(np.median([r['K_finished'] for r in rr]))}); a QoI below 50 "
+                         "gets no σ (`pops_committee_finished.csv`).")
     ph = [r for r in qoi if r["qoi"].startswith("phonon") and r["method"] == "CR3-committee" and r["scale"] == "lam_F"]
     for r in ph:
         L.append(f"- {r['model']}: phonon RMS is excluded from coverage. The model's RMS against DFT is {_f(r['mean'], 3)} THz; "
