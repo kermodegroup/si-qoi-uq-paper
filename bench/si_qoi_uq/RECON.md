@@ -245,3 +245,7 @@ are +1.18/+1.45/+1.74 and +0.37/+0.41/+0.60 eV. All 103 training interstitial ce
 jackknife, the posterior and the committees cannot see it, while on training-like cells the intervals are calibrated (z RMS 0.85–1.13).
 Divacancy shows the same trend (no QoI). The vacancy does not: −0.24 / +0.04 eV predicted, +0.11 / +0.88 eV observed.
 Candidate UQ remedy, untested: jackknife clusters coarser than a configuration (whole config types).
+- **PR 137, o4d20 cr3 fit** (GPU, 1 h 53 min): all four a_k interior (−12.0, −12.4, −8.7, −6.4; floor −14.1); not
+  degenerate; cond(S) 1.7e21. Test split: E 3.38 meV/atom, F 0.0817 eV/Å, V 32.4 meV/atom, against the
+  benchmark BLR's 3.50, 0.0816 and 32.6 (fit-log table for both). Note: issue #136's o4d20 table compared BLR
+  29.7 (metrics.jsonl normalisation) with ARD 59.6 (fit-log table). Like for like, it is 32.6 → 59.6.
