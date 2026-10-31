@@ -20,7 +20,6 @@ BASIS = {"o4d20": ["--order", "4", "--max-degree", "20"], "o3d12": ["--order", "
 def main():
     import jax
     jax.config.update("jax_enable_x64", True)
-    import jax.numpy as jnp
     from ace_jax import cli
     from ace_jax.fit.pipeline import predict as ppred
     from ace_jax.fit.pops import hypercube_support
@@ -39,6 +38,9 @@ def main():
     argv = ["fit", "--train", f"{DATA}/train.xyz", "--test", f"{DATA}/test.xyz", *BASIS[m], "--rcut", "5.0",
             "--virial-key", "virial", "--weights", f"{DATA}/weights_acejax.json", "--e0", "lsq", "--rungs", "map",
             "--m-per-species", "0", "--noise", "shared", "--configs-per-batch", "1", "--seed", "0", "--uq", "pops",
+            # with the default QR statistics the final POPS path's c* (and every test prediction) came out NaN
+            # on o3d12 while the ridge selection (rows recomputed) ran: the Gram statistics avoid it (RECON)
+            "--lml-solver", "cholesky",
             "--out", str(out)]
     cli.main(argv)
     path, ridge = kept["path"], kept["ridge"]

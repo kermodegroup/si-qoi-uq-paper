@@ -8,6 +8,7 @@ so their columns and the virial convention are the fitted ones; E0_pre is subtra
 Global scales (RMS z = 1 per observable type): lam_E (energy per atom: the per-atom division cancels in z),
 lam_F, lam_V, and lam_pool = the RMS over configurations of each configuration's mean over its present types
 of (mean z^2 of that type): E, F and V weighted equally within a configuration, configurations equally.
+Rows that vanish by site symmetry (sd < SYM_ZERO x the median sd of their kind) are dropped and counted.
 """
 import numpy as np
 
@@ -15,6 +16,7 @@ from ace_jax.fit.data import build_dataset, load_configs
 from ace_jax.fit.inducing import GPConfig
 from ace_jax.fit.rows import chunked_rows_fn
 
+SYM_ZERO = 1e-3          # lam_F (o3d12) 5.53 / 5.76 / 5.76 at 1e-1 / 1e-2 / 1e-3; 47.6 at 1e-4 (symmetric interstitial sites)
 TEST_XYZ = "/storage/eng/essswb/projects/ace-jax/data/si_accuracy_cost/test.xyz"
 
 
@@ -64,7 +66,6 @@ def test_scores(lin, factors, xyz=TEST_XYZ, log=print):
         P = jnp.asarray(np.stack(P))
         for k, L in Ls.items():
             sd[k].append(np.asarray(jnp.linalg.norm(P @ L, axis=1)))
-        node_of = {}                                      # force rows: the atom's own group
         f_groups = [int(grp[a]) for a in np.flatnonzero(nm & (wF > 0)) for _ in range(3)]
         n_cfgrows = len(kind) - len(f_groups)
         out["group"] += [stratum[c] for c in cfg[:n_cfgrows]] + f_groups
@@ -72,9 +73,21 @@ def test_scores(lin, factors, xyz=TEST_XYZ, log=print):
         out["cfg"] += [gidx[c] for c in cfg]
         out["ctype"] += [cfgs[gidx[c]].config_type for c in cfg]
         gc += len(live)
-        del node_of
     res = {k: np.asarray(v) for k, v in out.items()}
     res["sd"] = {k: np.concatenate(v) for k, v in sd.items()}
+    # rows that vanish by site symmetry (force components on symmetric sites: the 1-atom sh cells exactly,
+    # surface_110 sites to roundoff, |L^T b| ~ 3e-10, interstitials on symmetric sites ~ 8e-7, against a median 2e-2) carry no score: z there is the
+    # label's own noise over roundoff (|z| ~ 1e5, enough to set the RMS alone).  Rows whose sd is below
+    # SYM_ZERO x the median sd of their kind, under any factor, are dropped and counted.
+    keep = np.ones(len(res["kind"]), bool)
+    for v in res["sd"].values():
+        for t in ("E", "F", "V"):
+            m = res["kind"] == t
+            if m.any():
+                keep[m] &= v[m] > SYM_ZERO * np.median(v[m])
+    res = {k: (v[keep] if isinstance(v, np.ndarray) else {kk: vv[keep] for kk, vv in v.items()}) for k, v in res.items()}
+    res["n_dropped"] = int((~keep).sum())
+    log(f"test scores: {keep.sum()} rows, {int((~keep).sum())} identically-zero rows dropped")
     return res
 
 

@@ -12,7 +12,7 @@ fresh globals.  Output files land where `bench/si_qoi/compare.py::qois` reads th
     python -m bench.si_qoi_uq.harness setup
     python -m bench.si_qoi_uq.harness run SAMPLES.npz --ks 0-49 [--tests ...]
 """
-import argparse, contextlib, io, json, os, pathlib, runpy, sys, time, types
+import argparse, contextlib, json, os, pathlib, runpy, sys, time, types
 
 import numpy as np
 
@@ -85,7 +85,7 @@ def _record_relaxations(store):
     if getattr(utilities.relax_atoms, "_siq", False):
         return
     for fn in ("relax_atoms", "relax_atoms_cell"):
-        def wrap(*a, _orig=getattr(utilities, fn), _fn=fn, **k):
+        def wrap(*a, _orig=getattr(utilities, fn), _fn=fn, **k):  # noqa: B008  (bind per loop pass)
             out = _orig(*a, **k)
             if store["on"]:
                 c = out.copy()
