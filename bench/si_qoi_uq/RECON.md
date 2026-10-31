@@ -194,3 +194,9 @@ CPU-h, **if** each run reloads the model. A driver that keeps one process per te
   about 125 of 200 members (every relaxing test failed) and `popsblr` after about 14 (single relaxations ran
   for over 10 min). The exact counts are in `results/pops_committee_finished.csv`. That is below the spec's K ≥ 50 floor, which is meant for budget cuts, not for members that
   cannot be evaluated. They are reported as failed, with their attempted counts.
+- **λ_F re-run with a physicality filter** (2026-10-31, at the user's request). The same 200 λ_F members were
+  re-run with every relaxed structure recorded. They are filtered by a rule fixed before looking at its
+  effect (`physical.py`): a failed test, a relaxed interatomic distance below 2.0 Å, or Born-unstable
+  diamond. Results are in `results/lamF_physical.csv`, `lamF_physical_filter.json`, and the coverage rows
+  `CR3-committee-lamF-{full,physical}`. The 2.0 Å threshold was set from silicon's 2.35 Å bond, not tuned. Note that 2.2 Å would
+  reject 125 members, including members as compact as the mean model itself (2.24 Å).
