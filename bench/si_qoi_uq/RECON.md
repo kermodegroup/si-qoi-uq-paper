@@ -228,3 +228,9 @@ CPU-h, **if** each run reloads the model. A driver that keeps one process per te
   3. Rerun `run.py --stage diagnostics --stage samples`, `committee.sh` (cr3 with `--mean-first`,
      posterior, and cr3lamFrec with `SIQ_RECORD=1`), `--stage delta`, and `--all`.
   Compare against `runs/si_qoi_uq_blr` and `runs/si_qoi_uq/ard_snapshot`.
+- Correction (from the PR 137 description): the benchmark o3d12 command has no `--test`, so the o3d12 RMSEs in
+  issue #136 and in `runs/si_qoi_uq_blr/ard_floor_check/` (`data.ds_test`) are on the training set. They are
+  still like for like. The o4d20 numbers there come from fits with `--test` and are on the test split.
+- **PR 137 acceptance run** (2026-10-31): head 54e5274, in a detached checkout `.worktrees/pr137-accept`, run
+  with `SIQ_ACEJAX_SRC=<checkout>/src` (`fits.sh`, `committee.sh`) into `runs/si_qoi_uq_ard137`. Same flags
+  as the earlier ARD fits; the PR's defaults are QR solver and floor cond 1e22.

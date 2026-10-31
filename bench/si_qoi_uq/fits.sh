@@ -5,6 +5,7 @@
 # by evidence, which on o3d12 gave sigma_E/sigma_F ~ 29 and a force-dominated mean: RECON "Fits").  Seed 0.
 # Launch detached on mnf148/lestrade (o4d20 > 10 GB).  GPU: SIQ_GPU_VENV=<venv with a CUDA jax> runs this
 # worktree's source (PYTHONPATH) under that venv on the GPU, without touching .venv (identical jax 0.11.2).
+# SIQ_ACEJAX_SRC=<checkout>/src fits with another ace-jax source (e.g. a PR under acceptance), on CPU or GPU.
 set -euo pipefail
 M=$1; V=$2
 DATA=/storage/eng/essswb/projects/ace-jax/data/si_accuracy_cost
@@ -23,8 +24,10 @@ esac
 mkdir -p "$OUT"
 cd "$(dirname "$0")/../.."
 export JAX_ENABLE_X64=1
+SRC=${SIQ_ACEJAX_SRC:-$PWD/src}
+[ -n "${SIQ_ACEJAX_SRC:-}" ] && export PYTHONPATH=$SRC
 if [ -n "${SIQ_GPU_VENV:-}" ]; then
-  export PYTHONPATH=$PWD/src XLA_PYTHON_CLIENT_PREALLOCATE=false JAX_PLATFORMS=cuda
+  export PYTHONPATH=$SRC XLA_PYTHON_CLIENT_PREALLOCATE=false JAX_PLATFORMS=cuda
   AJ=("$SIQ_GPU_VENV/bin/python" -m ace_jax.cli)
 else
   export JAX_PLATFORMS=cpu

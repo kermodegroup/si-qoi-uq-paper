@@ -6,7 +6,7 @@ S=$1; P=$2
 cd "$(dirname "$0")/../.."
 W=$PWD
 LOG=${SIQ_RUNS:-/storage/eng/essswb/projects/ace-jax/runs/si_qoi_uq}/logs
-export JAX_PLATFORMS=cpu OMP_NUM_THREADS=4 PYTHONPATH=$W:$W/src
+export JAX_PLATFORMS=cpu OMP_NUM_THREADS=4 PYTHONPATH=$W:${SIQ_ACEJAX_SRC:-$W/src}
 export XLA_FLAGS="--xla_cpu_multi_thread_eigen=false intra_op_parallelism_threads=4"
 PY=/storage/eng/essswb/venvs/si-tests/bin/python
 tag=$(basename "$S" .npz)
