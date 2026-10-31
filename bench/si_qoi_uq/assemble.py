@@ -38,6 +38,12 @@ def csd(c):
     return float(np.std(c, ddof=1)) if len(c) >= K_MIN else None
 
 
+def attempted(tag, K):
+    """Samples of a committee the runner reached (it logs every (sample, test) it starts)."""
+    from .harness import ROOT, sample_name
+    return sum((ROOT / "test-runner" / f"model-{sample_name(tag, k)}-test-bulk_diamond.txt").exists() for k in range(K))
+
+
 def robust_sd(c):
     """Half the 16-84 % range: the committee's spread without its tail of unphysical members."""
     c = c[~np.isnan(c)]
@@ -136,7 +142,8 @@ def model_tables(m, K=200, log=print):
                 sg = csd(cpo)
                 if sg is not None:
                     add(meth, "lam_1", 1.0, i, k, Qpops[i], sg, cpo, Qpops[i])
-                pops_fail.append(dict(model=m, set=cs_, qoi=k, K_finished=int((~np.isnan(cpo)).sum())))
+                pops_fail.append(dict(model=m, set=cs_, qoi=k, K_finished=int((~np.isnan(cpo)).sum()),
+                                      K_attempted=attempted(f"{m}_{cs_}", K)))
         if "cr3_ell3" in sd_delta and k in sd_delta["cr3_ell3"]:      # sensitivity: default clusters, delta only
             for sname, lv in sc["lam_cr3_ell3"].items():
                 add("CR3ell3-delta", f"lam_{sname}", lv, i, k, Qhat[i], lv * sd_delta["cr3_ell3"][k])

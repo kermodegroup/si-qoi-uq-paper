@@ -150,7 +150,10 @@ def write_report(results, out):
             for st in sorted({r["set"] for r in pr if r["model"] == m}):
                 rr = [r for r in pr if r["model"] == m and r["set"] == st and r["qoi"] != "phonon_f rms vs DFT (THz)"]
                 ok = sum(r["K_finished"] >= 50 for r in rr)
-                L.append(f"- {m}, POPS set `{st}`: {ok} of {len(rr)} coverage QoIs have >= 50 of 200 members finished "
+                ka = int(rr[0]["K_attempted"])
+                L.append(f"- {m}, POPS set `{st}`: {ka} of 200 members run"
+                         + (" (stopped early: the members fail)" if ka < 200 else "") + "; "
+                         f"{ok} of {len(rr)} coverage QoIs have >= 50 finished members "
                          f"(median finished per QoI {int(np.median([r['K_finished'] for r in rr]))}); a QoI below 50 "
                          "gets no σ (`pops_committee_finished.csv`).")
     ph = [r for r in qoi if r["qoi"].startswith("phonon") and r["method"] == "CR3-committee" and r["scale"] == "lam_F"]
