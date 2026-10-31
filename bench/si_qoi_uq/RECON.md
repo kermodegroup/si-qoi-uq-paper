@@ -161,3 +161,24 @@ CPU-h, **if** each run reloads the model. A driver that keeps one process per te
   **Decision (2026-10-31): `--ard-mode sequential --noise shared`**, which keeps the benchmark's noise
   ratios, with ARD on the precisions only (`fits.sh`). The joint-mode o3d12 outputs are kept in
   `fits/o3d12/joint_*` for comparison.
+
+## Notes added during the run (2026-10-31)
+
+- **Calibration data.** §3 sets λ_E, λ_F, λ_V and λ_pool from the 248-configuration test split, and §4 uses
+  them. The "never tune on the test split" rule is read as forbidding tuning of the *fits* there: the fits
+  never see it, and the QoIs (never used for tuning) are the validation. B1's q̂ uses the same test-split
+  scores, so both methods are calibrated on the same data.
+- **Symmetry-zero rows.** Force components that vanish by site symmetry (1-atom sh cells, surface_110 sites,
+  interstitials on symmetric sites) have ‖Lᵀb‖ at roundoff, while the DFT label is not exactly zero. They
+  are dropped from the scores if σ < 10⁻³ × the median σ of their kind (o3d12: 328 of 54179 rows).
+  λ_F is stable from 10⁻¹ to 10⁻³ (5.53–5.76) and jumps to 47.6 at 10⁻⁴ (`diagnostics.py`).
+- **POPS (B2).** With the default QR statistics, the final POPS path gave a NaN mean, so `pops_fit.py` passes
+  `--lml-solver cholesky`. The auto ridge selection picked the grid's smallest relative ridge, 1e-14, for
+  E, F and V. That is at the resolution of the eigendecomposition A is read from (test CRPS ~1e10). B2 is
+  run as specified (auto ridge, force value) and also with `ridge="blr"` (B2blr). Both are reported.
+- **Wide committees.** At λ_F the CR3 members include a tail of unphysical models (for example, vacancy
+  energies down to −435 eV). The spec's SD-rescaled committee is kept as specified. Robust spreads (half
+  the 16–84 % range) are reported beside it in `delta_vs_committee.csv`.
+- **Harness E(V) points.** `lattice_tetragonal` skips E(V) points whose relaxation fails. Some wide samples
+  then have fewer than 12 points (one has none: NaN). The QoI is the harness's own minimum over the points
+  that remain.

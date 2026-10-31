@@ -73,8 +73,8 @@ def strip(results, out, models):
                        edgecolor=SURFACE, linewidth=0.8, zorder=3)
         ax.set_xticks(x, [short(k) for k in COVER_KEYS], rotation=60, ha="right")
         ax.set_ylabel("z = (Q̂ − Q_DFT) / σ  (clipped ±8)", color=INK, fontsize=8)
-        ax.set_title(f"{m}: standardised QoI errors (bands ±1, ±2)", color=INK, fontsize=10, loc="left")
-        ax.legend(fontsize=7, frameon=False, ncol=4, loc="upper left")
+        ax.set_title(f"{m}: standardised QoI errors (bands ±1, ±2)", color=INK, fontsize=10, loc="left", pad=22)
+        ax.legend(fontsize=7, frameon=False, ncol=5, loc="lower left", bbox_to_anchor=(0, 1.08))
     fig.tight_layout()
     _save(fig, out, "fig1_z_strip")
 
@@ -88,6 +88,7 @@ def coverage_bars(results, out, models):
     fig, axes = plt.subplots(1, len(models), figsize=(5.5 * len(models), 3.6), squeeze=False, facecolor=SURFACE)
     for ax, m in zip(axes[0], models):
         _style(ax)
+        n = next((r["n"] for r in cov if r["model"] == m and r["method"] == sel[0][0] and r["scale"] == sel[0][1]), "?")
         for j, (lev, nom) in enumerate((("68", 0.68), ("95", 0.95))):
             for i, (meth, sc, _) in enumerate(sel):
                 r = next((r for r in cov if r["model"] == m and r["method"] == meth and r["scale"] == sc), None)
@@ -102,7 +103,7 @@ def coverage_bars(results, out, models):
         ax.set_xticks(range(len(sel)), [s[2] for s in sel], rotation=30, ha="right")
         ax.set_ylim(0, 1.05)
         ax.set_ylabel("fraction of QoIs covered (95% Clopper–Pearson)", color=INK, fontsize=8)
-        ax.set_title(f"{m}: coverage of DFT, n = {r['n'] if r else '?'}", color=INK, fontsize=10, loc="left")
+        ax.set_title(f"{m}: coverage of DFT, n = {n}", color=INK, fontsize=10, loc="left")
         ax.legend(fontsize=7, frameon=False)
     fig.tight_layout()
     _save(fig, out, "fig2_coverage")
