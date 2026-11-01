@@ -1,0 +1,190 @@
+{
+ "A_model_vs_model": {
+  "interstitial": {
+   "truth_Q_o4d20_minus_Q_o3d12_eV": [
+    0.8090890920211677,
+    1.035560941330914,
+    1.139398255298147
+   ],
+   "paired_eV": [
+    0.9326395523847468,
+    0.07429480878490483
+   ],
+   "regression_eV": [
+    1.1924523537588811,
+    0.052354878354985535
+   ],
+   "abs_err_paired": [
+    0.12355046036357908,
+    0.10292138894616709,
+    0.20675870291340015
+   ],
+   "abs_err_regression": [
+    0.3833632617377134,
+    0.15689141242796723,
+    0.05305409846073417
+   ]
+  },
+  "vacancy": {
+   "truth_Q_o4d20_minus_Q_o3d12_eV": [
+    0.769389897955989
+   ],
+   "paired_eV": [
+    0.23256593331450692,
+    0.06817420044680764
+   ],
+   "regression_eV": [
+    0.21182955723876623,
+    0.05945602487443728
+   ],
+   "abs_err_paired": [
+    0.5368239646414821
+   ],
+   "abs_err_regression": [
+    0.5575603407172227
+   ]
+  }
+ },
+ "B_cold_holdout": {
+  "o3d12": {
+   "interstitial": {
+    "n_held": 21,
+    "x_cut": 0.523468726089954,
+    "rmse_paired_eV": 0.45264590208560307,
+    "bias_paired_eV": 0.22056534801166716,
+    "rmse_regression_eV": 0.1967374391919955,
+    "bias_regression_eV": 0.06420133257940856
+   },
+   "vacancy": {
+    "n_held": 38,
+    "x_cut": 0.4439379795510338,
+    "rmse_paired_eV": 0.8473046415117553,
+    "bias_paired_eV": 0.43002608877053505,
+    "rmse_regression_eV": 0.9577683867232236,
+    "bias_regression_eV": 0.7607592729472646
+   },
+   "divacancy": {
+    "n_held": 14,
+    "x_cut": 0.9555900000453894,
+    "rmse_paired_eV": 0.7615786037277213,
+    "bias_paired_eV": 0.29242616011121403,
+    "rmse_regression_eV": 0.30357995542785016,
+    "bias_regression_eV": 0.060679132442115306
+   }
+  },
+  "o4d20": {
+   "interstitial": {
+    "n_held": 21,
+    "x_cut": 0.523468726089954,
+    "rmse_paired_eV": 0.22804439533106946,
+    "bias_paired_eV": 0.06602704296897519,
+    "rmse_regression_eV": 0.10160651220275374,
+    "bias_regression_eV": 0.00956491804988633
+   },
+   "vacancy": {
+    "n_held": 38,
+    "x_cut": 0.4439379795510338,
+    "rmse_paired_eV": 0.3739869538874267,
+    "bias_paired_eV": 0.27044751981045034,
+    "rmse_regression_eV": 0.42261011624043465,
+    "bias_regression_eV": 0.34675600481192537
+   },
+   "divacancy": {
+    "n_held": 14,
+    "x_cut": 0.9555900000453894,
+    "rmse_paired_eV": 0.2303662148367376,
+    "bias_paired_eV": 0.051702681384593344,
+    "rmse_regression_eV": 0.1303081131418558,
+    "bias_regression_eV": -0.07173402074999112
+   }
+  }
+ },
+ "C_noise": {
+  "interstitial": {
+   "ratio_quantiles": [
+    108.5,
+    108.5,
+    108.5
+   ],
+   "partner_sizes": [
+    2,
+    54,
+    128
+   ],
+   "x_mismatch_rel_median": 0.2595273712694659,
+   "v_mismatch_median_A3": 0.5360322976139109,
+   "o3d12": {
+    "se_paired": 0.09025394850540601,
+    "se_regression": 0.0619573649883012,
+    "scatter_paired": 0.3639296152524174,
+    "scatter_regression": 0.24982973460596541,
+    "partner_term_rms_eV": 0.3542984969838916
+   },
+   "o4d20": {
+    "se_paired": 0.04599476199277823,
+    "se_regression": 0.03152379702221879,
+    "scatter_paired": 0.18546397484931834,
+    "scatter_regression": 0.12711292427171994,
+    "partner_term_rms_eV": 0.35972156262761834
+   }
+  },
+  "vacancy": {
+   "ratio_quantiles": [
+    31.5,
+    107.5,
+    107.5
+   ],
+   "partner_sizes": [
+    2,
+    16,
+    54,
+    128
+   ],
+   "x_mismatch_rel_median": 0.19013328973812757,
+   "v_mismatch_median_A3": 0.29511498379070034,
+   "o3d12": {
+    "se_paired": 0.09724039209287112,
+    "se_regression": 0.10376987491125847,
+    "scatter_paired": 0.5461513890895814,
+    "scatter_regression": 0.5828242781488208,
+    "partner_term_rms_eV": 0.30936294255875013
+   },
+   "o4d20": {
+    "se_paired": 0.042457296287386787,
+    "se_regression": 0.04915793312903749,
+    "scatter_paired": 0.23846172197864046,
+    "scatter_regression": 0.27609589888896413,
+    "partner_term_rms_eV": 0.2422293973921894
+   }
+  },
+  "divacancy": {
+   "ratio_quantiles": [
+    107.0,
+    107.0,
+    107.0
+   ],
+   "partner_sizes": [
+    2,
+    16,
+    54,
+    128
+   ],
+   "x_mismatch_rel_median": 0.1265247879493366,
+   "v_mismatch_median_A3": 0.46053887056072895,
+   "o3d12": {
+    "se_paired": 0.1375098966665002,
+    "se_regression": 0.12290456031117607,
+    "scatter_paired": 0.24274154669005324,
+    "scatter_regression": 0.21695924285036497,
+    "partner_term_rms_eV": 0.35625327947360036
+   },
+   "o4d20": {
+    "se_paired": 0.06575130473239499,
+    "se_regression": 0.06195601067500291,
+    "scatter_paired": 0.11606854338883996,
+    "scatter_regression": 0.10936883978954723,
+    "partner_term_rms_eV": 0.3977935075830891
+   }
+  }
+ }
+}

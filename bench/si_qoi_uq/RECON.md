@@ -292,3 +292,15 @@ The fit uses the BLR prior and shared noise, solved by QR on explicit rows.
   tetrahedral stay outside. The regression estimator (the bulk thermal trend of `defect_trend.json`) gives 20/20 and 18/20,
   with all defect z within ±1.3. It agrees better with the QoI errors for both models, and so is NOT chosen on that basis
   (that would tune on the DFT QoIs). It is reported as a sensitivity with the selection risk stated.
+- **Estimator case without DFT QoIs** (`analysis/estimator_check.py` → `results/estimator_check.json`):
+  - C. The paired form pairs most interstitial snapshots with 2-atom bulk cells, so n_def/n_b has median 108. The partner's
+    residual × ratio has RMS 0.35 eV, the size of the bias. The interstitial intercept SE is 0.090 / 0.046 eV (paired)
+    against 0.062 / 0.032 (regression), for o3d12 / o4d20.
+  - B. Fitting on all but the coldest 20 % of defect snapshots (DFT training labels) and predicting the held-out cells,
+    regression has the lower RMSE for interstitials (o3d12 0.20 against 0.45 eV, o4d20 0.10 against 0.23) and divacancies
+    (0.30 against 0.76, 0.13 against 0.23). Paired is slightly better for vacancies (0.85 against 0.96, 0.37 against 0.42).
+  - A. With o4d20 as the truth for o3d12 (harness QoIs of the models, no DFT), interstitial truth is 0.81 / 1.04 / 1.14 eV,
+    against paired 0.93 and regression 1.19: inconclusive. Vacancy truth is 0.77 eV and both predict about 0.2.
+  - Reading: a data-only case favours regression for interstitials (noise structure, SE, cold extrapolation); neither
+    estimator handles the vacancy. A large-partner pairing variant (≥ 54 atoms) would remove the amplification, but it was
+    defined after seeing these results.
