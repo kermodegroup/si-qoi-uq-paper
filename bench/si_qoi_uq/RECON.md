@@ -249,3 +249,19 @@ Candidate UQ remedy, untested: jackknife clusters coarser than a configuration (
   degenerate; cond(S) 1.7e21. Test split: E 3.38 meV/atom, F 0.0817 eV/Å, V 32.4 meV/atom, against the
   benchmark BLR's 3.50, 0.0816 and 32.6 (fit-log table for both). Note: issue #136's o4d20 table compared BLR
   29.7 (metrics.jsonl normalisation) with ARD 59.6 (fit-log table). Like for like, it is 32.6 → 59.6.
+
+## Difference rows and IRLS (prototype, o3d12, 2026-11-01)
+
+`analysis/diff_rows.py` → `results/diff_rows_o3d12.json` and `results/diff_rows_o3d12_qoi.csv`. Each defect training
+snapshot is paired with the nearest bulk 'dia' snapshot in (volume, F_rms²), giving a row b_def − (n_def/n_b) b_bulk.
+The fit uses the BLR prior and shared noise, solved by QR on explicit rows.
+- Augmenting with these rows (weight k × the defect energy-row weight) flattens the interstitial trend:
+  +1.04 → +0.46 (k = 3) → +0.15 (k = 10) eV.
+- Defect QoI errors (err/tol) fall: vacancy −8.8 → −4.5 / −2.1 / −1.1 and tetrahedral −17.4 → −11.3 / −7.1 / −4.8 at
+  k = 3 / 10 / 30.
+- On o3d12 general accuracy pays from k = 10 (test E 15.9 → 20.3 meV/atom; bcc phase energy −3.1 → −14.6).
+  k = 3 is the best compromise: RMS err/tol over the 20 QoIs is 6.2 → 4.0.
+- Replacing the defect energy rows gives the same result as augmenting.
+- IRLS with the default targets (base per-type RMSE, plus 0.05 eV per cell for the difference rows) diverged: the
+  target is infeasible for o3d12, whose floor is about 0.14 eV. The resulting model fails the harness. Targets must be feasible, or the weights capped.
+- Next: o4d20 via per-type QR statistics (explicit rows are too large at p = 5477).
