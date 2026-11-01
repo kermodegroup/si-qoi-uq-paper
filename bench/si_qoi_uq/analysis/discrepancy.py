@@ -10,13 +10,15 @@ standard error se_t.  For the QoIs of defect class t (interstitial: dumbbell, he
 added to the headline sigma of a method (results/qoi_uq.csv); every other QoI is unchanged.  This leaves the pure
 parameter-space framework for these QoIs and is labelled as such.  No QoI value or tolerance enters r*.
 
-Estimators of r*: "paired" (default; analysis/bias_term.py: each defect snapshot against its nearest bulk snapshot,
-the form that is also a linear synthetic row) and "regression" (analysis/defect_trend.py: the bulk reference is a
-per-atom thermal trend fitted over all bulk cells near the defect volume).  The regression form agrees better with the
-QoI errors, but preferring it for that reason would tune on the validation data; it is reported as a sensitivity.
+Estimators of r*: "paired" (analysis/bias_term.py: each defect snapshot against its nearest bulk snapshot, the form that
+is also a linear synthetic row) and "regression" (analysis/defect_trend.py: the bulk reference is a per-atom thermal
+trend fitted over all bulk cells near the defect volume).  "headline" (the default, decision 2026-11-01) takes regression
+for the interstitial class and paired for the vacancy: the data-only evidence of analysis/estimator_check.py favours
+regression for interstitials (the paired form amplifies a 2-atom partner's residual ~108x; smaller SE; better cold
+hold-out extrapolation) and neither for the vacancy.  "paired" and "regression" are kept as sensitivities.
 
     python -m bench.si_qoi_uq.analysis.discrepancy [--estimator paired|regression] o3d12 [o4d20]
-        -> results/discrepancy[_regression].csv, .json
+        -> results/discrepancy[_paired|_regression].csv, .json
 """
 import csv, json, sys
 
@@ -33,20 +35,20 @@ Z68, Z95 = 1.0, 1.959963984540054
 
 def main():
     args = sys.argv[1:]
-    est = "paired"
+    est = "headline"
     if "--estimator" in args:
         i = args.index("--estimator"); est = args[i + 1]; del args[i:i + 2]
     models = args or ["o3d12"]
-    suffix = "" if est == "paired" else f"_{est}"
+    suffix = "" if est == "headline" else f"_{est}"
     rows = list(csv.DictReader(open(RESULTS / "qoi_uq.csv")))
     out, summ = [], {}
     for m in models:
-        if est == "paired":
-            syn = json.load(open(RESULTS / f"bias_term_{m}.json"))["synthetic_rows"]
-        else:
-            tr_ = json.load(open(RESULTS / "defect_trend.json"))[m]
-            syn = {t: {"r_star_eV": v["defect_intercept_eV"], "se_eV": v["defect_intercept_se"], "cr3_sigma_lamF_eV": None}
-                   for t, v in tr_.items()}
+        paired = json.load(open(RESULTS / f"bias_term_{m}.json"))["synthetic_rows"]
+        tr_ = json.load(open(RESULTS / "defect_trend.json"))[m]
+        regr = {t: {"r_star_eV": v["defect_intercept_eV"], "se_eV": v["defect_intercept_se"], "cr3_sigma_lamF_eV": None}
+                for t, v in tr_.items()}
+        syn = {"paired": paired, "regression": regr,
+               "headline": {"interstitial": regr["interstitial"], "vacancy": paired["vacancy"]}}[est]
         summ[m] = {"r_star": {t: {"r_star_eV": v["r_star_eV"], "se_eV": v["se_eV"],
                                   "cr3_sigma_lamF_eV": v["cr3_sigma_lamF_eV"]} for t, v in syn.items()}}
         for meth, sc in METHODS:

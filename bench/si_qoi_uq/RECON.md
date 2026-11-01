@@ -304,3 +304,6 @@ The fit uses the BLR prior and shared noise, solved by QR on explicit rows.
   - Reading: a data-only case favours regression for interstitials (noise structure, SE, cold extrapolation); neither
     estimator handles the vacancy. A large-partner pairing variant (≥ 54 atoms) would remove the amplification, but it was
     defined after seeing these results.
+- **Headline estimator (decision 2026-11-01):** regression for the interstitial class, paired for the vacancy
+  (`discrepancy.py --estimator headline`, the default → `results/discrepancy.*`). All-paired and all-regression are kept as
+  sensitivities. CR3 × λ_F with the term at 95 % (68 %): o3d12 20/20 (17), o4d20 18/20 (15).
