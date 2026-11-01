@@ -284,3 +284,5 @@ The fit uses the BLR prior and shared noise, solved by QR on explicit rows.
   different θ direction from the relaxed defect's formation row, so a rank-one correction from training snapshots
   cannot carry the bias to the QoI. Options: an observable-space discrepancy term σ² += r*² on defect QoIs
   (non-circular, but outside the pure θ framework), or reporting r* as the diagnostic for where intervals fail.
+  - Note: IRLS starts from the difference rows at multiplier 1, so the "base_*" fields in `irls_balance_o3d12.json`
+    describe the augmented k = 1 fit (test E 16.01 meV/atom, θ 5 % from the BLR mean), not the benchmark fit.
