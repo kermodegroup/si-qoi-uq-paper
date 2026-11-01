@@ -286,3 +286,9 @@ The fit uses the BLR prior and shared noise, solved by QR on explicit rows.
   (non-circular, but outside the pure θ framework), or reporting r* as the diagnostic for where intervals fail.
   - Note: IRLS starts from the difference rows at multiplier 1, so the "base_*" fields in `irls_balance_o3d12.json`
     describe the augmented k = 1 fit (test E 16.01 meV/atom, θ 5 % from the BLR mean), not the benchmark fit.
+- **Discrepancy term, both models** (`analysis/discrepancy.py`, `results/discrepancy{,_regression}.*`; decision 2026-11-01):
+  σ² += r*² + se² on the vacancy and interstitial QoIs. Paired estimator (headline; o4d20 interstitial r* +0.105 ± 0.046 eV,
+  vacancy −0.266 ± 0.042): CR3 × λ_F at 95 % goes from 17 to 20/20 for o3d12 and from 15 to 16/20 for o4d20, where hexagonal and
+  tetrahedral stay outside. The regression estimator (the bulk thermal trend of `defect_trend.json`) gives 20/20 and 18/20,
+  with all defect z within ±1.3. It agrees better with the QoI errors for both models, and so is NOT chosen on that basis
+  (that would tune on the DFT QoIs). It is reported as a sensitivity with the selection risk stated.

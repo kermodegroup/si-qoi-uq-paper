@@ -10,7 +10,13 @@ standard error se_t.  For the QoIs of defect class t (interstitial: dumbbell, he
 added to the headline sigma of a method (results/qoi_uq.csv); every other QoI is unchanged.  This leaves the pure
 parameter-space framework for these QoIs and is labelled as such.  No QoI value or tolerance enters r*.
 
-    python -m bench.si_qoi_uq.analysis.discrepancy o3d12 [o4d20]  -> results/discrepancy.csv, results/discrepancy.json
+Estimators of r*: "paired" (default; analysis/bias_term.py: each defect snapshot against its nearest bulk snapshot,
+the form that is also a linear synthetic row) and "regression" (analysis/defect_trend.py: the bulk reference is a
+per-atom thermal trend fitted over all bulk cells near the defect volume).  The regression form agrees better with the
+QoI errors, but preferring it for that reason would tune on the validation data; it is reported as a sensitivity.
+
+    python -m bench.si_qoi_uq.analysis.discrepancy [--estimator paired|regression] o3d12 [o4d20]
+        -> results/discrepancy[_regression].csv, .json
 """
 import csv, json, sys
 
@@ -26,11 +32,21 @@ Z68, Z95 = 1.0, 1.959963984540054
 
 
 def main():
-    models = sys.argv[1:] or ["o3d12"]
+    args = sys.argv[1:]
+    est = "paired"
+    if "--estimator" in args:
+        i = args.index("--estimator"); est = args[i + 1]; del args[i:i + 2]
+    models = args or ["o3d12"]
+    suffix = "" if est == "paired" else f"_{est}"
     rows = list(csv.DictReader(open(RESULTS / "qoi_uq.csv")))
     out, summ = [], {}
     for m in models:
-        syn = json.load(open(RESULTS / f"bias_term_{m}.json"))["synthetic_rows"]
+        if est == "paired":
+            syn = json.load(open(RESULTS / f"bias_term_{m}.json"))["synthetic_rows"]
+        else:
+            tr_ = json.load(open(RESULTS / "defect_trend.json"))[m]
+            syn = {t: {"r_star_eV": v["defect_intercept_eV"], "se_eV": v["defect_intercept_se"], "cr3_sigma_lamF_eV": None}
+                   for t, v in tr_.items()}
         summ[m] = {"r_star": {t: {"r_star_eV": v["r_star_eV"], "se_eV": v["se_eV"],
                                   "cr3_sigma_lamF_eV": v["cr3_sigma_lamF_eV"]} for t, v in syn.items()}}
         for meth, sc in METHODS:
@@ -47,17 +63,18 @@ def main():
                 z = (mean - dft) / s
                 c68, c95 = int(abs(z) <= Z68), int(abs(z) <= Z95)
                 n += 1; k68 += c68; k95 += c95
-                out.append(dict(model=m, method=f"{meth}+disc", scale=sc, qoi=k, mean=mean, dft=dft, sigma_method=sig,
+                out.append(dict(model=m, estimator=est, method=f"{meth}+disc", scale=sc, qoi=k, mean=mean, dft=dft, sigma_method=sig,
                                 sigma_disc=s_disc, sigma=s, z=z, z_without=float(r["z"]), cov68=c68, cov95=c95,
                                 tol=float(r["tol"])))
             summ[m][f"{meth}+disc/{sc}"] = {"n": n, "k68": k68, "ci68": clopper(k68, n), "k95": k95, "ci95": clopper(k95, n),
                                             "median_sigma_over_tol": float(np.median([o["sigma"] / o["tol"] for o in out
                                                                                       if o["model"] == m and o["method"] == f"{meth}+disc" and o["scale"] == sc]))}
-    with open(RESULTS / "discrepancy.csv", "w", newline="") as fh:
+    with open(RESULTS / f"discrepancy{suffix}.csv", "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=list(out[0]))
         w.writeheader()
         w.writerows(out)
-    json.dump(summ, open(RESULTS / "discrepancy.json", "w"), indent=1)
+    summ["estimator"] = est
+    json.dump(summ, open(RESULTS / f"discrepancy{suffix}.json", "w"), indent=1)
     print(json.dumps(summ, indent=1))
     for o in out:
         if o["qoi"] in CLASS and o["scale"] in ("lam_F", "q_b1"):
