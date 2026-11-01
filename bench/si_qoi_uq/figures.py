@@ -247,8 +247,8 @@ def force_calibration(results, out, nbins=20):
         ax.set_xscale("log"); ax.set_yscale("log"); ax.set_xlim(lo, hi); ax.set_ylim(lo, hi)
         ax.set_xlabel("predicted per-atom σ (eV/Å), bin RMS", color=INK, fontsize=8)
         ax.set_ylabel("observed |ΔF| (eV/Å), bin RMS", color=INK, fontsize=8)
-        ax.set_title(f"{m}: binned on predicted σ ({len(e)} test atoms; conformal coverage {cov:.3f}, nominal "
-                     f"{1 - float(z['alpha']):.2f})", color=INK, fontsize=9, loc="left")
+        ax.set_title(f"{m}: binned on predicted σ\n{len(e)} test atoms; conformal coverage {cov:.3f} "
+                     f"(nominal {1 - float(z['alpha']):.2f})", color=INK, fontsize=9, loc="left")
         ax.legend(fontsize=7, frameon=False, loc="upper left")
         ax = axes[1, j]
         _style(ax)
