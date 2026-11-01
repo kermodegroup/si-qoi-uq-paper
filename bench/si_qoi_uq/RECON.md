@@ -307,3 +307,18 @@ The fit uses the BLR prior and shared noise, solved by QR on explicit rows.
 - **Headline estimator (decision 2026-11-01):** regression for the interstitial class, paired for the vacancy
   (`discrepancy.py --estimator headline`, the default → `results/discrepancy.*`). All-paired and all-regression are kept as
   sensitivities. CR3 × λ_F with the term at 95 % (68 %): o3d12 20/20 (17), o4d20 18/20 (15).
+
+## The vacancy (2026-11-01; `analysis/vacancy_check.py`, `results/vacancy_check.json`, `results/vacancy_size_split.json`)
+- The training vacancy cells come in two sizes with different behaviour. Regression-form intercepts are 63-atom +0.838 ± 0.031
+  against 215-atom +0.333 ± 0.122 eV (o3d12), and +0.160 ± 0.017 against −0.034 ± 0.045 (o4d20). The heterogeneity z is 4.0 in
+  both models, so pooling the sizes under one trend, as both earlier estimators did, is rejected by the data. The 63-atom cells
+  reach colder (5th percentile of F_rms² 0.165 against 0.356), and their intercept does not depend on the one cold cell.
+- Inverse-variance combination of the per-size intercepts: +0.808 ± 0.030 (o3d12), +0.136 ± 0.016 (o4d20). Model against model
+  (no DFT): +0.653 ± 0.026 against a true 0.77 eV, where the pooled estimators gave about 0.2.
+- Direct, unextrapolated evidence: the one near-relaxed training vacancy cell (63 atoms, F_rms² 0.007) has bulk-subtracted
+  residual +0.61 eV (o3d12) and 0.00 (o4d20). Relaxing it, o3d12 gains 0.34 eV against a DFT bound of 0.24 (o4d20: 0.18 against 0.18).
+  The other "cold" cells are hot (max |F| 0.9–2.4 eV/Å), so the over-relaxation test is uninformative there.
+- Geometry: both models relax the harness vacancy to a symmetric Td-like structure (six neighbour distances equal: 3.40 Å
+  o3d12, 3.47 Å o4d20). There is no DFT structure to compare against.
+- Selection risk: the 63-atom intercept's closeness to the vacancy QoI errors (+0.881 / +0.111 eV) was seen before the
+  heterogeneity and model-against-model checks were run.
