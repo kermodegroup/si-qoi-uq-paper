@@ -105,7 +105,7 @@ def main():
         for q in "EFV":
             mk = res["kind"] == q
             r2, a2, b2 = res["resid"][mk] ** 2, res["sd"]["cr3"][mk] ** 2, res["sd"][f"bias_{metric}"][mk] ** 2
-            f = lambda lam: np.mean(r2 / (lam ** 2 * a2 + b2)) - 1.0
+            f = lambda lam, r2=r2, a2=a2, b2=b2: np.mean(r2 / (lam ** 2 * a2 + b2)) - 1.0
             lo, hi = 1e-3, 1e3
             if f(lo) < 0:                            # the bias alone already over-covers
                 lam_aug[metric][q] = 0.0
