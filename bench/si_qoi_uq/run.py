@@ -38,8 +38,10 @@ def stage_diagnostics(m, log=print):
     from .diagnostics import conformal_q, scales, test_scores
     lin = lin_for(m, "cr3")
     linp = lin_for(m, "kappa")
-    if np.abs(lin.theta_hat - linp.theta_hat).max() > 1e-10:
-        raise ValueError(f"{m}: cr3 and kappa fits have different means")
+    dev = float(np.linalg.norm(lin.theta_hat - linp.theta_hat) / np.linalg.norm(lin.theta_hat))
+    if dev > 1e-6:                    # two separate evidence fits (GPU) agree to roundoff (PR 137 o4d20: 7e-9)
+        raise ValueError(f"{m}: cr3 and kappa fits have different means (relative {dev:.2e})")
+    log(f"{m}: cr3 and kappa means agree to {dev:.1e} (relative)")
     t = time.time()
     facs = {"cr3": lin.factor("cr3"), "posterior": linp.factor("posterior")}
     if (fit_dir(m, "cr3_ell3") / "posterior.npz").exists():        # RECON Q3 sensitivity: default 3 r_cut clusters
