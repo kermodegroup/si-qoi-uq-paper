@@ -265,3 +265,13 @@ The fit uses the BLR prior and shared noise, solved by QR on explicit rows.
 - IRLS with the default targets (base per-type RMSE, plus 0.05 eV per cell for the difference rows) diverged: the
   target is infeasible for o3d12, whose floor is about 0.14 eV. The resulting model fails the harness. Targets must be feasible, or the weights capped.
 - Next: o4d20 via per-type QR statistics (explicit rows are too large at p = 5477).
+- **IRLS with automatic targets** (`analysis/irls_balance.py` → `results/irls_balance_o3d12{.json,_qoi.csv}`). Groups:
+  (config type, quantity) plus the difference rows. Weights are updated to equalise RMSE_g / s_g, with γ = 0.5,
+  caps [0.01, 100] and types with fewer than 10 configs fixed. Errors and floors are 5-fold cross-validated by
+  configuration: training-set floors are interpolated by 224 parameters for small energy groups (base/floor up to 3000).
+  - Regret scales (each group's CV floor, no QoI input): all eight phase energies move inside tolerance; defects
+    unchanged; 13/20 QoIs within tolerance; RMS err/tol 6.4.
+  - Tolerance scales (0.1 eV difference rows, 10 meV/atom energies; circularity risk): defects much better (vacancy −2.5,
+    interstitials −4.0 / −4.5 / −9.0) but phases and the surface worse; 9/20 within tolerance; RMS 2.8.
+  - Why: training-distribution errors (even CV) cannot see the relaxed-defect extrapolation. Next candidate: one
+    synthetic row per defect type, the F → 0 intercept of the difference residuals (linear in θ, DFT training labels only).
