@@ -19,7 +19,6 @@ ACC = pathlib.Path("/storage/eng/essswb/projects/ace-jax/runs/accuracy_cost/ace"
 
 
 def build(m, RUNS):
-    import jax
     import jax.numpy as jnp
     from ace_jax import cli
     from ace_jax.fit.data import build_dataset
@@ -46,19 +45,29 @@ def build(m, RUNS):
         A = jnp.concatenate([getattr(qs, f"R_{q}") / sig[q] for q in "EFV"], 0)
         y = jnp.concatenate([getattr(qs, f"c_{q}") / sig[q] for q in "EFV"])
         Q, R = jnp.linalg.qr(A, mode="reduced")
-        Rt.append(R); ct.append(Q.T @ y); nt.append(len(sub))
+        Rt.append(np.asarray(R)); ct.append(np.asarray(Q.T @ y)); nt.append(len(sub))
         print(f"{t}: {len(sub)} configs ({time.time() - t0:.0f} s)", flush=True)
-    lin = linear_prior_diag(theta, prob)
-    P, p0 = jnp.diag(jnp.sqrt(lin)), jnp.zeros_like(lin)
+    lam = np.asarray(linear_prior_diag(theta, prob))
+    # leave-one-type-out by prefix / suffix QR merges on the host: theta_(-k) solves merge(prefix_k, suffix_k), with
+    # prefix_k = prior + types < k and suffix_k = types > k; each merge is a QR of two stacked L x L factors, so memory
+    # stays at 2K factors instead of one (K + 1) L x L stack (6.7 GB at o4d20, beyond the GPU)
 
-    def solve(keep):
-        A = jnp.concatenate([P] + [Rt[i] for i in keep], 0)
-        y = jnp.concatenate([p0] + [ct[i] for i in keep])
-        Q, R = jnp.linalg.qr(A, mode="reduced")
-        return np.asarray(jax.scipy.linalg.solve_triangular(R, Q.T @ y, lower=False))
+    def merge(a, b):
+        if b is None:
+            return a
+        Q, R = np.linalg.qr(np.concatenate([a[0], b[0]]))
+        return R, Q.T @ np.concatenate([a[1], b[1]])
     K = len(types)
-    th_all = solve(range(K))
-    th_del = np.stack([solve([i for i in range(K) if i != k]) for k in range(K)])
+    pre = [(np.diag(np.sqrt(lam)), np.zeros(len(lam)))]
+    for k in range(K):
+        pre.append(merge(pre[-1], (Rt[k], ct[k])))
+    suf = [None] * (K + 1)
+    for k in range(K - 1, -1, -1):
+        suf[k] = (Rt[k], ct[k]) if suf[k + 1] is None else merge((Rt[k], ct[k]), suf[k + 1])
+    sol = lambda f: np.linalg.solve(f[0], f[1])
+    th_all = sol(pre[K])
+    th_del = np.stack([sol(merge(pre[k], suf[k + 1])) for k in range(K)])
+    print(f"leave-one-type-out solves done ({time.time() - t0:.0f} s)", flush=True)
     L = (th_del - th_del.mean(0)).T
     ref = np.load(RUNS / "fits" / m / "cr3" / "posterior.npz")["mean"]
     dev = float(np.linalg.norm(th_all - ref) / np.linalg.norm(ref))
