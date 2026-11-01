@@ -216,6 +216,56 @@ def model_compare(results, out, models, meth="CR3-headline", sc="lam_F"):
     _save(fig, out, "fig6_model_compare")
 
 
+def force_calibration(results, out, nbins=20):
+    """Per-atom force uncertainty against the observed error on the test split (analysis/force_calibration.py), per model:
+    top, binned on predicted sigma (equal counts): RMS |error| against RMS sigma, Mondrian forces_std and the global
+    lam_F sigma, with the per-atom density behind; bottom, binned on |error|: RMS sigma against RMS |error| (binning on the
+    observed error regresses towards the mean: the largest-error bins read as overconfident even when calibrated)."""
+    ms = [m for m in ("o3d12", "o4d20") if (results / f"force_calibration_{m}.npz").exists()]
+    if not ms:
+        return
+    fig, axes = plt.subplots(2, len(ms), figsize=(5.2 * len(ms), 9.4), squeeze=False, facecolor=SURFACE)
+
+    def binned(x, y, key):
+        o = np.argsort(key)
+        chunks = np.array_split(o, nbins)
+        return (np.array([np.sqrt(np.mean(x[c] ** 2)) for c in chunks]), np.array([np.sqrt(np.mean(y[c] ** 2)) for c in chunks]))
+    for j, m in enumerate(ms):
+        z = np.load(results / f"force_calibration_{m}.npz", allow_pickle=True)
+        e, sm, sg = z["err_norm"], z["forces_std"], z["sd_global"]
+        cov = float(np.mean(z["score"] <= z["q"]))
+        lo, hi = 0.8 * min(np.percentile(e[e > 0], 1), sm.min()), 1.2 * max(e.max(), sm.max())
+        ax = axes[0, j]
+        _style(ax)
+        ax.hexbin(sm, np.maximum(e, lo), gridsize=60, xscale="log", yscale="log", bins="log", cmap="Greys", mincnt=1,
+                  linewidths=0, alpha=0.45, extent=(np.log10(lo), np.log10(hi), np.log10(lo), np.log10(hi)))
+        for k, (sd, lab, mk, col) in enumerate(((sm, "Mondrian forces_std (λ_g)", "o", CAT[0]),
+                                                 (sg, "global λ_F", "s", CAT[1]))):
+            bx, by = binned(sd, e, sd)
+            ax.plot(bx, by, marker=mk, color=col, lw=2, ms=6, mec=SURFACE, label=lab, zorder=3)
+        ax.plot([lo, hi], [lo, hi], color=INK, lw=1, ls="--", label="calibrated")
+        ax.set_xscale("log"); ax.set_yscale("log"); ax.set_xlim(lo, hi); ax.set_ylim(lo, hi)
+        ax.set_xlabel("predicted per-atom σ (eV/Å), bin RMS", color=INK, fontsize=8)
+        ax.set_ylabel("observed |ΔF| (eV/Å), bin RMS", color=INK, fontsize=8)
+        ax.set_title(f"{m}: binned on predicted σ ({len(e)} test atoms; conformal coverage {cov:.3f}, nominal "
+                     f"{1 - float(z['alpha']):.2f})", color=INK, fontsize=9, loc="left")
+        ax.legend(fontsize=7, frameon=False, loc="upper left")
+        ax = axes[1, j]
+        _style(ax)
+        for k, (sd, lab, mk, col) in enumerate(((sm, "Mondrian forces_std (λ_g)", "o", CAT[0]),
+                                                 (sg, "global λ_F", "s", CAT[1]))):
+            bx, by = binned(e, sd, e)
+            ax.plot(bx, by, marker=mk, color=col, lw=2, ms=6, mec=SURFACE, label=lab, zorder=3)
+        ax.plot([lo, hi], [lo, hi], color=INK, lw=1, ls="--", label="σ = |ΔF|")
+        ax.set_xscale("log"); ax.set_yscale("log"); ax.set_xlim(lo, hi); ax.set_ylim(lo, hi)
+        ax.set_xlabel("observed |ΔF| (eV/Å), bin RMS", color=INK, fontsize=8)
+        ax.set_ylabel("predicted per-atom σ (eV/Å), bin RMS", color=INK, fontsize=8)
+        ax.set_title(f"{m}: binned on observed error", color=INK, fontsize=9, loc="left")
+        ax.legend(fontsize=7, frameon=False, loc="upper left")
+    fig.tight_layout()
+    _save(fig, out, "fig7_force_calibration")
+
+
 def all_figures(results, out, runs, models, extras):
     strip(results, out, models)
     coverage_bars(results, out, models)
@@ -224,4 +274,5 @@ def all_figures(results, out, runs, models, extras):
     elastic(out, [m for m in models if m in extras], extras)
     scales_fig(results, out, models)
     model_compare(results, out, models)
+    force_calibration(results, out)
     json.dump({"correlation_model": m3}, open(out / "figures.json", "w"))
