@@ -322,3 +322,6 @@ The fit uses the BLR prior and shared noise, solved by QR on explicit rows.
   o3d12, 3.47 Å o4d20). There is no DFT structure to compare against.
 - Selection risk: the 63-atom intercept's closeness to the vacancy QoI errors (+0.881 / +0.111 eV) was seen before the
   heterogeneity and model-against-model checks were run.
+- **Vacancy estimator switched (decision 2026-11-01):** the headline vacancy term is the inverse-variance per-size combination
+  (o3d12 +0.808 ± 0.030, o4d20 +0.136 ± 0.016 eV); paired and pooled regression remain sensitivities. Headline CR3 × λ_F with the
+  term at 95 % (68 %): o3d12 20/20 (18), o4d20 18/20 (15). All defect |z| < 1.3; the two o4d20 misses are sh and the (100) surface.
