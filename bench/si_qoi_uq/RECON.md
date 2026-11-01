@@ -275,3 +275,12 @@ The fit uses the BLR prior and shared noise, solved by QR on explicit rows.
     interstitials −4.0 / −4.5 / −9.0) but phases and the surface worse; 9/20 within tolerance; RMS 2.8.
   - Why: training-distribution errors (even CV) cannot see the relaxed-defect extrapolation. Next candidate: one
     synthetic row per defect type, the F → 0 intercept of the difference residuals (linear in θ, DFT training labels only).
+- **Shared-bias term in θ** (`analysis/bias_term.py` → `results/bias_term_o3d12{.json,.csv}`; θ̂ unchanged). There is one
+  synthetic row per defect type, the F → 0 intercept functional of the paired difference rows (DFT training labels only).
+  Its residual r* is +1.04 ± 0.09 eV for interstitials (CR3 × λ_F σ of the same row 0.69 eV), +1.74 ± 0.14 for divacancy and
+  −0.03 ± 0.10 for vacancy. The minimum-norm correction δ of r* (CR3 or posterior metric) was added as Σ += δδᵀ, with λ re-solved
+  on the test split with the bias part held fixed. Coverage did not change (14/17 at 95 % with λ_F): δ projects only
+  0.1–0.2 eV of the interstitial r* onto the relaxed-defect QoI rows. The hot-snapshot contrast extrapolated to F → 0 is a
+  different θ direction from the relaxed defect's formation row, so a rank-one correction from training snapshots
+  cannot carry the bias to the QoI. Options: an observable-space discrepancy term σ² += r*² on defect QoIs
+  (non-circular, but outside the pure θ framework), or reporting r* as the diagnostic for where intervals fail.
