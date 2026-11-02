@@ -126,7 +126,9 @@ heterogeneous across local environments (distortion, coordination) and correlate
   of correlated rows. We use the variant known as CR3 in the econometrics literature: the third of the standard cluster-robust
   estimators CR0–CR3, which extend the heteroskedasticity-consistent HC0–HC3 to clusters [MacKinnon and White 1985; Bell and McCaffrey
   2002; MacKinnon, Nielsen and Webb 2023]. CR3 is the delete-one-cluster jackknife: it measures how far the fitted coefficients move
-  when each configuration is left out, computed exactly from leverage-corrected (PRESS) residuals without refitting. Its per-atom
+  when each configuration is left out. It is computed exactly without refitting, from the PRESS (predicted residual error sum of
+  squares) residuals: the residuals each row would have if its cluster were left out of the fit, obtained from the ordinary residuals
+  by a leverage correction (for a single row, dividing by one minus its leverage; for a cluster, the matrix analogue) [Allen 1974; Cook and Weisberg 1982]. Its per-atom
   3×3 block gives anisotropic force regions.</li>
   <li>The scale is fitted by Mondrian conformal prediction [Vovk et al. 2003; Vovk, Gammerman and Shafer 2005]. Conformal
   prediction turns the scores of held-out calibration points into a quantile that covers a new point with a guaranteed probability,
@@ -806,6 +808,7 @@ sec("refs", "References (to verify)", """<ol class="refs">
 <li>V. Vovk, D. Lindsay, I. Nouretdinov, A. Gammerman, Mondrian confidence machine, technical report, Royal Holloway, University of London (2003).</li>
 <li>V. Vovk, A. Gammerman, G. Shafer, Algorithmic Learning in a Random World, Springer (2005).</li>
 <li>R. D. Cook, S. Weisberg, Residuals and Influence in Regression (1982).</li>
+<li>D. M. Allen, The relationship between variable selection and data augmentation and a method for prediction, Technometrics 16, 125 (1974).</li>
 <li>P. J. Huber (1967); H. White, Econometrica 50, 1 (1982); U. K. Müller, Econometrica 81, 1805 (2013).</li>
 <li>R. Dunn, L. Wasserman, A. Ramdas, Distribution-free prediction sets for two-layer hierarchical models, JASA (2023).</li>
 <li>R. Drautz, Atomic cluster expansion for accurate and transferable interatomic potentials, PRB 99, 014104 (2019).</li>
