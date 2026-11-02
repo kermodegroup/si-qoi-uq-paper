@@ -4,7 +4,7 @@ Analysis code, results, figures and paper source for J. R. Kermode, *Calibrated 
 propagated to silicon properties* (in preparation).
 
 The uncertainty methods themselves (the CR3 jackknife shape, Mondrian conformal calibration of per-atom forces, QR ARD, POPS)
-are part of [ace-jax](https://github.com/ACEsuit/ace-jax); this repository holds the study that uses them.
+are part of [ace-jax](https://github.com/ACEsuit/ace-jax) 0.5.1; this repository holds the study that uses them.
 
 ## Layout
 
@@ -26,9 +26,10 @@ uv run pytest
 uv run python bench/si_qoi_uq/artifact/paper.py    # paper from results/ -> bench/si_qoi_uq/artifact/paper/index.html
 ```
 
-Rerunning the fits, committees and harness needs the GAP-18 silicon database and a Python 3 port of
-[libAtoms/silicon-testing-framework](https://github.com/libAtoms/silicon-testing-framework), which is used unmodified and is
-not included here (the upstream repository has no licence). Paths to data and run directories are set at the top of the
+Rerunning the fits, committees and harness needs the GAP-18 silicon database and the Python 3 port of
+[libAtoms/silicon-testing-framework](https://github.com/libAtoms/silicon-testing-framework): branch `py3`, commit `f23b1df`,
+checked out at `~/silicon-testing-framework`. Its tests run unmodified; `SI_TESTS_ELASTIC_FMAX=1e-3` sets the elastic-constant
+relaxation tolerance. Paths to data and run directories are set at the top of the
 scripts and by `SIQ_RUNS`.
 
 ## Licence

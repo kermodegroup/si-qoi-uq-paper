@@ -19,8 +19,8 @@ wheels = [
 
 [[package]]
 name = "ace-jax"
-version = "0.5.0"
-source = { git = "https://github.com/ACEsuit/ace-jax?rev=fa1b9aeb9f1b36b6dcd7cc86b344371123e803da#fa1b9aeb9f1b36b6dcd7cc86b344371123e803da" }
+version = "0.5.1"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ace-jax-coupling", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
     { name = "ase" },
@@ -37,6 +37,10 @@ dependencies = [
     { name = "pyyaml" },
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/02/72/bd03d18d8db0e25e77b15d9135bc9826ca4d4c638953f77ce6008db13b90/ace_jax-0.5.1.tar.gz", hash = "sha256:19b7c83f1b39dfd5e13cb320452930b7d9cc67bfd518c7e0328bf8d48699c283", size = 404063, upload-time = "2026-11-02T18:31:45.768Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c3/5a/ccc4fa406818c2da5315340ac638a50a96d3a525fb19d9ac8c0af01892f1/ace_jax-0.5.1-py3-none-any.whl", hash = "sha256:2eeecafe195969c4cc96a50d567cbc59dff53a1db1deaf8dca675a5cdd237773", size = 454004, upload-time = "2026-11-02T18:31:44.297Z" },
 ]
 
 [[package]]
@@ -1428,7 +1432,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "ace-jax", git = "https://github.com/ACEsuit/ace-jax?rev=fa1b9aeb9f1b36b6dcd7cc86b344371123e803da" },
+    { name = "ace-jax", specifier = "==0.5.1" },
     { name = "ase", specifier = ">=3.23" },
     { name = "matplotlib", specifier = ">=3.8" },
     { name = "numpy" },

@@ -6,9 +6,7 @@ authors = [{ name = "James R. Kermode" }]
 license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
-    # ace-jax at the head of ACEsuit/ace-jax#137 (QR ARD evidence), which the ARD fits of the paper use; replace with the
-    # release that contains it once #137 is merged
-    "ace-jax @ git+https://github.com/ACEsuit/ace-jax@fa1b9aeb9f1b36b6dcd7cc86b344371123e803da",
+    "ace-jax==0.5.1",                          # the release with the QR ARD evidence (ACEsuit/ace-jax#137)
     "ase>=3.23",
     "matplotlib>=3.8",
     "numpy",

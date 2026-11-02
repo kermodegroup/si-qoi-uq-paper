@@ -969,9 +969,8 @@ the Sulis Tier 2 HPC platform.</p>
 <p><b>Code and data availability.</b> The uncertainty methods are part of ace-jax version 0.5.1 (MIT licence,
 https://github.com/ACEsuit/ace-jax). The analysis code, the results behind every table and figure, the generator of this paper and
 the original specification of the study are at https://github.com/kermodegroup/si-qoi-uq-paper [archived on Zenodo, DOI to be
-added]. The GAP-18 database is available from its original publication [Bartók et al. 2018]. The silicon test framework is
-available from https://github.com/libAtoms/silicon-testing-framework; it carries no licence, so the port used here is not
-redistributed.</p>""", "")
+added]. The GAP-18 database is available from its original publication [Bartók et al. 2018]. The Python 3 port of the silicon test
+framework used here is the branch py3 of https://github.com/libAtoms/silicon-testing-framework, at commit f23b1df.</p>""", "")
 
 sec("ack", "Acknowledgements", """
 <p>Calculations were performed on the Sulis Tier 2 HPC platform hosted by the Scientific Computing Research
