@@ -216,6 +216,10 @@ def coverage(rows):
     return out
 
 
+def _tol_units(ii, ref):
+    return np.array([tol_abs(KEYS[i], ref[i]) for i in ii])
+
+
 def joint(m, extra):
     """Two joint tests per scale: committee covariance over every coverage QoI the committee has, and the
     delta covariance over the delta subset (spec §5: delta for linear/relaxed QoIs, committee otherwise;
@@ -232,12 +236,16 @@ def joint(m, extra):
             X = C[cset][:, ok]
             X = X[~np.isnan(X).any(1)]
             S = lv ** 2 * np.cov(X, rowvar=False)
-            r["committee"] = dict(qois=[KEYS[i] for i in ok], K_rows=len(X), **joint_test(Qhat[ok] - ref[ok], S))
+            t = _tol_units(ok, ref)
+            r["committee"] = dict(qois=[KEYS[i] for i in ok], K_rows=len(X), **joint_test(Qhat[ok] - ref[ok], S),
+                                  d_tol=((ref[ok] - Qhat[ok]) / t).tolist(), S_tol=(S / np.outer(t, t)).tolist())
         dk = [k for k in COVER_KEYS if k in G and np.isfinite(ref[KEYS.index(k)])]
         GL = np.stack([L.T @ G[k] for k in dk])
         S = lv ** 2 * GL @ GL.T
         ii = [KEYS.index(k) for k in dk]
-        r["delta"] = dict(qois=dk, **joint_test(Qhat[ii] - ref[ii], S))
+        t = _tol_units(ii, ref)
+        r["delta"] = dict(qois=dk, **joint_test(Qhat[ii] - ref[ii], S),
+                          d_tol=((ref[ii] - Qhat[ii]) / t).tolist(), S_tol=(S / np.outer(t, t)).tolist())
         res[name] = r
     for cs_, name in ((p, f"{b}/lam_1") for p, b in POPS_SETS):
         if C[cs_] is None:
@@ -246,8 +254,11 @@ def joint(m, extra):
         X = C[cs_][:, ok]
         X = X[~np.isnan(X).any(1)]
         if ok and len(X) > len(ok):
+            S = np.cov(X, rowvar=False)
+            t = _tol_units(ok, ref)
             res[name] = {"committee": dict(qois=[KEYS[i] for i in ok], K_rows=len(X),
-                                           **joint_test(extra["Qpops"][ok] - ref[ok], np.cov(X, rowvar=False)))}
+                                           **joint_test(extra["Qpops"][ok] - ref[ok], S),
+                                           d_tol=((ref[ok] - extra["Qpops"][ok]) / t).tolist(), S_tol=(S / np.outer(t, t)).tolist())}
     return res
 
 

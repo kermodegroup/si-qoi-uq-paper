@@ -88,11 +88,38 @@ def elastic_committee(lin, thetas, a_ref):
 
 
 def clopper(k, n, a=0.05):
-    from scipy.stats import binomtest
+    """Equal-tailed (1 - a) credible interval of a coverage probability after k of n covered: the Beta(k + 1/2,
+    n - k + 1/2) posterior of the Jeffreys prior (the name is kept from the Clopper-Pearson interval it replaced)."""
+    from scipy.stats import beta
     if n == 0:
         return (np.nan, np.nan)
-    ci = binomtest(int(k), int(n)).proportion_ci(1 - a, "exact")
-    return (float(ci.low), float(ci.high))
+    post = beta(int(k) + 0.5, int(n) - int(k) + 0.5)
+    return (float(post.ppf(a / 2)), float(post.ppf(1 - a / 2)))
+
+
+def coverage_posterior(k, n, nominal):
+    """P(coverage >= nominal | k of n), Jeffreys prior."""
+    from scipy.stats import beta
+    return float(beta(int(k) + 0.5, int(n) - int(k) + 0.5).sf(nominal)) if n else float("nan")
+
+
+EVIDENCE_EPS = (1e-8, 1e-6, 1e-4)        # ridge on the covariance in tolerance units (a floor of 1e-4..1e-2 tol on sigma)
+
+
+def log_predictive(d, S, eps=EVIDENCE_EPS):
+    """Log density of the error vector d (DFT - prediction, in tolerance units) under N(0, S + eps I): the evidence
+    the method's predictive distribution gives the observed DFT values.  It has no free parameters (the scale is
+    fixed on held-out forces), so differences between methods on the same QoIs are log Bayes factors.  Returns, per
+    ridge, log p, the Mahalanobis term and log det, so the fit and width parts can be read apart."""
+    n = len(d)
+    out = {"n": n}
+    for e in eps:
+        A = S + e * np.eye(n)
+        sign, logdet = np.linalg.slogdet(A)
+        m = float(d @ np.linalg.solve(A, d))
+        out[f"eps_{e:g}"] = {"log_p": float(-0.5 * (m + logdet + n * np.log(2 * np.pi))), "mahalanobis": m,
+                             "logdet": float(logdet)}
+    return out
 
 
 def joint_test(d, S, eps_rel=(1e-4, 1e-3, 1e-2), rank_tol=1e-10):

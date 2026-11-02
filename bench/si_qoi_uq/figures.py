@@ -104,7 +104,7 @@ def coverage_bars(results, out, models):
             ax.axhline(nom, color=CAT[j], lw=1, ls="--")
         ax.set_xticks(range(len(sel)), [s[2] for s in sel], fontsize=8)
         ax.set_ylim(0, 1.05)
-        ax.set_ylabel("fraction of QoIs covered (95% Clopper–Pearson)", color=INK, fontsize=8)
+        ax.set_ylabel("fraction of QoIs covered (95 % credible interval)", color=INK, fontsize=8)
         ax.set_title(f"{m}: coverage of DFT, n = {n}", color=INK, fontsize=10, loc="left")
         ax.legend(fontsize=7, frameon=False)
     fig.tight_layout()

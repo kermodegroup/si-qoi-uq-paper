@@ -56,17 +56,35 @@ lam_rows = "".join(f"<tr><td>{m}</td>" + "".join(f"<td class=n>{f(lam[m].get(k))
                    for m in models)
 zlist = lambda m: ", ".join(f"{float(r['z']):+.1f}" for r in _qrows if r["model"] == m and r["method"] == "CR3-headline"
                            and r["scale"] == "lam_F" and "interstitial" in r["qoi"])
-jp = lambda m, name, kind: (lambda e: pfmt(e["p_value"]) if e else "?")(joint.get(m, {}).get(name, {}).get(kind, {}).get("scaled", {}).get("eps_0.001"))
+ev = {(r["model"], r["method"], r["kind"]): r for r in rd("evidence.csv")}
+def pcov(m, meth="CR3-headline", sc="lam_F", nominal=0.95):
+    from scipy.stats import beta
+    r = get(m, meth, sc)
+    k, n = int(float(r["k95"])), int(float(r["n"]))
+    return f"{beta(k + 0.5, n - k + 0.5).sf(nominal):.2f}"
+def ci_txt(k, n):
+    from scipy.stats import beta
+    post = beta(k + 0.5, n - k + 0.5)
+    return f"[{post.ppf(0.025):.2f}, {post.ppf(0.975):.2f}], with P(coverage ≥ 0.95) = {post.sf(0.95):.2f}"
+EV_EPS = "1e-06"
+def lbf(m, meth, kind="committee"):
+    r = ev.get((m, meth, kind))
+    return float(r["log_bf_vs_headline"]) if r and r.get("log_bf_vs_headline") not in ("", None) else float("nan")
+lbf_txt = lambda m, meth, kind="committee": f"{lbf(m, meth, kind):+.1f}"
+EV_ROWS = (("CR3/lam_F", "CR3 × λ<sub>F</sub> (headline)"), ("B1/q_b1", "B1: posterior × q̂"),
+           ("B2lev5/lam_1", "B2: POPS (leverage cut 5 %)"), ("B3/lam_1", "B3: CR3, λ = 1"),
+           ("CR3/lam_V", "CR3 × λ<sub>V</sub> (sensitivity)"), ("CR3/lam_F+disc", "CR3 × λ<sub>F</sub> + discrepancy term"),
+           ("B1/q_b1+disc", "B1 + discrepancy term"))
 jrows = ""
-pfmt = lambda p_: f"{p_:.2g}" if p_ > 0 else "&lt; 1e-300"
 for m in models:
-    for name, jlab in (("CR3/lam_F", "CR3 × λ<sub>F</sub> (headline)"), ("B1/q_b1", "B1: posterior × q̂"),
-                       ("B2lev5/lam_1", "B2: POPS (leverage cut 5 %)"), ("B3/lam_1", "B3: CR3, λ = 1"),
-                       ("CR3/lam_V", "CR3 × λ<sub>V</sub> (sensitivity)")):
-        for kind, jt in joint.get(m, {}).get(name, {}).items():
-            e = jt["scaled"]["eps_0.001"]
-            jrows += (f"<tr><td>{m}</td><td>{jlab}</td><td>{kind}</td><td class=n>{jt['scaled']['df']}</td>"
-                      f"<td class=n>{f(e['mahalanobis'], 1)}</td><td class=n>{f(e['chi2_95'], 1)}</td><td class=n>{pfmt(e['p_value'])}</td></tr>")
+    for meth, lab in EV_ROWS:
+        for kind in ("committee", "delta"):
+            r = ev.get((m, meth, kind))
+            if not r:
+                continue
+            jrows += (f"<tr><td>{m}</td><td>{lab}</td><td>{kind}</td><td class=n>{int(float(r['n']))}</td>"
+                      f"<td class=n>{float(r['log_p_eps' + EV_EPS]):.1f}</td><td class=n>{lbf(m, meth, kind):+.1f}</td>"
+                      f"<td class=n>{float(r['mahalanobis']):.1f}</td><td class=n>{float(r['logdet']):.1f}</td></tr>")
 nflag = {m: sum(1 for r in dvc if r["model"] == m and r.get("flagged") in ("True", True) and "JAX" not in r["qoi"]) for m in models}
 ncmp = {m: sum(1 for r in dvc if r["model"] == m and r.get("flagged") in ("True", "False", True, False) and "JAX" not in r["qoi"]) for m in models}
 head = {m: get(m, "CR3-headline", "lam_F") for m in models}
@@ -524,15 +542,20 @@ of them is used to fit any scale.</p>
 overall and in each Mondrian group, together with the RMS of the observed force error over the predicted σ<sub>F,i</sub>, which is
 1 for a calibrated Gaussian reading. For the QoIs (Sections 3.4–3.11), each prediction gives a standardised error
 \(z_Q=(\hat Q-Q_{\text{DFT}})/\sigma_Q\), with \(\hat Q\) the mean model's value. We count how many of the 20 scored QoIs fall inside
-the Gaussian 68 % and 95 % intervals, and give each count a Clopper–Pearson 95 % interval: with only 20 QoIs, any count from 17 to 20 is consistent with a nominal 95 % (16 or fewer has probability below 2 %
-if the coverage is truly 95 %).</p>
-<p>Counts treat the QoIs as independent, but they share the same coefficients, so their errors are correlated. The joint test
-(Section 3.5) therefore compares the whole error vector \(\Delta\), the \(\hat Q-Q_{\text{DFT}}\) over the scored QoIs, with its
-predicted covariance through the Mahalanobis distance \(\Delta^{\mathsf T}(C_Q+\epsilon I)^{-1}\Delta\). Here
-\(C_Q=\lambda^2G\,LL^{\mathsf T}G^{\mathsf T}\) for the delta method, with \(G\) the QoI rows stacked, or the committee covariance. The
-problem is first scaled to unit diagonal, \(\epsilon\) is \(10^{-3}\) of the mean diagonal (with \(10^{-4}\) and \(10^{-2}\) as
-sensitivities), and the distance is compared with \(\chi^2\) at the numerical rank. A method can pass the per-QoI counts and still fail
-this test, if its errors are correlated in a way its covariance does not predict.</p>
+the Gaussian 68 % and 95 % intervals. Each count k of n gives a posterior for the coverage probability, Beta(k + ½, n − k + ½) from
+the Jeffreys prior, and we quote its 95 % credible interval and the posterior probability that the coverage reaches its nominal value.
+With only 20 QoIs these are broad: 17 of 20 at 95 % gives a credible interval of """ + ci_txt(17, 20) + r""".</p>
+<p>Counts treat the QoIs as independent, but they share the same coefficients, so their errors are correlated. Section 3.5 therefore
+scores the whole vector of DFT values at once, by the evidence each method's predictive distribution gives it. With
+\(\Delta\) the vector of \((Q_{\text{DFT}}-\hat Q)/\text{tol}_Q\) over the scored QoIs and \(C_Q\) its predicted covariance in the same
+tolerance units (\(\lambda^2G\,LL^{\mathsf T}G^{\mathsf T}\) for the delta method, with \(G\) the QoI rows stacked, or the committee
+covariance),</p>
+\[ \log p(\Delta\mid\text{method})=-\tfrac12\,\Delta^{\mathsf T}(C_Q+\epsilon I)^{-1}\Delta-\tfrac12\log\lvert 2\pi(C_Q+\epsilon I)\rvert , \]
+<p>with a small ridge \(\epsilon=10^{-6}\) (a floor of 10<sup>−3</sup> tolerances on σ; 10<sup>−8</sup> and 10<sup>−4</sup> as
+sensitivities). Every method's scale is fixed beforehand, on held-out forces or held-out scores, so no method has a free parameter left,
+and the difference of two methods' log evidence on the same QoIs is a log Bayes factor. The first term rewards predictions whose
+errors, and their correlations, match the covariance; the second penalises intervals that are wider than they need to be. The evidence
+therefore weighs calibration and sharpness together, and a method cannot gain by inflating its intervals.</p>
 <p>Coverage alone rewards intervals that are too wide. We therefore also report sharpness, the median of \(\sigma_Q/\text{tol}_Q\)
 with \(\text{tol}_Q\) the benchmark's tolerance for QoI \(Q\): a value below 1 means the interval is narrower than the accuracy the
 benchmark asks for. A useful method has near-nominal coverage at the smallest sharpness.</p>""", "drafted")
@@ -591,7 +614,7 @@ k95 = lambda m, meth, sc: (lambda r: f"{int(float(r['k95']))}/{int(float(r['n'])
 sot = lambda m, meth, sc: (lambda r: f"{float(r['median_sigma_over_tol']):.2f}" if r else "?")(get(m, meth, sc))
 tight = (head["o3d12"]["median_sigma_over_tol"] / head["o4d20"]["median_sigma_over_tol"]) if all(head.get(m) for m in ("o3d12", "o4d20")) else float("nan")
 sec("results", "3.4  Coverage and sharpness", f"""
-<div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % CI]) and sharpness, for the four methods of Figures 1 and 1b.</caption>
+<div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % credible interval of the coverage probability]) and sharpness, for the four methods of Figures 1 and 1b.</caption>
 <thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th></tr></thead>
 <tbody>{cov_rows}</tbody></table></div>
 <div class="wrap"><table><caption>Table 3b. Sensitivity of the coverage to the scale and to the committee variant: the CR3 shape
@@ -600,8 +623,8 @@ and POPS with the 50 % leverage cut (Section 3.7).</caption>
 <thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th></tr></thead>
 <tbody>{sens_rows}</tbody></table></div>
 <p>With the headline CR3 × λ<sub>F</sub>, {k95("o3d12", "CR3-headline", "lam_F")} QoIs of o3d12 and {k95("o4d20", "CR3-headline", "lam_F")}
-of o4d20 lie inside their 95 % intervals (Table 3, Figure 1 top row, Figure 1b). Both counts are below the nominal 19, and o4d20's is
-below the 17 that a true 95 % coverage makes plausible (Section 3.1). The misses are not spread across the QoIs. For o3d12 they are
+of o4d20 lie inside their 95 % intervals (Table 3, Figure 1 top row, Figure 1b). Both counts are below the nominal 19, and the coverage posteriors (Section 3.1) give
+P(coverage ≥ 0.95) = {pcov("o3d12")} for o3d12 and {pcov("o4d20")} for o4d20: the headline under-covers at the 95 % level. The misses are not spread across the QoIs. For o3d12 they are
 {miss_txt("o3d12")}; for o4d20 they are {miss_txt("o4d20")}. The interstitial formation energies, missed by both
 models, are the subject of Section 3.8: they share a bias that a delete-one jackknife cannot see, not a scale that is too small.
 Elsewhere the 95 % intervals reach DFT, and the 68 % counts ({int(float(get("o3d12", "CR3-headline", "lam_F")["k68"]))} and
@@ -625,26 +648,33 @@ logarithmic beyond, and is shared by all rows. Top row: the headline, CR3 × λ<
 scaled by one conformal quantile; B2, POPS with the 5 % leverage cut; B3, CR3 without calibration (λ = 1). Each row's legend gives
 its 95 % coverage and median σ/tol.</figcaption></figure>
 <figure><img src="fig2_coverage.png" alt="Coverage per method with binomial intervals"><figcaption>Figure 1b. Fraction of the 20 scored QoIs inside the 68 % and 95 % intervals for the four methods of Figure 1
-(headline, B1, B2 with the 5 % leverage cut, B3), with 95 % Clopper–Pearson intervals; dashed lines are the nominal levels.</figcaption></figure>
-<h3>3.5 Joint test</h3>
-<div class="wrap"><table><caption>Table 4. Mahalanobis test (correlation-scaled, ε = 10<sup>−3</sup>) for the four methods of Figure 1, and CR3 × λ<sub>V</sub>
-as a sensitivity. "Covariance from": the delta method or the committee.</caption>
-<thead><tr><th>model</th><th>method</th><th>covariance from</th><th>df</th><th>d²</th><th>χ²<sub>95</sub></th><th>p</th></tr></thead>
+(headline, B1, B2 with the 5 % leverage cut, B3), with 95 % credible intervals from the Jeffreys-prior Beta posterior; dashed lines are the nominal levels.</figcaption></figure>
+<h3>3.5 Joint evidence</h3>
+<div class="wrap"><table><caption>Table 4. Log evidence of the 20 scored DFT values (17 with the delta method) under each method's
+predictive distribution, in tolerance units (ε = 10<sup>−6</sup>), and the log Bayes factor against the headline with the same
+covariance source. d² and log det are the two parts of the evidence: the misfit of the errors, and the width of the covariance.</caption>
+<thead><tr><th>model</th><th>method</th><th>covariance from</th><th>n</th><th>log p</th><th>log BF vs headline</th><th>d²</th><th>log det</th></tr></thead>
 <tbody>{jrows}</tbody></table></div>
 <p>The QoIs share one coefficient vector, so their errors are correlated, and Figure 3 shows how. In the CR3 committee for o4d20 the
 correlations form blocks: the elastic constants with each other and with the β-Sn and sh phase energies, which are both compressed
 diamond-like structures; and the four point defects with each other (0.3–0.8), most strongly the three interstitials. Most other pairs
 are only weakly correlated.</p>
-<p>The joint test (Table 4) asks whether the whole error vector is consistent with this covariance. For o4d20 the headline passes
-(p = {jp("o4d20", "CR3/lam_F", "committee")} with the committee covariance, {jp("o4d20", "CR3/lam_F", "delta")} with the delta method),
-even though five QoIs miss individually. Three of the five are the interstitials, which the covariance expects to move together, so
-jointly they weigh less than three independent misses. For o3d12 the headline fails
-(p = {jp("o3d12", "CR3/lam_F", "committee")} and {jp("o3d12", "CR3/lam_F", "delta")}), although it covers more QoIs one at a time. Its
-three interstitials miss by z = {zlist("o3d12")}, all in the same direction; we have not separated their share of d² from the rest. The virial scale passes for both
-models (p from {jp("o3d12", "CR3/lam_V", "delta")} to {jp("o4d20", "CR3/lam_V", "committee")}). Every baseline fails, by many orders of
-magnitude for B1 and B3. So does B2 for o3d12, which covers 15 of 20 QoIs one at a time: per-QoI coverage alone does not show that
-a covariance is right. The delta-method and committee covariances agree, and the outcomes do not change for ε from
-10<sup>−4</sup> to 10<sup>−2</sup> of the mean diagonal. The discrepancy term of Section 3.8 is not included here.</p>
+<p>Table 4 compares the methods by their evidence. For both models the headline is far ahead of every baseline: by log Bayes factors
+of {lbf_txt("o4d20", "B1/q_b1")} (B1), {lbf_txt("o4d20", "B2lev5/lam_1")} (B2) and {lbf_txt("o4d20", "B3/lam_1")} (B3) for o4d20, and
+{lbf_txt("o3d12", "B1/q_b1")}, {lbf_txt("o3d12", "B2lev5/lam_1")} and {lbf_txt("o3d12", "B3/lam_1")} for o3d12, with the committee
+covariance. On the scale of Kass and Raftery [1995] a log Bayes factor beyond about 3 is strong evidence and beyond 5 very strong. B3 and B2 for o4d20
+lose through the misfit term, with intervals far too narrow for their errors. B1 loses less, because its overall size is calibrated,
+but its shape puts the width in the wrong places. B2 for o3d12, which covers 15 of 20 QoIs one at a time, is still behind the headline
+({lbf_txt("o3d12", "B2lev5/lam_1")}): per-QoI coverage alone does not show that a covariance is right. The correlations also matter in
+the other direction. o4d20's headline misses five QoIs one at a time, but three of the five are the interstitials, which its covariance
+expects to move together, so jointly they cost less than three independent misses.</p>
+<p>The virial scale is about as good as the force scale for o4d20 ({lbf_txt("o4d20", "CR3/lam_V")}) and better for o3d12
+({lbf_txt("o3d12", "CR3/lam_V")}), whose QoI errors are larger relative to its force errors. The discrepancy term of Section 3.8 is
+strongly supported for o3d12 ({lbf_txt("o3d12", "CR3/lam_F+disc")} with the committee covariance,
+{lbf_txt("o3d12", "CR3/lam_F+disc", "delta")} with the delta method), and roughly neutral for o4d20
+({lbf_txt("o4d20", "CR3/lam_F+disc")} and {lbf_txt("o4d20", "CR3/lam_F+disc", "delta")}): o4d20's defect bias is small, so the term's
+extra width costs about as much as the misses it removes. The delta-method and committee covariances agree, and the ranking of the
+methods is the same for ε from 10<sup>−8</sup> to 10<sup>−4</sup>.</p>
 <figure><img src="fig3_qoi_correlation.png" alt="QoI correlation matrix of the o4d20 CR3 committee"><figcaption>Figure 3. Correlation
 between the QoIs in the CR3 committee for o4d20 (K = 200 members).</figcaption></figure>
 <h3>3.6 Delta method, committees and nonlinearity</h3>
@@ -675,7 +705,7 @@ mean model's value and the star DFT.</figcaption></figure>
 <p>The three baselines of Section 2.6 each fall short in a different way (Figure 1, Figure 1b and Table 3). B3, the CR3 shape without
 calibration, covers only {b3txt} of the QoIs at 95 %: the shape alone is several times too narrow, as the test-split scales of
 Section 3.3 already show. B1, the posterior with one conformal scale, covers {b1txt}. It has a calibrated overall size but the wrong
-shape, so it is too wide for some QoIs and too narrow for others, and it fails the joint test outright (Table 4).</p>
+shape, so it is too wide for some QoIs and too narrow for others, and its joint evidence is far below the headline's (Table 4).</p>
 <p>B2, POPS, needed more care. With ace-jax's default, which builds the hypercube from every training row, the members are
 unphysical: the bounds are set by a handful of rows with near-zero leverage, whose corrections are unbounded, and the members spread
 the bulk energy of o3d12 by {pops_sd} meV/atom, so that almost every relaxation fails. Rejecting unphysical members cannot rescue
@@ -780,7 +810,7 @@ sec("results-defects2", "", f"""
 <thead><tr><th>model</th><th>class</th><th>estimator</th><th>r* (eV)</th></tr></thead><tbody>{r7a_rows}</tbody></table></div>
 <div class="wrap"><table><caption>Table 7. Coverage of the 20 scored QoIs with the discrepancy term on the four defect QoIs
 (models with r*: {models_disc}).</caption>
-<thead><tr><th>model</th><th>method</th><th>95 % without</th><th>95 % with [CI]</th><th>68 %</th><th>median σ/tol</th></tr></thead>
+<thead><tr><th>model</th><th>method</th><th>95 % without</th><th>95 % with [credible interval]</th><th>68 %</th><th>median σ/tol</th></tr></thead>
 <tbody>{dcov_rows}</tbody></table></div>
 <div class="wrap"><table><caption>Table 7b. Sensitivity to the r* estimator, CR3 × λ<sub>F</sub> and λ<sub>V</sub>, 95 % (68 %) coverage of the
 20 QoIs. Headline: regression for the interstitial class, per-size regression for the vacancy. Paired: each defect snapshot against its nearest
@@ -916,13 +946,12 @@ scale. The second use is what a distribution over θ buys: one draw gives energi
 consistently.</p>
 <p>The baselines show which ingredient matters. The CR3 shape without a scale (B3) is far too narrow, so calibration is essential,
 as expected for a parameter variance that shrinks with the amount of data. The Bayesian posterior with a calibrated scale (B1)
-has the right overall size but the wrong shape: it under-covers the QoIs and fails the joint test, because the posterior describes
+has the right overall size but the wrong shape: it under-covers the QoIs and its joint evidence is far lower, because the posterior describes
 noise in the labels, not the approximation error of a misspecified model. POPS (B2) targets that error directly, but its width is
 set by which training rows define the hypercube, and with no calibration step it is too narrow for the larger model. The CR3 shape,
 which measures how far the fit moves when each configuration is left out, is the one that transfers, provided it is scaled.</p>
 <p>The scale is not unique. The virial scale is about a third larger than the force scale, and using it covers
-{k95("o3d12", "CR3-headline", "lam_V")} and {k95("o4d20", "CR3-headline", "lam_V")} QoIs with wider intervals, and passes the joint test for
-both models. Misspecification depends on the observable, and one could choose the scale by the QoI's physics, the virial scale
+{k95("o3d12", "CR3-headline", "lam_V")} and {k95("o4d20", "CR3-headline", "lam_V")} QoIs with wider intervals; its joint evidence is about equal to the force scale's for o4d20 and higher for o3d12. Misspecification depends on the observable, and one could choose the scale by the QoI's physics, the virial scale
 for stress-like QoIs such as elastic constants, or report both. A single scale is also a compromise across configuration types
 (Figure 5), which a per-type or per-group scale in θ could relax. The per-atom Mondrian scales cannot be used for this directly:
 they rescale force outputs atom by atom and define no covariance in θ; a θ-space analogue would need a shape that depends on the
@@ -945,8 +974,8 @@ away from zero, can flag where such data are missing.</p>
 <p>The study has limitations. The calibration assumes that the test split and the QoI structures are exchangeable with the
 training data, which the defects show is not always true. The hyperparameters are held fixed in the jackknife, so their own
 uncertainty is not propagated. The locality of the model, which cannot represent interactions beyond its cutoff, appears here only
-as part of the effective error. And twenty QoIs give coarse coverage estimates: counts from 17 to 20 are all consistent with a
-nominal 95 %.</p>""", "")
+as part of the effective error. And twenty QoIs give coarse coverage estimates: 17 of 20 leaves a 95 % credible interval from
+0.65 to 0.96 for the coverage probability, so the evidence of Section 3.5, which uses all the QoIs jointly, is the sharper comparison.</p>""", "")
 
 sec("conclusions", "5  Conclusions", """
 <p>For linear ACE potentials, the delete-one-configuration (CR3) jackknife covariance, scaled once, gives calibrated uncertainty at
@@ -997,6 +1026,7 @@ sec("refs", "References", """<p class="note">Checked against publisher or reposi
 <li>R. Dunn, L. Wasserman, A. Ramdas, Distribution-free prediction sets for two-layer hierarchical models, J. Am. Stat. Assoc. 118, 2491–2502 (2023).</li>
 <li>A. Grossfield, D. M. Zuckerman, Quantifying uncertainty and sampling quality in biomolecular simulations, in Annual Reports in Computational Chemistry, Vol. 5, Elsevier (2009).</li>
 <li>K. Fisher, M. Herbst, J. Kermode, Y. Marzouk, Multivariate conformal uncertainty propagation in multitask atomistic simulation: successes and pitfalls, arXiv:2609.31384 (2026).</li>
+<li>R. E. Kass, A. E. Raftery, Bayes factors, J. Am. Stat. Assoc. 90, 773–795 (1995).</li>
 <li>J. A. Hoeting, D. Madigan, A. E. Raftery, C. T. Volinsky, Bayesian model averaging: a tutorial, Stat. Sci. 14, 382–417 (1999).</li>
 <li>P. J. Huber, The behavior of maximum likelihood estimates under nonstandard conditions, Proc. Fifth Berkeley Symp. Math. Stat. Probab. 1, 221–233 (1967).</li>
 <li>G. Imbalzano, Y. Zhuang, V. Kapil, K. Rossi, E. A. Engel, F. Grasselli, M. Ceriotti, Uncertainty estimation for molecular dynamics and sampling, J. Chem. Phys. 154, 074102 (2021).</li>
