@@ -315,12 +315,15 @@ def ace_pareto(results, out, picked=("o3d12", "o4d20"), f_target=0.0825, q_targe
     if not pth.exists():
         return
     P = json.load(open(pth))
-    fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.0), facecolor=SURFACE)
-    for ax, key, lab, tgt in ((axes[0], "rmse_F", "test force RMSE (eV/Å)", f_target),
-                              (axes[1], "qoi", "QoI error (geometric mean of |error| / tolerance)", q_target)):
+    rows_ = (("cost_cpu", "cost, Sulis CPU node (µs per atom-step, ace-jax C++ kernel in LAMMPS)", (0.1, 0.2, 0.5, 1, 2, 5)),
+             ("cost_gpu", "cost, Sulis A100 (µs per atom-step, ace-jax CUDA kernel in LAMMPS)", (0.03, 0.05, 0.1, 0.2, 0.5, 1, 2)))
+    fig, axes = plt.subplots(len(rows_), 2, figsize=(10.5, 4.0 * len(rows_)), squeeze=False, facecolor=SURFACE)
+    for ir, (ck, xlab, xt) in enumerate(rows_):
+      for ax, key, lab, tgt in ((axes[ir, 0], "rmse_F", "test force RMSE (eV/Å)", f_target),
+                                (axes[ir, 1], "qoi", "QoI error (geometric mean of |error| / tolerance)", q_target)):
         _style(ax)
-        pts = [p_ for p_ in P if p_.get(key) is not None and p_.get("cost_cpu")]
-        x = np.array([p_["cost_cpu"] for p_ in pts]); y = np.array([p_[key] for p_ in pts])
+        pts = [p_ for p_ in P if p_.get(key) is not None and p_.get(ck)]
+        x = np.array([p_[ck] for p_ in pts]); y = np.array([p_[key] for p_ in pts])
         ax.plot(x, y, "-", color=CAT[0], lw=2, zorder=2)
         ax.scatter(x, y, s=36, color=CAT[0], edgecolor=SURFACE, linewidth=1.2, zorder=3, label="linear ACE ladder")
         for p_, xi, yi in zip(pts, x, y):
@@ -337,10 +340,10 @@ def ace_pareto(results, out, picked=("o3d12", "o4d20"), f_target=0.0825, q_targe
         for axis in (ax.xaxis, ax.yaxis):
             axis.set_major_formatter(plain); axis.set_minor_formatter(NullFormatter())
         ax.set_yticks([t for t in ((0.08, 0.1, 0.15, 0.2, 0.25) if key == "rmse_F" else (0.4, 0.5, 0.7, 1, 2, 3))])
-        ax.set_xticks([0.1, 0.2, 0.5, 1, 2, 5])
-        ax.set_xlabel("cost, Sulis CPU node (µs per atom-step, ace-jax kernel in LAMMPS)", color=INK, fontsize=8)
+        ax.set_xticks(list(xt))
+        ax.set_xlabel(xlab, color=INK, fontsize=8)
         ax.set_ylabel(lab, color=INK, fontsize=8)
-    axes[0].legend(fontsize=8, frameon=False, loc="upper right")
+    axes[0, 0].legend(fontsize=8, frameon=False, loc="upper right")
     fig.tight_layout()
     _save(fig, out, "fig0_ace_pareto")
 

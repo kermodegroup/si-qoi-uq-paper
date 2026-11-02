@@ -180,16 +180,17 @@ if {"o3d12", "o4d20", "o4d12", "o4d14"} <= set(_par):
 fitted to the GAP-18 database [Bartók et al. 2018] (Figure 0). A model oNdM has correlation order N and total polynomial degree M.
 o4d20 ({_b['n_params']} coefficients) is the only size of the ladder that meets both of the benchmark's targets, a test force RMSE
 no larger than GAP-18's 0.0825 eV/Å on this split (o4d20: {_b['rmse_F']:.4f} eV/Å) and a QoI error, the geometric mean of
-|error|/tolerance over the silicon QoIs, below 0.5 (o4d20: {_b['qoi']:.2f}). o3d12 ({_a['n_params']} coefficients) is {_b['cost_cpu'] / _a['cost_cpu']:.0f}× cheaper on a CPU node, with
+|error|/tolerance over the silicon QoIs, below 0.5 (o4d20: {_b['qoi']:.2f}). o3d12 ({_a['n_params']} coefficients) is {_b['cost_cpu'] / _a['cost_cpu']:.0f}× cheaper on a CPU node and
+{_b['cost_gpu'] / _a['cost_gpu']:.0f}× cheaper on an A100, with
 about twice the force error ({_a['rmse_F']:.3f} eV/Å) and a typical QoI error of one tolerance ({_a['qoi']:.2f}). The pair spans
 the useful range of the ladder: an accurate model whose intervals should be narrow, and a cheap one whose intervals must be wide to
-be honest. The two panels of Figure 0 also rank the sizes differently: o4d12 has a larger force error than o4d14 but a smaller QoI
+be honest. The two columns of Figure 0 also rank the sizes differently: o4d12 has a larger force error than o4d14 but a smaller QoI
 error ({_par['o4d12']['qoi']:.2f} against {_par['o4d14']['qoi']:.2f}). Force accuracy alone does not predict QoI accuracy, which is why the
 uncertainty is propagated to the QoIs themselves.</p>
 <figure><img src="fig0_ace_pareto.png" alt="Test force RMSE and QoI error against CPU cost for the linear ACE ladder, o3d12 and o4d20 circled"><figcaption>Figure 0.
 The linear ACE ladder of the ace-jax silicon accuracy–cost benchmark: test force RMSE (left) and QoI error (right; the geometric
-mean over the silicon QoIs of |error|/tolerance against CASTEP) against cost on a Sulis CPU node (ace-jax C++ kernel in LAMMPS,
-float64). Dashed: the benchmark's targets, GAP-18's force RMSE on this split and a QoI error of 0.5. Circled: the two models
+mean over the silicon QoIs of |error|/tolerance against CASTEP) against cost in LAMMPS, float64: on a Sulis CPU node with the
+ace-jax C++ kernel (top) and on a Sulis A100 with the ace-jax CUDA kernel (bottom). Dashed: the benchmark's targets, GAP-18's force RMSE on this split and a QoI error of 0.5. Circled: the two models
 studied here.</figcaption></figure>"""
 else:
     pareto_par = ""
