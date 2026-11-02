@@ -329,3 +329,19 @@ The fit uses the BLR prior and shared noise, solved by QR on explicit rows.
   6818 s): λ_E/F/V 0.7 / 2.2 / 3.9 against CR3's 5.0 / 6.2 / 8.2. Delta-method λ_F coverage 16/17 at 95 % and 16/17 at 68 %
   (CR3: 12 and 10), median σ/tol 1.77 against 0.53. All defect |z| ≤ 0.5. It covers the defects without a discrepancy term but
   over-covers (nominal 68 %); for o3d12 it does not reach the interstitials. Reported as a conservative alternative (paper 7.5c).
+
+## o4d20 POPS leverage-50 committee (2026-11-02)
+
+200/200 members finished, none failed or collapsed. Unlike o3d12, the leverage-50 box is narrow: 2496 support rows for 5476
+parameters, bulk-energy spread 0.093 meV/atom (CR3 at λ = 1: 0.11, at λ_F: 0.69). B2 covers 2/20 at 95 % (RMS z 15.4,
+median σ/tol 0.07); o3d12 gives 14/20 with a 73 meV/atom spread. The median-leverage rule gives physical members for both
+models but no consistent width, and POPS has no calibration step to correct it.
+
+## POPS leverage sweep and leverage-5 committees (2026-11-02)
+
+Rejection cannot fix the full box: every axis spans 1e6-1e7 eV/atom of bulk energy (o3d12 27/27 axes, o4d20 74/74), so
+0/200 members pass even |dE| < 5 eV/atom on rattled diamond. `pops_fit.py --levels` (refit to recover the ridge path, boxes in
+fits/<m>/pops_sweep/, c* identical to the run's) screened cuts 1-25 %: dropping the lowest 1 % already gives physical
+members; o4d20 width 0.001-0.003 eV/atom at every cut (CR3 x lam_F 0.017); BLR-ridge boxes unphysical for o3d12 at every cut.
+Committees at the 5 % cut (`popslev5`, B2lev5; boxes linked from the sweep): 200/200 each, no failures.
+o3d12 15/20 at 95 % (RMS z 2.1); o4d20 7/20 (RMS z 10.3; sigma 0.04-0.66 x CR3 x lam_F).

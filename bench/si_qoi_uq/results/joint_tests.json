@@ -815,6 +815,148 @@
      }
     }
    }
+  },
+  "B2lev50/lam_1": {
+   "committee": {
+    "qois": [
+     "diamond_bulk_modulus",
+     "diamond_c11",
+     "diamond_c12",
+     "diamond_c44",
+     "dE_beta-Sn (meV/at)",
+     "dE_sh (meV/at)",
+     "dE_hex_diamond (meV/at)",
+     "dE_bc8 (meV/at)",
+     "dE_st12 (meV/at)",
+     "dE_hcp (meV/at)",
+     "dE_fcc (meV/at)",
+     "dE_bcc (meV/at)",
+     "vacancy_energy",
+     "dumbbell_interstitial_energy",
+     "hexagonal_interstitial_energy",
+     "tetrahedral_interstitial_energy",
+     "surface_100 (J/m2)",
+     "gamma_us glide (J/m2)",
+     "gamma_us shuffle (J/m2)",
+     "decohesion_max_stress"
+    ],
+    "K_rows": 200,
+    "absolute": {
+     "df": 19,
+     "n": 20,
+     "eps_0.0001": {
+      "eps": 1.5097756395357937e-05,
+      "mahalanobis": 798.9443947377897,
+      "p_value": 3.6038641690926624e-157,
+      "chi2_95": 30.14352720564616
+     },
+     "eps_0.001": {
+      "eps": 0.00015097756395357937,
+      "mahalanobis": 675.7696020900818,
+      "p_value": 4.869083844506642e-131,
+      "chi2_95": 30.14352720564616
+     },
+     "eps_0.01": {
+      "eps": 0.0015097756395357938,
+      "mahalanobis": 485.4675274226484,
+      "p_value": 6.229790810394413e-91,
+      "chi2_95": 30.14352720564616
+     }
+    },
+    "scaled": {
+     "df": 19,
+     "n": 20,
+     "eps_0.0001": {
+      "eps": 0.0001,
+      "mahalanobis": 4358.3610461996295,
+      "p_value": 0.0,
+      "chi2_95": 30.14352720564616
+     },
+     "eps_0.001": {
+      "eps": 0.001,
+      "mahalanobis": 4352.13283413287,
+      "p_value": 0.0,
+      "chi2_95": 30.14352720564616
+     },
+     "eps_0.01": {
+      "eps": 0.01,
+      "mahalanobis": 4291.115129222701,
+      "p_value": 0.0,
+      "chi2_95": 30.14352720564616
+     }
+    }
+   }
+  },
+  "B2lev5/lam_1": {
+   "committee": {
+    "qois": [
+     "diamond_bulk_modulus",
+     "diamond_c11",
+     "diamond_c12",
+     "diamond_c44",
+     "dE_beta-Sn (meV/at)",
+     "dE_sh (meV/at)",
+     "dE_hex_diamond (meV/at)",
+     "dE_bc8 (meV/at)",
+     "dE_st12 (meV/at)",
+     "dE_hcp (meV/at)",
+     "dE_fcc (meV/at)",
+     "dE_bcc (meV/at)",
+     "vacancy_energy",
+     "dumbbell_interstitial_energy",
+     "hexagonal_interstitial_energy",
+     "tetrahedral_interstitial_energy",
+     "surface_100 (J/m2)",
+     "gamma_us glide (J/m2)",
+     "gamma_us shuffle (J/m2)",
+     "decohesion_max_stress"
+    ],
+    "K_rows": 200,
+    "absolute": {
+     "df": 19,
+     "n": 20,
+     "eps_0.0001": {
+      "eps": 5.955335081358979e-05,
+      "mahalanobis": 717.9306696466912,
+      "p_value": 5.689142296006397e-140,
+      "chi2_95": 30.14352720564616
+     },
+     "eps_0.001": {
+      "eps": 0.0005955335081358979,
+      "mahalanobis": 549.2032446538099,
+      "p_value": 2.5585734293737903e-104,
+      "chi2_95": 30.14352720564616
+     },
+     "eps_0.01": {
+      "eps": 0.005955335081358979,
+      "mahalanobis": 278.8161038274806,
+      "p_value": 4.293343850971509e-48,
+      "chi2_95": 30.14352720564616
+     }
+    },
+    "scaled": {
+     "df": 19,
+     "n": 20,
+     "eps_0.0001": {
+      "eps": 0.0001,
+      "mahalanobis": 2394.6429908117316,
+      "p_value": 0.0,
+      "chi2_95": 30.14352720564616
+     },
+     "eps_0.001": {
+      "eps": 0.001,
+      "mahalanobis": 2390.5364274080657,
+      "p_value": 0.0,
+      "chi2_95": 30.14352720564616
+     },
+     "eps_0.01": {
+      "eps": 0.01,
+      "mahalanobis": 2350.549754791632,
+      "p_value": 0.0,
+      "chi2_95": 30.14352720564616
+     }
+    }
+   }
   }
  },
  "o3d12": {
@@ -1700,6 +1842,77 @@
       "eps": 0.01,
       "mahalanobis": 59.707774116186016,
       "p_value": 4.304030175288792e-06,
+      "chi2_95": 30.14352720564616
+     }
+    }
+   }
+  },
+  "B2lev5/lam_1": {
+   "committee": {
+    "qois": [
+     "diamond_bulk_modulus",
+     "diamond_c11",
+     "diamond_c12",
+     "diamond_c44",
+     "dE_beta-Sn (meV/at)",
+     "dE_sh (meV/at)",
+     "dE_hex_diamond (meV/at)",
+     "dE_bc8 (meV/at)",
+     "dE_st12 (meV/at)",
+     "dE_hcp (meV/at)",
+     "dE_fcc (meV/at)",
+     "dE_bcc (meV/at)",
+     "vacancy_energy",
+     "dumbbell_interstitial_energy",
+     "hexagonal_interstitial_energy",
+     "tetrahedral_interstitial_energy",
+     "surface_100 (J/m2)",
+     "gamma_us glide (J/m2)",
+     "gamma_us shuffle (J/m2)",
+     "decohesion_max_stress"
+    ],
+    "K_rows": 200,
+    "absolute": {
+     "df": 19,
+     "n": 20,
+     "eps_0.0001": {
+      "eps": 0.07069895578954631,
+      "mahalanobis": 32.63360619403988,
+      "p_value": 0.026485913026615564,
+      "chi2_95": 30.14352720564616
+     },
+     "eps_0.001": {
+      "eps": 0.7069895578954631,
+      "mahalanobis": 12.351969832841728,
+      "p_value": 0.8700344652446186,
+      "chi2_95": 30.14352720564616
+     },
+     "eps_0.01": {
+      "eps": 7.069895578954632,
+      "mahalanobis": 5.472071812856393,
+      "p_value": 0.9989110104442148,
+      "chi2_95": 30.14352720564616
+     }
+    },
+    "scaled": {
+     "df": 19,
+     "n": 20,
+     "eps_0.0001": {
+      "eps": 0.0001,
+      "mahalanobis": 52.4425256078039,
+      "p_value": 5.6787486244461365e-05,
+      "chi2_95": 30.14352720564616
+     },
+     "eps_0.001": {
+      "eps": 0.001,
+      "mahalanobis": 52.393804755146824,
+      "p_value": 5.7752330404393005e-05,
+      "chi2_95": 30.14352720564616
+     },
+     "eps_0.01": {
+      "eps": 0.01,
+      "mahalanobis": 51.93094197317957,
+      "p_value": 6.775473602523295e-05,
       "chi2_95": 30.14352720564616
      }
     }

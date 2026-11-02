@@ -1,64 +1,127 @@
 model,set,qoi,K_finished,K_attempted
+o4d20,popslev50,diamond_bulk_modulus,200,200
+o4d20,popslev5,diamond_bulk_modulus,200,200
+o4d20,popslev50,diamond_c11,200,200
+o4d20,popslev5,diamond_c11,200,200
+o4d20,popslev50,diamond_c12,200,200
+o4d20,popslev5,diamond_c12,200,200
+o4d20,popslev50,diamond_c44,200,200
+o4d20,popslev5,diamond_c44,200,200
+o4d20,popslev50,dE_beta-Sn (meV/at),200,200
+o4d20,popslev5,dE_beta-Sn (meV/at),200,200
+o4d20,popslev50,dE_sh (meV/at),200,200
+o4d20,popslev5,dE_sh (meV/at),200,200
+o4d20,popslev50,dE_hex_diamond (meV/at),200,200
+o4d20,popslev5,dE_hex_diamond (meV/at),200,200
+o4d20,popslev50,dE_bc8 (meV/at),200,200
+o4d20,popslev5,dE_bc8 (meV/at),200,200
+o4d20,popslev50,dE_st12 (meV/at),200,200
+o4d20,popslev5,dE_st12 (meV/at),200,200
+o4d20,popslev50,dE_hcp (meV/at),200,200
+o4d20,popslev5,dE_hcp (meV/at),200,200
+o4d20,popslev50,dE_fcc (meV/at),200,200
+o4d20,popslev5,dE_fcc (meV/at),200,200
+o4d20,popslev50,dE_bcc (meV/at),200,200
+o4d20,popslev5,dE_bcc (meV/at),200,200
+o4d20,popslev50,vacancy_energy,200,200
+o4d20,popslev5,vacancy_energy,200,200
+o4d20,popslev50,dumbbell_interstitial_energy,200,200
+o4d20,popslev5,dumbbell_interstitial_energy,200,200
+o4d20,popslev50,hexagonal_interstitial_energy,200,200
+o4d20,popslev5,hexagonal_interstitial_energy,200,200
+o4d20,popslev50,tetrahedral_interstitial_energy,200,200
+o4d20,popslev5,tetrahedral_interstitial_energy,200,200
+o4d20,popslev50,surface_100 (J/m2),200,200
+o4d20,popslev5,surface_100 (J/m2),200,200
+o4d20,popslev50,gamma_us glide (J/m2),200,200
+o4d20,popslev5,gamma_us glide (J/m2),200,200
+o4d20,popslev50,gamma_us shuffle (J/m2),200,200
+o4d20,popslev5,gamma_us shuffle (J/m2),200,200
+o4d20,popslev50,decohesion_max_stress,200,200
+o4d20,popslev5,decohesion_max_stress,200,200
+o4d20,popslev50,phonon_f rms vs DFT (THz),200,200
+o4d20,popslev5,phonon_f rms vs DFT (THz),200,200
 o3d12,pops,diamond_bulk_modulus,0,125
 o3d12,popsblr,diamond_bulk_modulus,0,14
 o3d12,popslev50,diamond_bulk_modulus,200,200
+o3d12,popslev5,diamond_bulk_modulus,200,200
 o3d12,pops,diamond_c11,0,125
 o3d12,popsblr,diamond_c11,0,14
 o3d12,popslev50,diamond_c11,200,200
+o3d12,popslev5,diamond_c11,200,200
 o3d12,pops,diamond_c12,0,125
 o3d12,popsblr,diamond_c12,0,14
 o3d12,popslev50,diamond_c12,200,200
+o3d12,popslev5,diamond_c12,200,200
 o3d12,pops,diamond_c44,0,125
 o3d12,popsblr,diamond_c44,0,14
 o3d12,popslev50,diamond_c44,200,200
+o3d12,popslev5,diamond_c44,200,200
 o3d12,pops,dE_beta-Sn (meV/at),0,125
 o3d12,popsblr,dE_beta-Sn (meV/at),0,14
 o3d12,popslev50,dE_beta-Sn (meV/at),200,200
+o3d12,popslev5,dE_beta-Sn (meV/at),200,200
 o3d12,pops,dE_sh (meV/at),0,125
 o3d12,popsblr,dE_sh (meV/at),0,14
 o3d12,popslev50,dE_sh (meV/at),200,200
+o3d12,popslev5,dE_sh (meV/at),200,200
 o3d12,pops,dE_hex_diamond (meV/at),0,125
 o3d12,popsblr,dE_hex_diamond (meV/at),0,14
 o3d12,popslev50,dE_hex_diamond (meV/at),200,200
+o3d12,popslev5,dE_hex_diamond (meV/at),200,200
 o3d12,pops,dE_bc8 (meV/at),0,125
 o3d12,popsblr,dE_bc8 (meV/at),0,14
 o3d12,popslev50,dE_bc8 (meV/at),200,200
+o3d12,popslev5,dE_bc8 (meV/at),200,200
 o3d12,pops,dE_st12 (meV/at),0,125
 o3d12,popsblr,dE_st12 (meV/at),0,14
 o3d12,popslev50,dE_st12 (meV/at),200,200
+o3d12,popslev5,dE_st12 (meV/at),200,200
 o3d12,pops,dE_hcp (meV/at),0,125
 o3d12,popsblr,dE_hcp (meV/at),0,14
 o3d12,popslev50,dE_hcp (meV/at),200,200
+o3d12,popslev5,dE_hcp (meV/at),200,200
 o3d12,pops,dE_fcc (meV/at),0,125
 o3d12,popsblr,dE_fcc (meV/at),0,14
 o3d12,popslev50,dE_fcc (meV/at),200,200
+o3d12,popslev5,dE_fcc (meV/at),200,200
 o3d12,pops,dE_bcc (meV/at),0,125
 o3d12,popsblr,dE_bcc (meV/at),0,14
 o3d12,popslev50,dE_bcc (meV/at),200,200
+o3d12,popslev5,dE_bcc (meV/at),200,200
 o3d12,pops,vacancy_energy,4,125
 o3d12,popsblr,vacancy_energy,3,14
 o3d12,popslev50,vacancy_energy,200,200
+o3d12,popslev5,vacancy_energy,200,200
 o3d12,pops,dumbbell_interstitial_energy,0,125
 o3d12,popsblr,dumbbell_interstitial_energy,0,14
 o3d12,popslev50,dumbbell_interstitial_energy,200,200
+o3d12,popslev5,dumbbell_interstitial_energy,200,200
 o3d12,pops,hexagonal_interstitial_energy,0,125
 o3d12,popsblr,hexagonal_interstitial_energy,0,14
 o3d12,popslev50,hexagonal_interstitial_energy,200,200
+o3d12,popslev5,hexagonal_interstitial_energy,200,200
 o3d12,pops,tetrahedral_interstitial_energy,0,125
 o3d12,popsblr,tetrahedral_interstitial_energy,0,14
 o3d12,popslev50,tetrahedral_interstitial_energy,200,200
+o3d12,popslev5,tetrahedral_interstitial_energy,200,200
 o3d12,pops,surface_100 (J/m2),0,125
 o3d12,popsblr,surface_100 (J/m2),0,14
 o3d12,popslev50,surface_100 (J/m2),200,200
+o3d12,popslev5,surface_100 (J/m2),200,200
 o3d12,pops,gamma_us glide (J/m2),0,125
 o3d12,popsblr,gamma_us glide (J/m2),0,14
 o3d12,popslev50,gamma_us glide (J/m2),200,200
+o3d12,popslev5,gamma_us glide (J/m2),200,200
 o3d12,pops,gamma_us shuffle (J/m2),0,125
 o3d12,popsblr,gamma_us shuffle (J/m2),0,14
 o3d12,popslev50,gamma_us shuffle (J/m2),200,200
+o3d12,popslev5,gamma_us shuffle (J/m2),200,200
 o3d12,pops,decohesion_max_stress,9,125
 o3d12,popsblr,decohesion_max_stress,3,14
 o3d12,popslev50,decohesion_max_stress,200,200
+o3d12,popslev5,decohesion_max_stress,200,200
 o3d12,pops,phonon_f rms vs DFT (THz),4,125
 o3d12,popsblr,phonon_f rms vs DFT (THz),1,14
 o3d12,popslev50,phonon_f rms vs DFT (THz),200,200
+o3d12,popslev5,phonon_f rms vs DFT (THz),200,200
