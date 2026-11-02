@@ -958,13 +958,20 @@ relaxed point defects, the cause is a bias shared by all training snapshots of a
 measured from the training labels and added as a discrepancy term, which restores coverage. The methods are implemented in ace-jax.</p>""", "")
 
 sec("methods-detail", "6  Computational details", """
-<ul>
-<li>Data: GAP-18 silicon, 2227 train / 248 test (seed 0, split hash c433c98d49bb). Models: ACE o4d20 (p = 5476) and o3d12 (p = 223),
-r<sub>cut</sub> 5 Å, least-squares E<sup>0</sup>, shared noise, smoothness prior, float64.</li>
-<li>Harness: py3 port of libAtoms/silicon-testing-framework, run unmodified with relaxed-ion elastic fmax 10<sup>−3</sup> eV/Å.</li>
-<li>Code: <code>bench/si_qoi_uq</code> (branch silicon-uq-prop); seeds recorded in <code>results/run_metadata.json</code>.</li>
-<li>Compute: lestrade (32 cores, RTX 4000 Ada), mnf148 (32 cores, 256 GB).</li>
-</ul>""", "drafted")
+<p>The training and test data are the GAP-18 silicon database [Bartók et al. 2018], split once at random into 2227 training and
+248 test configurations (seed 0; the split's content hash is c433c98d49bb). Both models are linear ACE potentials fitted with
+ace-jax [ace-jax] at a 5 Å cutoff, with least-squares reference energies, the smoothness prior of Section 2.2, one shared noise scale
+and the structural weights of the ace-jax silicon accuracy–cost benchmark. Every calculation is in double precision. The QoIs are
+computed by a Python 3 port of the silicon test framework of Bartók et al. [2018], run unmodified apart from a relaxed-ion force
+tolerance of 10<sup>−3</sup> eV/Å for the elastic constants. Committees use 200 members drawn with fixed seeds. The fits, committees and analyses ran on
+workstations of the University of Warwick's Scientific Computing Research Technology Platform, and the cost timings of Figure 0 on
+the Sulis Tier 2 HPC platform.</p>
+<p><b>Code and data availability.</b> The uncertainty methods are part of ace-jax version 0.5.1 (MIT licence,
+https://github.com/ACEsuit/ace-jax). The analysis code, the results behind every table and figure, the generator of this paper and
+the original specification of the study are at https://github.com/kermodegroup/si-qoi-uq-paper [archived on Zenodo, DOI to be
+added]. The GAP-18 database is available from its original publication [Bartók et al. 2018]. The silicon test framework is
+available from https://github.com/libAtoms/silicon-testing-framework; it carries no licence, so the port used here is not
+redistributed.</p>""", "")
 
 sec("ack", "Acknowledgements", """
 <p>Calculations were performed on the Sulis Tier 2 HPC platform hosted by the Scientific Computing Research
