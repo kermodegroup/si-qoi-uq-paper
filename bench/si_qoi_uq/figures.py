@@ -257,8 +257,9 @@ def force_calibration(results, out, nbins=20, level=0.9):
     """Per-atom force uncertainty against the observed error on the test split, per model.  Top: binned on predicted sigma
     (equal counts), RMS |error| against RMS sigma, for the Mondrian sigma_F (ARD fit, analysis/force_calibration.py) and the
     propagation's methods on the BLR fit (analysis/force_baselines.py: CR3 x lam_F, B1, B2, B3), per-atom density behind.
-    Bottom: coverage at `level` per Mondrian group: the Mondrian conformal region, and the Gaussian isotropic region
-    |e| <= sigma sqrt(chi2_3(level) / 3) for the others."""
+    Bottom: coverage at `level` per Mondrian group: the Mondrian conformal region, one conformal quantile from the same
+    hold-out (results/force_onegroup.json, the fair single-scale comparison), and the Gaussian isotropic region
+    |e| <= sigma sqrt(chi2_3(level) / 3) for the others (lam_F is fitted on the test split: in sample)."""
     from scipy.stats import chi2
     ms = [m for m in ("o3d12", "o4d20") if (results / f"force_calibration_{m}.npz").exists()]
     if not ms:
@@ -276,8 +277,9 @@ def force_calibration(results, out, nbins=20, level=0.9):
         b = np.load(pb) if pb.exists() else None
         e, sm = z["err_norm"], z["forces_std"]
         traces = [("Mondrian σ_F (λ_g, ARD fit)", e, sm, z["group"], z["score"] <= z["q"], "o", CAT[0])]
+        og = json.load(open(results / "force_onegroup.json")).get(m) if (results / "force_onegroup.json").exists() else None
         if b is not None:
-            for k, lab, mk, col in (("headline", "CR3 × λ_F (headline)", "s", CAT[1]), ("B1", "B1: posterior × q̂", "^", CAT[2]),
+            for k, lab, mk, col in (("headline", "CR3 × λ_F (in sample on test)", "s", CAT[1]), ("B1", "B1: posterior × q̂", "^", CAT[2]),
                                     ("B2", "B2: POPS (5 % cut)", "D", CAT[3]), ("B3", "B3: CR3, λ = 1", "v", CAT[4])):
                 sd = b[f"sd_{k}"]
                 traces.append((lab, b["err_norm"], sd, b["group"], b["err_norm"] <= kq * sd, mk, col))
@@ -304,15 +306,19 @@ def force_calibration(results, out, nbins=20, level=0.9):
         for k_, (lab, _e, _s, g, c, mk, col) in enumerate(traces):
             y = [c.mean()] + [c[g == q].mean() if (g == q).any() else np.nan for q in range(G)]
             ax.plot(xs + (k_ - 2) * 0.08, y, marker=mk, color=col, lw=1.2, ms=5, mec=SURFACE, label=lab, zorder=3)
+        if og is not None:                                 # one conformal quantile from the same hold-out (fair comparison)
+            y = [og["one_group"]["all"]] + og["one_group"]["per_group"]
+            ax.plot(xs[:len(y)] - 0.24, y, marker="P", color=CAT[5], lw=1.8, ms=6, mec=SURFACE,
+                    label="one hold-out quantile (ARD fit)", zorder=4)
         ax.axhline(level, color=INK, lw=1, ls="--", label=f"nominal {level:.0%}")
         ax.axvline(0.5, color=GRID, lw=0.8)
         ax.set_xticks(xs); ax.set_xticklabels(["all"] + [str(q) for q in range(G)], fontsize=8)
         ax.set_ylim(0, 1.02)
         ax.set_xlabel("Mondrian group g = 2b + f", color=INK, fontsize=8)
         ax.set_ylabel(f"test coverage of the {level:.0%} region", color=INK, fontsize=8)
-        ax.set_title(f"{m}: coverage per group (Mondrian: conformal region; others: Gaussian)", color=INK, fontsize=9, loc="left")
+        ax.set_title(f"{m}: coverage per group (conformal: Mondrian, one quantile; Gaussian: others)", color=INK, fontsize=9, loc="left")
         if j == 0:
-            ax.legend(fontsize=7, frameon=False, loc="lower left")
+            ax.legend(fontsize=7, frameon=False, loc="center left", bbox_to_anchor=(0.0, 0.45))
     fig.tight_layout()
     _save(fig, out, "fig7_force_calibration")
 

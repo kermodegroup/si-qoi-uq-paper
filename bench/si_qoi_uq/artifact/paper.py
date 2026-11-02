@@ -80,6 +80,9 @@ def lbf(m, meth, kind="committee"):
     r = ev.get((m, meth, kind))
     return float(r["log_bf_vs_headline"]) if r and r.get("log_bf_vs_headline") not in ("", None) else float("nan")
 lbf_txt = lambda m, meth, kind="committee": f"{lbf(m, meth, kind):+.1f}"
+_og = json.load(open(RES / "force_onegroup.json")) if (RES / "force_onegroup.json").exists() else {}
+og_all = lambda m, k: f"{_og[m][k]['all']:.2f}" if m in _og else "–"
+og_rng = lambda m, k: f"{min(_og[m][k]['per_group']):.2f}–{max(_og[m][k]['per_group']):.2f}" if m in _og else "–"
 def fb(m, k, level=0.9):
     """Coverage of the Gaussian isotropic 90 % per-atom region, method k (results/force_baselines_<m>.npz)."""
     import numpy as _n
@@ -984,8 +987,9 @@ Top: binned on predicted σ (20 equal-count bins), RMS observed |ΔF| against RM
 σ<sub>F,i</sub> (ARD fit) and for the per-atom σ of the propagation's methods on the BLR fit: CR3 × λ<sub>F</sub> (the headline),
 B1 (posterior × q̂), B2 (POPS, 5 % leverage cut; the box's uniform variance) and B3 (CR3, λ = 1); the per-atom density of the
 Mondrian σ behind. Points below the diagonal are conservative. Bottom: test coverage of the 90 % region, overall and per Mondrian
-group: the anisotropic conformal region for Mondrian, the Gaussian isotropic region
-|ΔF| ≤ σ (χ<sup>2</sup><sub>3</sub>(0.9)/3)<sup>1/2</sup> for the others.</figcaption></figure>
+group. Conformal regions: Mondrian, and one quantile fitted on the same training hold-out (the fair single-scale comparison).
+Gaussian isotropic region |ΔF| ≤ σ (χ<sup>2</sup><sub>3</sub>(0.9)/3)<sup>1/2</sup>: the others. The headline's λ<sub>F</sub> is
+fitted on the test split itself, so its per-atom coverage here is in sample.</figcaption></figure>
 <div class="wrap"><table><caption>Table 11. Per Mondrian group: the fitted scales (λ<sub>g</sub>, q<sub>g</sub> at α = 0.1),
 calibration configurations, test atoms, test coverage of the anisotropic conformal region, and RMS |ΔF|/σ<sub>F,i</sub>
 (1 is calibrated in the Gaussian reading).</caption>
@@ -997,15 +1001,19 @@ o4d20's bulk-like group 0 (half the test atoms): λ<sub>0</sub> is 4–6× the o
 region still covers at the nominal rate. The RMS scale is dominated by a few extreme hold-out scores; the conformal quantile is
 robust to them. Here λ<sub>F</sub>
 was fitted on this same test split, so its line is in-sample for its overall level; λ<sub>g</sub> and q<sub>g</sub> come from the
-training hold-out.</p><p>Figure 2 also shows the per-atom forces of the propagation's own methods, to which the QoI comparison of Section 3.4
-applies. B3 is about λ<sub>F</sub> times too narrow everywhere. B1, the posterior shape with one scale, under-covers
-({fb("o3d12", "B1")} for o3d12, {fb("o4d20", "B1")} for o4d20), most in the near-ideal and moderately distorted four-fold groups.
-B2 is close for o3d12 ({fb("o3d12", "B2")}) and far too narrow for o4d20 ({fb("o4d20", "B2")}), as its QoI widths are. The
-CR3 shape with the global λ<sub>F</sub> covers {fb("o3d12", "headline")} and {fb("o4d20", "headline")}, and its per-group
-coverage is about as even as Mondrian's. On these data the Mondrian groups therefore do not make the per-atom calibration
-more even than the global scale. Their gains are elsewhere: the global λ<sub>F</sub> is calibrated here in sample, while the
-Mondrian scales are fitted on a training hold-out and the conformal region carries a finite-sample guarantee per group, which a
-Gaussian reading of one global scale does not.</p>""", "drafted", level=3)
+training hold-out.</p><p>Does the grouping matter? The fair comparison is one conformal quantile for all atoms, fitted on the same training
+hold-out at the same α. It covers {og_all("o3d12", "one_group")} (o3d12) and {og_all("o4d20", "one_group")} (o4d20) of the
+test atoms, against {og_all("o3d12", "mondrian")} and {og_all("o4d20", "mondrian")} for the Mondrian groups, and its coverage
+varies more between groups ({og_rng("o3d12", "one_group")} and {og_rng("o4d20", "one_group")}, against
+{og_rng("o3d12", "mondrian")} and {og_rng("o4d20", "mondrian")}). It falls short most in groups 0 and 2, the near-ideal and
+moderately distorted four-fold atoms that make up three quarters of the test atoms. The CR3 shape with the global
+λ<sub>F</sub> of the propagation covers {fb("o3d12", "headline")} and {fb("o4d20", "headline")} and is about as even as
+Mondrian, but λ<sub>F</sub> is fitted on these test configurations, so that agreement is in sample and is not a validation.
+Out of sample, the groups are what bring the per-atom forces to nominal coverage.</p>
+<p>Figure 2 also shows the per-atom forces of the baselines, to which the QoI comparison of Section 3.4 applies. B3 is
+about λ<sub>F</sub> times too narrow everywhere. B1, the posterior shape with one scale, under-covers
+({fb("o3d12", "B1")} for o3d12, {fb("o4d20", "B1")} for o4d20), most in groups 0 and 2. B2 is close for o3d12
+({fb("o3d12", "B2")}) and far too narrow for o4d20 ({fb("o4d20", "B2")}), as its QoI widths are.</p>""", "drafted", level=3)
 
 dk95 = lambda m: (lambda d_: f"{d_['k95']}/{d_['n']}" if d_ else "?")(disc.get(m, {}).get("CR3-headline+disc/lam_F"))
 sec("discussion", "4  Discussion", f"""
