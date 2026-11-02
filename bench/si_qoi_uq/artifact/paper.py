@@ -167,8 +167,9 @@ and Section 8 discusses them.</p>""", "draft")
 
 sec("theory-model", "2  Linear ACE and its Bayesian fit", r"""
 <h3>2.1 Model and observations</h3>
-<p>Each atom \(i\), at position \(r_i\) with species \(Z_i\) and environment \(x_i\) (its neighbours within the cutoff), has a site descriptor \(\phi(x_i)\in\mathbb{R}^p\): the ACE product basis in
-species-major blocks, then pair blocks. The energy is linear in the coefficients \(\theta\),</p>
+<p>Each atom \(i\), at position \(r_i\) with species \(Z_i\) and environment \(x_i\) (its neighbours within the cutoff), has a site descriptor \(\phi(x_i)\in\mathbb{R}^p\): the atomic cluster expansion (ACE) product basis [Drautz 2019], in
+species-major blocks, then pair blocks. The basis, its radial functions and the smoothness prior below are those of
+ACEpotentials [Witt et al. 2023]. The energy is linear in the coefficients \(\theta\),</p>
 \[ E(\{r_i\};\theta)=\sum_i \phi(x_i)\cdot\theta+\sum_i E^0_{Z_i}, \]
 <p>and so is every observation of a configuration:</p>
 \[ b_E=\sum_i\phi(x_i),\qquad B_{F,i\alpha}=-\frac{\partial b_E}{\partial r_{i\alpha}},\qquad
@@ -176,28 +177,28 @@ species-major blocks, then pair blocks. The energy is linear in the coefficients
 <p>with \(E^0_Z\) a per-species reference energy, \(r_{i\alpha}\) the Cartesian components of \(r_i\), and \(\varepsilon\) a symmetric strain
 applied to positions and cell. The predictions are \(b_E\cdot\theta\), \(B_F\theta\) and the virial \(W=B_V\theta\) (in eV; the stress is
 \(-W/\Omega\), with \(\Omega\) the cell volume). Each row of \(b_E\), \(B_F\) or \(B_V\) is called an observable row \(b\).
-A row has a structural weight \(w\) (per-atom energy normalisation and per-config-type weights) and a noise scale
-\(\sigma_q\), \(q\in\{E,F,V\}\); the whitened rows and targets are \(\psi=b\,w/\sigma_q\), \(\tilde y=y\,w/\sigma_q\), with
-\(y\) the DFT label minus the \(E^0\) baseline. Stacked over all configurations, the observable rows \(b\) form the design matrix \(\Phi\), and the
+Each row has a weight \(w\), which combines a factor \(1/\sqrt N\) on the energy and virial rows of an \(N\)-atom configuration, a weight per quantity
+(energy, force, virial) and a weight per configuration type, and all rows share one noise scale \(\sigma\). The weights set the
+balance between energies, forces and virials, and \(\sigma\) sets the overall noise level. The whitened rows and targets are
+\(\psi=b\,w/\sigma\) and \(\tilde y=y\,w/\sigma\), with \(y\) the DFT label minus the \(E^0\) baseline. Stacked over all configurations, the observable rows \(b\) form the design matrix \(\Phi\), and the
 \(\psi\) its whitened form \(\Psi\). With least-squares \(E^0\), one column per species carries the atom count on the
 energy rows (a fixed, wide prior).</p>
 <h3>2.2 Prior, posterior and evidence</h3>
 <p>The prior is \(\theta\sim\mathcal N(0,\Lambda^{-1})\) with the smoothness prior \(\Lambda=\operatorname{diag}(\Gamma_j^2)/\sigma_c^2\): \(\sigma_c\) is the prior scale of the coefficients
 and \(\Gamma_j=\sum_t\big[(l_t/w_l)^4+(n_t/w_n)^4\big]\), summed over the one-particle factors \(t\) of basis function \(j\) with radial
-index \(n_t\) and angular degree \(l_t\) (ACEpotentials' algebraic prior, \(w_l=2/3\), \(w_n=1\)), so rough basis functions are damped.
+index \(n_t\) and angular degree \(l_t\) (the algebraic prior of ACEpotentials [Witt et al. 2023], \(w_l=2/3\), \(w_n=1\)), so rough basis functions are damped.
 The posterior is Gaussian,</p>
 \[ A=\sum_{\text{rows}}\psi\psi^{\mathsf T}+\Lambda,\qquad \hat\theta=A^{-1}\sum_{\text{rows}}\psi\tilde y,\qquad
    \operatorname{Cov}(\theta\mid\mathcal D)=A^{-1}, \]
-<p>and the hyperparameters \(h=(\sigma_c,\sigma_E,\sigma_F,\sigma_V)\) maximise the evidence</p>
-\[ \log p(\mathcal D\mid h)=-\tfrac12\sum_q\frac{\lVert y^w_q\rVert^2}{\sigma_q^2}+\tfrac12 c^{\mathsf T}A^{-1}c-\tfrac12\log|A|
-   +\tfrac12\log|\Lambda|-\sum_q n_q\log\sigma_q , \]
-<p>up to a constant, with \(\mathcal D\) the training data, \(y^w_q\) the structurally weighted targets (\(y\,w\)) of quantity \(q\),
-\(n_q\) their number, and \(c=\sum_{\text{rows}}\psi\tilde y=A\hat\theta\).</p>
-<p>The fits here share one noise scale (\(\sigma_E=\sigma_F=\sigma_V\); the E:F:V balance is set by the structural weights).
-Near-interpolating fits leave the condition number \(\operatorname{cond}(A)\) beyond \(1/\epsilon_{\text{mach}}\) (\(\epsilon_{\text{mach}}\)
-the float64 unit roundoff), so the evidence and the posterior are computed by QR. \(R_q\) is the triangular factor of quantity \(q\)'s
-structurally weighted rows (\(\Phi^w_q=Q_qR_q\)), accumulated by streamed updating QRs, and
-\([\operatorname{diag}\sqrt\Lambda;\,R_q/\sigma_q]_{q}=Q_AR_A\) gives \(R_A^{\mathsf T}R_A=A\) at \(\operatorname{cond}(\Phi)\) instead of
+<p>and the hyperparameters \(h=(\sigma_c,\sigma)\) maximise the evidence</p>
+\[ \log p(\mathcal D\mid h)=-\frac{\lVert y^w\rVert^2}{2\sigma^2}+\tfrac12 c^{\mathsf T}A^{-1}c-\tfrac12\log|A|
+   +\tfrac12\log|\Lambda|-n\log\sigma , \]
+<p>up to a constant, with \(\mathcal D\) the training data, \(y^w\) the weighted targets (\(y\,w\)), \(n\) the number of rows,
+and \(c=\sum_{\text{rows}}\psi\tilde y=A\hat\theta\).</p>
+<p>Near-interpolating fits leave the condition number \(\operatorname{cond}(A)\) beyond \(1/\epsilon_{\text{mach}}\) (\(\epsilon_{\text{mach}}\)
+the float64 unit roundoff), so the evidence and the posterior are computed by QR. \(R_w\) is the triangular factor of the weighted
+design (\(\Phi^w=Q_wR_w\), rows \(b\,w\)), accumulated by streamed updating QRs, and
+\([\operatorname{diag}\sqrt\Lambda;\,R_w/\sigma]=Q_AR_A\) gives \(R_A^{\mathsf T}R_A=A\) at \(\operatorname{cond}(\Phi)\) instead of
 \(\operatorname{cond}(\Phi)^2\).</p>
 """, "drafted from docs")
 
@@ -219,14 +220,14 @@ for m in ("o3d12", "o4d20"):
 sec("theory-ard", "2.3  Automatic relevance determination", rf"""
 <p>ARD replaces the single \(\sigma_c\) by one log-precision per body order, \(\Lambda=\operatorname{{diag}}(\Gamma_j^2e^{{a_{{k(j)}}}})\), with \(k(j)\) the body order of basis function \(j\), fitted by
 type-II maximum likelihood in the prior-scaled system \(S=D^{{-1}}AD^{{-1}}\), \(D=\operatorname{{diag}}\Gamma\). The BLR fit is ARD at
-\(a_k=-2\log\sigma_c\) for every \(k\). In sequential mode, used here, the noise scales stay at the BLR fit's shared value and only the
+\(a_k=-2\log\sigma_c\) for every \(k\). In sequential mode, used here, the noise scale \(\sigma\) stays at the BLR fit's value and only the
 \(a_k\) are fitted.</p>
 <p><b>QR evidence.</b> Near-interpolating fits leave \(\operatorname{{cond}}(S)\) beyond \(1/\epsilon_{{\text{{mach}}}}\). The evidence, its
 gradient and Hessian, and the posterior are therefore computed from the QR factor of
-\([\operatorname{{diag}}(e^{{a_{{k(j)}}/2}});\,R_qD^{{-1}}/\sigma_q]_q=Q_SR_S\) (so \(R_S^{{\mathsf T}}R_S=S\)), whose condition number is
+\([\operatorname{{diag}}(e^{{a_{{k(j)}}/2}});\,R_wD^{{-1}}/\sigma]=Q_SR_S\) (so \(R_S^{{\mathsf T}}R_S=S\)), whose condition number is
 \(\sqrt{{\operatorname{{cond}}(S)}}\). The posterior stores \(R_S^{{\mathsf T}}\) as its Cholesky factor, so the CR3 jackknife and the per-atom force variances are unchanged. The \(a_k\) are bounded below at
 \(a_{{\text{{floor}}}}=\log(\lambda_{{\max}}/10^{{22}})\), with \(\lambda_{{\max}}\) the largest eigenvalue of the data part of \(S\)
-(\(D^{{-1}}\Psi^{{\mathsf T}}\Psi D^{{-1}}\)) at the starting noise scales, and an endpoint with every \(a_k\) on the floor and the gradient pointing below it
+(\(D^{{-1}}\Psi^{{\mathsf T}}\Psi D^{{-1}}\)) at the starting noise scale, and an endpoint with every \(a_k\) on the floor and the gradient pointing below it
 is flagged as degenerate and refused.</p>
 <p>With the earlier Cholesky evidence the floor sat at \(\operatorname{{cond}}(S)=10^{{14}}\), about 12 nats above the evidence optimum on both
 silicon models. Every \(a_k\) ended on it and the mean lost accuracy (o4d20 test energy 3.5 → 16.4 meV/atom in the fit's own report;
@@ -813,6 +814,7 @@ sec("refs", "References", """<p class="note">Checked against publisher or reposi
 <li>F. Bigi, S. Chong, M. Ceriotti, F. Grasselli, A prediction rigidity formalism for low-cost uncertainties in trained neural networks, Mach. Learn.: Sci. Technol. 5, 045018 (2024).</li>
 <li>R. D. Cook, S. Weisberg, Residuals and Influence in Regression, Chapman and Hall (1982): predicted residuals and PRESS, Sec. 2.2; deletion of a subset of cases, \\(\\hat\\beta-\\hat\\beta_{(I)}=(X^{\\mathsf T}X)^{-1}X_I^{\\mathsf T}(I-V_I)^{-1}e_I\\), Sec. 3.6, eq. 3.6.3.</li>
 <li>ace-jax: atomic cluster expansion potentials in JAX, https://github.com/ACEsuit/ace-jax.</li>
+<li>W. C. Witt, C. van der Oord, E. Gelžinytė, T. Järvinen, A. Ross, J. P. Darby, C. H. Ho, W. J. Baldwin, M. Sachs, J. Kermode, N. Bernstein, G. Csányi, C. Ortner, ACEpotentials.jl: a Julia implementation of the atomic cluster expansion, J. Chem. Phys. 159, 164101 (2023).</li>
 <li>R. Drautz, Atomic cluster expansion for accurate and transferable interatomic potentials, Phys. Rev. B 99, 014104 (2019).</li>
 <li>R. Dunn, L. Wasserman, A. Ramdas, Distribution-free prediction sets for two-layer hierarchical models, J. Am. Stat. Assoc. 118, 2491–2502 (2023).</li>
 <li>A. Grossfield, D. M. Zuckerman, Quantifying uncertainty and sampling quality in biomolecular simulations, in Annual Reports in Computational Chemistry, Vol. 5, Elsevier (2009).</li>
