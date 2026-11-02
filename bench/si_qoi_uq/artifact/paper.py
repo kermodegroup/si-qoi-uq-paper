@@ -44,12 +44,12 @@ TAB_SENS = [("CR3-headline", "lam_V", "CR3 × λ<sub>V</sub>"), ("CR3-headline",
 _cov_row = lambda m, lab, r: (
     f"<tr><td>{m}</td><td>{lab}</td><td class=n>{int(r['n'])}</td><td class=n>{int(r['k68'])} [{f(r['ci68_lo'])}, {f(r['ci68_hi'])}]</td>"
     f"<td class=n>{int(r['k95'])} [{f(r['ci95_lo'])}, {f(r['ci95_hi'])}]</td><td class=n>{f(r['rms_z'])}</td>"
-    f"<td class=n>{f(r['median_sigma_over_tol'])}</td></tr>")
+    f"<td class=n>{f(r['median_sigma_over_tol'])}</td><td class=n>{f(r.get('crps_tol'))}</td></tr>")
 sens_rows = "".join(_cov_row(m, lab, r) for m in models for meth, sc, lab in TAB_SENS for r in [get(m, meth, sc)] if r)
 cov_rows = "".join(
     f"<tr><td>{m}</td><td>{lab}</td><td class=n>{int(r['n'])}</td><td class=n>{int(r['k68'])} [{f(r['ci68_lo'])}, {f(r['ci68_hi'])}]</td>"
     f"<td class=n>{int(r['k95'])} [{f(r['ci95_lo'])}, {f(r['ci95_hi'])}]</td><td class=n>{f(r['rms_z'])}</td>"
-    f"<td class=n>{f(r['median_sigma_over_tol'])}</td></tr>"
+    f"<td class=n>{f(r['median_sigma_over_tol'])}</td><td class=n>{f(r.get('crps_tol'))}</td></tr>"
     for m in models for meth, sc, lab in TAB for r in [get(m, meth, sc)] if r)
 lam_rows = "".join(f"<tr><td>{m}</td>" + "".join(f"<td class=n>{f(lam[m].get(k))}</td>" for k in ("E", "F", "V", "pool"))
                    + f"<td class=n>{f(lam[m]['V'] / lam[m]['F'])}</td><td class=n>{f(lam[m]['E'] / lam[m]['F'])}</td></tr>"
@@ -80,6 +80,17 @@ def lbf(m, meth, kind="committee"):
     r = ev.get((m, meth, kind))
     return float(r["log_bf_vs_headline"]) if r and r.get("log_bf_vs_headline") not in ("", None) else float("nan")
 lbf_txt = lambda m, meth, kind="committee": f"{lbf(m, meth, kind):+.1f}"
+def fb(m, k, level=0.9):
+    """Coverage of the Gaussian isotropic 90 % per-atom region, method k (results/force_baselines_<m>.npz)."""
+    import numpy as _n
+    from scipy.stats import chi2
+    p = RES / f"force_baselines_{m}.npz"
+    if not p.exists():
+        return "–"
+    b = _n.load(p)
+    return f"{float(_n.mean(b['err_norm'] <= _n.sqrt(chi2.ppf(level, 3) / 3) * b[f'sd_{k}'])):.2f}"
+dcrps = lambda m, meth, sc: f(disc.get(m, {}).get(f"{meth}+disc/{sc}", {}).get("crps_tol"))
+crps = lambda m, meth, sc: f(get(m, meth, sc).get("crps_tol")) if get(m, meth, sc) else "–"
 EV_ROWS = (("CR3/lam_F", "CR3 × λ<sub>F</sub> (headline)"), ("B1/q_b1", "B1: posterior × q̂"),
            ("B2lev5/lam_1", "B2: POPS (leverage cut 5 %)"), ("B3/lam_1", "B3: CR3, λ = 1"),
            ("CR3/lam_V", "CR3 × λ<sub>V</sub> (sensitivity)"), ("CR3/lam_F+disc", "CR3 × λ<sub>F</sub> + discrepancy term"),
@@ -202,7 +213,7 @@ of the lattice constant, and is cross-checked by committees run through the unmo
 against DFT, one QoI at a time and jointly, and compare them with two baselines: the posterior with one conformal scale, and
 pointwise optimal parameter sets (POPS) [Swinburne and Perez 2024].</p>
 <p>We also show where calibrated parameter-space uncertainty fails, and why. A bias that all training configurations of one kind
-share is invisible to any delete-one jackknife; in the GAP-18 database every defect cell is a hot molecular-dynamics snapshot. We
+share is invisible to any delete-one jackknife; in the GAP-18 database [Bartók et al. 2018] every defect cell is a hot molecular-dynamics snapshot. We
 diagnose this bias, measure it from the training labels alone, and add it to the defect QoIs as a discrepancy term, which
 leaves the fit unchanged.</p>
 <p>Section 2 sets out the methodology: the linear ACE fit and ARD (2.1–2.3), the CR3 shape (2.4), the per-atom force calibration
@@ -616,7 +627,14 @@ errors, and their correlations, match the covariance; the second penalises inter
 therefore weighs calibration and sharpness together, and a method cannot gain by inflating its intervals.</p>
 <p>Coverage alone rewards intervals that are too wide. We therefore also report sharpness, the median of \(\sigma_Q/\text{tol}_Q\)
 with \(\text{tol}_Q\) the benchmark's tolerance for QoI \(Q\): a value below 1 means the interval is narrower than the accuracy the
-benchmark asks for. A useful method has near-nominal coverage at the smallest sharpness.</p>""", "drafted")
+benchmark asks for. A useful method has near-nominal coverage at the smallest sharpness. The continuous ranked probability
+score (CRPS) combines the two in one number per QoI [Gneiting and Raftery 2007]. For a Gaussian prediction with mean
+\(\hat Q\) and standard deviation \(\sigma_Q\) it is
+\(\mathrm{CRPS}=\sigma_Q\,[z(2\Phi(z)-1)+2\varphi(z)-1/\sqrt\pi]\), with \(z\) the standardised error and \(\Phi\),
+\(\varphi\) the standard normal distribution and density functions. It is a proper score: it is smallest in expectation for the
+true predictive distribution, it grows for intervals that are too narrow and for intervals that are too wide, and it tends
+to the absolute error as σ<sub>Q</sub> → 0. We report its mean over the scored QoIs in tolerance units, CRPS/tol (lower is
+better); committee methods are scored with the Gaussian of their spread, as for coverage.</p>""", "drafted")
 
 def _phase_names(m, lo):
     """'the sh, β-Sn and hcp energies is 86, 43 and 24 times' for the phases whose physical/rescaled ratio is >= lo."""
@@ -670,12 +688,12 @@ sot = lambda m, meth, sc: (lambda r: f"{float(r['median_sigma_over_tol']):.2f}" 
 tight = (head["o3d12"]["median_sigma_over_tol"] / head["o4d20"]["median_sigma_over_tol"]) if all(head.get(m) for m in ("o3d12", "o4d20")) else float("nan")
 sec("results", "3.4  Coverage and sharpness", f"""
 <div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % credible interval of the coverage probability]) and sharpness, for the four methods of Figures 1 and 1b.</caption>
-<thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th></tr></thead>
+<thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th><th>CRPS/tol</th></tr></thead>
 <tbody>{cov_rows}</tbody></table></div>
 <div class="wrap"><table><caption>Table 3b. Sensitivity of the coverage to the scale and to the committee variant: the CR3 shape
 with the energy, virial or pooled scale (Section 3.3), the full re-run at λ<sub>F</sub> keeping physical members only (Section 3.6),
 and POPS with the 50 % leverage cut (Section 3.7).</caption>
-<thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th></tr></thead>
+<thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th><th>CRPS/tol</th></tr></thead>
 <tbody>{sens_rows}</tbody></table></div>
 <p>With the headline CR3 × λ<sub>F</sub>, {k95("o3d12", "CR3-headline", "lam_F")} QoIs of o3d12 and {k95("o4d20", "CR3-headline", "lam_F")}
 of o4d20 lie inside their 95 % intervals (Table 3, Figure 1 top row, Figure 1b). Both counts are below the nominal 19, and the coverage posteriors (Section 3.1) give
@@ -687,7 +705,14 @@ Elsewhere the 95 % intervals reach DFT, and the 68 % counts ({int(float(get("o3d
 <p>The intervals follow the accuracy of the model. The median σ/tol is {sot("o4d20", "CR3-headline", "lam_F")} for o4d20 and
 {sot("o3d12", "CR3-headline", "lam_F")} for o3d12, {tight:.1f}× wider: o4d20's intervals are mostly inside the benchmark tolerance, and
 o3d12's are wider than it, as they should be for a model whose typical QoI error is about one tolerance (Figure 0). So one scale fitted
-to held-out forces gives similar coverage for both models while the intervals shrink with model quality.</p>
+to held-out forces gives similar coverage for both models while the intervals shrink with model quality. The CRPS, which weighs
+calibration and sharpness in one score, ranks the headline first among the four methods for both models:
+{crps("o4d20", "CR3-headline", "lam_F")} for o4d20 and {crps("o3d12", "CR3-headline", "lam_F")} for o3d12, against
+{crps("o4d20", "B1-headline", "q_b1")} / {crps("o3d12", "B1-headline", "q_b1")} for B1,
+{crps("o4d20", "B2lev5-committee", "lam_1")} / {crps("o3d12", "B2lev5-committee", "lam_1")} for B2 and
+{crps("o4d20", "B3-headline", "lam_1")} / {crps("o3d12", "B3-headline", "lam_1")} for B3 (Table 3). The margins are small
+because the mean is dominated by the QoIs with the largest errors, which no width can fix: for o3d12 the three interstitials
+are 12–17 tolerances off, so its CRPS/tol is near 3 for every method.</p>
 <p>The baselines (Section 3.7) cover fewer QoIs at comparable or smaller widths. The sensitivity table (Table 3b) shows that the choice of
 scale matters at the margin. The virial scale λ<sub>V</sub>, larger than λ<sub>F</sub> by about a third, covers
 {k95("o3d12", "CR3-headline", "lam_V")} and {k95("o4d20", "CR3-headline", "lam_V")} at the price of wider intervals (median σ/tol
@@ -790,7 +815,8 @@ for m in ("o4d20", "o3d12"):
         if r0 and r1:
             dcov_rows += (f"<tr><td>{m}</td><td>{lab}</td><td class=n>{int(r0['k95'])}/{int(r0['n'])}</td>"
                           f"<td class=n>{r1['k95']}/{r1['n']} [{r1['ci95'][0]:.2f}, {r1['ci95'][1]:.2f}]</td>"
-                          f"<td class=n>{int(r0['k68'])} → {r1['k68']}</td><td class=n>{f(r1['median_sigma_over_tol'])}</td></tr>")
+                          f"<td class=n>{int(r0['k68'])} → {r1['k68']}</td><td class=n>{f(r1['median_sigma_over_tol'])}</td>"
+                          f"<td class=n>{f(r0.get('crps_tol'))} → {f(r1.get('crps_tol'))}</td></tr>")
 dz_rows = "".join(
     f"<tr><td>{r['model']}</td><td>{dict(DEF_Q)[r['qoi']]}</td><td class=n>{r['dft'] - r['mean']:+.3f}</td>"
     f"<td class=n>{r['sigma_method']:.3f}</td><td class=n>{r['sigma']:.3f}</td><td class=n>{r['z_without']:+.2f} → {r['z']:+.2f}</td></tr>"
@@ -845,8 +871,13 @@ sec("results-defects2", "", f"""
 <thead><tr><th>model</th><th>class</th><th>estimator</th><th>r* (eV)</th></tr></thead><tbody>{r7a_rows}</tbody></table></div>
 <div class="wrap"><table><caption>Table 7. Coverage of the 20 scored QoIs with the discrepancy term on the four defect QoIs
 (models with r*: {models_disc}).</caption>
-<thead><tr><th>model</th><th>method</th><th>95 % without</th><th>95 % with [credible interval]</th><th>68 %</th><th>median σ/tol</th></tr></thead>
+<thead><tr><th>model</th><th>method</th><th>95 % without</th><th>95 % with [credible interval]</th><th>68 %</th><th>median σ/tol</th><th>CRPS/tol without → with</th></tr></thead>
 <tbody>{dcov_rows}</tbody></table></div>
+<p>The term lowers the CRPS of every method (Table 7), most for o3d12, whose interstitial errors dominate its score. With the
+term, B1 and CR3 × λ<sub>F</sub> score almost the same ({dcrps("o4d20", "B1-headline", "q_b1")} against
+{dcrps("o4d20", "CR3-headline", "lam_F")} for o4d20, {dcrps("o3d12", "B1-headline", "q_b1")} against
+{dcrps("o3d12", "CR3-headline", "lam_F")} for o3d12, B1 marginally lower). Once the defects carry the term, the remaining
+difference between the two shapes is small on this score, while CR3 still covers more QoIs.</p>
 <p>The interstitial estimator agrees well with the observed interstitial errors. That agreement was seen before the
 nearest-bulk reference was rejected on training data (above), so the choice was not made blind, although the
 reasons for it use no DFT QoI value.</p>
@@ -950,9 +981,11 @@ more even calibration at the same overall level ({nov("o4d20", "all", "crossed")
 test on an alloy model gave the same picture (unpublished ace-jax development report). The geometric groups are therefore kept.</p>
 <figure><img src="fig7_force_calibration.png" alt="Per-atom force uncertainty against observed error, binned on predicted sigma and on observed error, for each model"><figcaption>Figure 7.
 Top: binned on predicted σ (20 equal-count bins), RMS observed |ΔF| against RMS σ, for the Mondrian
-σ<sub>F,i</sub> and for the global λ<sub>F</sub> of the propagation, with the per-atom density behind; points below
-the diagonal are conservative. Bottom: binned on observed |ΔF|. Binning on the observed error regresses towards the mean, so
-the low-error bins read as under-confident and the high-error bins as over-confident even for a calibrated σ.</figcaption></figure>
+σ<sub>F,i</sub> (ARD fit) and for the per-atom σ of the propagation's methods on the BLR fit: CR3 × λ<sub>F</sub> (the headline),
+B1 (posterior × q̂), B2 (POPS, 5 % leverage cut; the box's uniform variance) and B3 (CR3, λ = 1); the per-atom density of the
+Mondrian σ behind. Points below the diagonal are conservative. Bottom: test coverage of the 90 % region, overall and per Mondrian
+group: the anisotropic conformal region for Mondrian, the Gaussian isotropic region
+|ΔF| ≤ σ (χ<sup>2</sup><sub>3</sub>(0.9)/3)<sup>1/2</sup> for the others.</figcaption></figure>
 <div class="wrap"><table><caption>Table 11. Per Mondrian group: the fitted scales (λ<sub>g</sub>, q<sub>g</sub> at α = 0.1),
 calibration configurations, test atoms, test coverage of the anisotropic conformal region, and RMS |ΔF|/σ<sub>F,i</sub>
 (1 is calibrated in the Gaussian reading).</caption>
@@ -964,7 +997,15 @@ o4d20's bulk-like group 0 (half the test atoms): λ<sub>0</sub> is 4–6× the o
 region still covers at the nominal rate. The RMS scale is dominated by a few extreme hold-out scores; the conformal quantile is
 robust to them. Here λ<sub>F</sub>
 was fitted on this same test split, so its line is in-sample for its overall level; λ<sub>g</sub> and q<sub>g</sub> come from the
-training hold-out.</p>""", "drafted", level=3)
+training hold-out.</p><p>Figure 2 also shows the per-atom forces of the propagation's own methods, to which the QoI comparison of Section 3.4
+applies. B3 is about λ<sub>F</sub> times too narrow everywhere. B1, the posterior shape with one scale, under-covers
+({fb("o3d12", "B1")} for o3d12, {fb("o4d20", "B1")} for o4d20), most in the near-ideal and moderately distorted four-fold groups.
+B2 is close for o3d12 ({fb("o3d12", "B2")}) and far too narrow for o4d20 ({fb("o4d20", "B2")}), as its QoI widths are. The
+CR3 shape with the global λ<sub>F</sub> covers {fb("o3d12", "headline")} and {fb("o4d20", "headline")}, and its per-group
+coverage is about as even as Mondrian's. On these data the Mondrian groups therefore do not make the per-atom calibration
+more even than the global scale. Their gains are elsewhere: the global λ<sub>F</sub> is calibrated here in sample, while the
+Mondrian scales are fitted on a training hold-out and the conformal region carries a finite-sample guarantee per group, which a
+Gaussian reading of one global scale does not.</p>""", "drafted", level=3)
 
 dk95 = lambda m: (lambda d_: f"{d_['k95']}/{d_['n']}" if d_ else "?")(disc.get(m, {}).get("CR3-headline+disc/lam_F"))
 sec("discussion", "4  Discussion", f"""
@@ -1057,6 +1098,7 @@ sec("refs", "References", """<p class="note">Checked against publisher or reposi
 <li>W. C. Witt, C. van der Oord, E. Gelžinytė, T. Järvinen, A. Ross, J. P. Darby, C. H. Ho, W. J. Baldwin, M. Sachs, J. Kermode, N. Bernstein, G. Csányi, C. Ortner, ACEpotentials.jl: a Julia implementation of the atomic cluster expansion, J. Chem. Phys. 159, 164101 (2023).</li>
 <li>R. Drautz, Atomic cluster expansion for accurate and transferable interatomic potentials, Phys. Rev. B 99, 014104 (2019).</li>
 <li>R. Dunn, L. Wasserman, A. Ramdas, Distribution-free prediction sets for two-layer hierarchical models, J. Am. Stat. Assoc. 118, 2491–2502 (2023).</li>
+<li>T. Gneiting, A. E. Raftery, Strictly proper scoring rules, prediction, and estimation, J. Am. Stat. Assoc. 102, 359–378 (2007).</li>
 <li>A. Grossfield, D. M. Zuckerman, Quantifying uncertainty and sampling quality in biomolecular simulations, in Annual Reports in Computational Chemistry, Vol. 5, Elsevier (2009).</li>
 <li>K. Fisher, M. Herbst, J. Kermode, Y. Marzouk, Multivariate conformal uncertainty propagation in multitask atomistic simulation: successes and pitfalls, arXiv:2609.31384 (2026).</li>
 <li>R. E. Kass, A. E. Raftery, Bayes factors, J. Am. Stat. Assoc. 90, 773–795 (1995).</li>

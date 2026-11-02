@@ -87,6 +87,15 @@ def elastic_committee(lin, thetas, a_ref):
     return np.stack([[d.elastic_stress(t), d.elastic_energy(t)] for t in thetas])
 
 
+def crps_gauss(err, sigma):
+    """Continuous ranked probability score of N(mu, sigma^2) at an observation with err = observation - mu (Gneiting and
+    Raftery 2007, eq. 21): sigma [z (2 Phi(z) - 1) + 2 phi(z) - 1 / sqrt(pi)], z = err / sigma.  Same units as err; it
+    rewards both calibration and sharpness, and reduces to |err| as sigma -> 0."""
+    from scipy.stats import norm
+    z = np.asarray(err, float) / np.asarray(sigma, float)
+    return np.asarray(sigma, float) * (z * (2 * norm.cdf(z) - 1) + 2 * norm.pdf(z) - 1 / np.sqrt(np.pi))
+
+
 def clopper(k, n, a=0.05):
     """Equal-tailed (1 - a) credible interval of a coverage probability after k of n covered: the Beta(k + 1/2,
     n - k + 1/2) posterior of the Jeffreys prior (the name is kept from the Clopper-Pearson interval it replaced)."""

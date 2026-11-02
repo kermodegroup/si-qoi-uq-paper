@@ -25,7 +25,7 @@ import csv, json, sys
 
 import numpy as np
 
-from ..propagate import COVER_KEYS, clopper
+from ..propagate import COVER_KEYS, clopper, crps_gauss
 from ..run import RESULTS
 
 CLASS = {"vacancy_energy": "vacancy", "dumbbell_interstitial_energy": "interstitial",
@@ -73,7 +73,9 @@ def main():
                                 tol=float(r["tol"])))
             summ[m][f"{meth}+disc/{sc}"] = {"n": n, "k68": k68, "ci68": clopper(k68, n), "k95": k95, "ci95": clopper(k95, n),
                                             "median_sigma_over_tol": float(np.median([o["sigma"] / o["tol"] for o in out
-                                                                                      if o["model"] == m and o["method"] == f"{meth}+disc" and o["scale"] == sc]))}
+                                                                                      if o["model"] == m and o["method"] == f"{meth}+disc" and o["scale"] == sc])),
+                                            "crps_tol": float(np.mean([crps_gauss((o["dft"] - o["mean"]) / o["tol"], o["sigma"] / o["tol"]) for o in out
+                                                                       if o["model"] == m and o["method"] == f"{meth}+disc" and o["scale"] == sc]))}
     with open(RESULTS / f"discrepancy{suffix}.csv", "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=list(out[0]))
         w.writeheader()

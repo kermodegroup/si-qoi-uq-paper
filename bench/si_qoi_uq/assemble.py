@@ -9,7 +9,7 @@ import csv, json
 import numpy as np
 
 from .harness import RUNS
-from .propagate import COVER_KEYS, KEYS, PHONON, DELTA_TOL, clopper, committee, dft, harness_values, joint_test, tol_abs
+from .propagate import COVER_KEYS, KEYS, PHONON, DELTA_TOL, clopper, committee, crps_gauss, dft, harness_values, joint_test, tol_abs
 
 Z68, Z95 = 1.0, 1.959963984540054
 POPS_SETS = (("pops", "B2"), ("popsblr", "B2blr"), ("popslev50", "B2lev50"), ("popsblrlev50", "B2blrlev50"), ("popslev5", "B2lev5"))
@@ -209,7 +209,8 @@ def coverage(rows):
         d = dict(model=m, method=meth, scale=sc, lam=rs[0]["lam"], n=n, k68=k68, frac68=k68 / n,
                  ci68_lo=clopper(k68, n)[0], ci68_hi=clopper(k68, n)[1], k95=k95, frac95=k95 / n,
                  ci95_lo=clopper(k95, n)[0], ci95_hi=clopper(k95, n)[1], median_sigma_over_tol=sharp,
-                 rms_z=float(np.sqrt(np.mean([r["z"] ** 2 for r in rs]))))
+                 rms_z=float(np.sqrt(np.mean([r["z"] ** 2 for r in rs]))),
+                 crps_tol=float(np.mean([crps_gauss((r["dft"] - r["mean"]) / r["tol"], r["sigma"] / r["tol"]) for r in rs])))
         if all("cov95_pct" in r for r in rs):
             d["k95_pct"] = sum(r["cov95_pct"] for r in rs)
         out.append(d)
