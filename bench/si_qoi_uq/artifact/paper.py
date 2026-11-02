@@ -794,6 +794,17 @@ attempt with a fixed 0.05 eV difference-row target and no caps diverged, because
 import numpy as _np
 fc_rows = ""
 fc_have = []
+mg = json.load(open(RES / "mondrian_groups.json")) if (RES / "mondrian_groups.json").exists() else {}
+_mg = next(iter(mg.values()), None)
+def g_label(g):
+    """Group g = 2 band + flag (ace_jax.fit.conformal.assign_groups): distortion band, coordination flag."""
+    if _mg is None:
+        return ""
+    band, flag = divmod(g, 2)
+    e = [0.0] + list(_mg["edges"]) + [None]
+    lo, hi = e[band], e[band + 1]
+    d = f"d &lt; {hi:.3f}" if band == 0 else (f"d ≥ {lo:.3f}" if hi is None else f"{lo:.3f} ≤ d &lt; {hi:.3f}")
+    return f"{d}, {'z ≠ ' if flag else 'z = '}{_mg['z_star']}"
 for m in ("o4d20", "o3d12"):
     pth = RES / f"force_calibration_{m}.npz"
     if not pth.exists():
@@ -803,19 +814,27 @@ for m in ("o4d20", "o3d12"):
     cov_all = float(_np.mean(z["score"] <= z["q"]))
     rr = lambda mk, z=z: float(_np.sqrt(_np.mean((z["err_norm"][mk] / z["forces_std"][mk]) ** 2)))
     allm = _np.ones(len(z["score"]), bool)
-    fc_rows += (f"<tr><td>{m}</td><td>all</td><td class=n>–</td><td class=n>–</td><td class=n>–</td>"
+    fc_rows += (f"<tr><td>{m}</td><td>all</td><td>all atoms</td><td class=n>–</td><td class=n>–</td><td class=n>–</td>"
                 f"<td class=n>{len(z['score'])}</td><td class=n>{cov_all:.3f}</td><td class=n>{rr(allm):.2f}</td></tr>")
     for g in range(len(z["lam_rms"])):
         mk = z["group"] == g
         if not mk.any():
             continue
-        fc_rows += (f"<tr><td>{m}</td><td>{g}</td><td class=n>{z['lam_rms'][g]:.2f}</td><td class=n>{z['q_table'][g]:.1f}</td>"
+        fc_rows += (f"<tr><td>{m}</td><td>{g}</td><td>{g_label(g)}</td><td class=n>{z['lam_rms'][g]:.2f}</td><td class=n>{z['q_table'][g]:.1f}</td>"
                     f"<td class=n>{int(z['n_cfg'][g])}</td><td class=n>{int(mk.sum())}</td>"
                     f"<td class=n>{float(_np.mean(z['score'][mk] <= z['q'][mk])):.3f}</td><td class=n>{rr(mk):.2f}</td></tr>")
+mg_r1 = f" = {_mg['r1']:.2f} Å" if _mg else ""
+mg_z = f" = {_mg['z_star']}" if _mg else ""
 sec("results-forces", "3.2  Calibrated per-atom forces (Mondrian conformal)", f"""
 <p>Per-atom force uncertainty against the observed error on the 248 test configurations, from the ARD fits
 (whose posteriors hold the Mondrian groups and scales; models: {", ".join(fc_have) or "pending"}). Symmetry-zero
-atoms are dropped, as in the scale diagnostics.</p>
+atoms are dropped by the rule of Section 3.3.</p>
+<p>The eight Mondrian groups (Section 2.5) are numbered g = 2b + f. The band b = 0, …, 3 is the atom's first-shell distortion d,
+the relative spread of its neighbour distances within r<sub>1</sub>{mg_r1}, cut at the median, 90th and 99th percentiles of the
+training atoms. The flag f is 1 when the atom's coordination differs from the modal z<sup>⋆</sup>{mg_z}. Even groups are therefore
+four-fold atoms in increasingly distorted environments, from near-ideal diamond (group 0) to the most distorted 1 % (group 6); odd
+groups are the same bands for under- or over-coordinated atoms, such as those at surfaces, defects and in the liquid. Table 11 gives
+each group's limits. They depend on geometry only, and are the same for both models.</p>
 <figure><img src="fig7_force_calibration.png" alt="Per-atom force uncertainty against observed error, binned on predicted sigma and on observed error, for each model"><figcaption>Figure 7.
 Top: binned on predicted σ (20 equal-count bins), RMS observed |ΔF| against RMS σ, for the Mondrian
 σ<sub>F,i</sub> and for the global λ<sub>F</sub> of the propagation, with the per-atom density behind; points below
@@ -824,9 +843,9 @@ the low-error bins read as under-confident and the high-error bins as over-confi
 <div class="wrap"><table><caption>Table 11. Per Mondrian group: the fitted scales (λ<sub>g</sub>, q<sub>g</sub> at α = 0.1),
 calibration configurations, test atoms, test coverage of the anisotropic conformal region, and RMS |ΔF|/σ<sub>F,i</sub>
 (1 is calibrated in the Gaussian reading).</caption>
-<thead><tr><th>model</th><th>group</th><th>λ<sub>g</sub></th><th>q<sub>g</sub></th><th>cal. configs</th><th>test atoms</th><th>coverage</th><th>RMS |ΔF|/σ</th></tr></thead>
+<thead><tr><th>model</th><th>group</th><th>environment</th><th>λ<sub>g</sub></th><th>q<sub>g</sub></th><th>cal. configs</th><th>test atoms</th><th>coverage</th><th>RMS |ΔF|/σ</th></tr></thead>
 <tbody>{fc_rows}</tbody></table></div>
-<p class="note">The conformal regions hold their nominal 90 % on the test split overall and roughly per group. The Gaussian reading
+<p>The conformal regions hold their nominal 90 % on the test split overall and roughly per group. The Gaussian reading
 of σ<sub>F,i</sub> is conservative (RMS ratio below 1), because λ<sub>g</sub> is the RMS of heavy-tailed scores. The extreme case is
 o4d20's bulk-like group 0 (half the test atoms): λ<sub>0</sub> is 4–6× the other groups' and its σ about 3.6× too wide, while its quantile
 region still covers at the nominal rate. The RMS scale is dominated by a few extreme hold-out scores; the conformal quantile is
