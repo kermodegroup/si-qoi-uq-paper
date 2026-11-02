@@ -114,8 +114,9 @@ sec("intro", "1  Introduction", """
 <ul class="plan">
 <li><b>Motivation.</b> Uncertainty is needed for forces (on-the-fly error control in MD, active learning) and for the derived
 properties a potential is built to predict. Machine-learned potentials are misspecified: the labels are deterministic and the
-error is approximation error. The Bayesian posterior variance of a linear fit is far too small, and even the misspecification-robust
-CR3 shape needs a scale of λ = """ + f"{lam_lo:.1f}–{lam_hi:.1f}" + """ (RMS z on held-out data, Table 2).</li>
+error is approximation error. The Bayesian posterior is then far too narrow: under misspecification it concentrates at the
+best-fitting parameters at a rate set by the amount of data, not by the size of the model error, and collapses to a point as
+N<sub>data</sub> → ∞ while the prediction error stays finite [Kleijn and van der Vaart 2012; Müller 2013; Swinburne and Perez 2025].</li>
 <li><b>Gap 1: per-atom force uncertainty.</b> Committees and ensembles are costly and need their own calibration; posterior
 variances are miscalibrated; marginal conformal prediction covers on average but not by environment, and errors are strongly
 heterogeneous across local environments (distortion, coordination) and correlated within a configuration.</li>
@@ -789,6 +790,7 @@ r<sub>cut</sub> 5 Å, least-squares E<sup>0</sup>, shared noise, smoothness prio
 sec("refs", "References (to verify)", """<ol class="refs">
 <li>I. R. Best, T. J. Sullivan, J. R. Kermode, Uncertainty quantification in atomistic simulations of silicon using interatomic potentials, J. Chem. Phys. (2024). [check]</li>
 <li>T. D. Swinburne, D. Perez, Parameter uncertainties for imperfect surrogate models in the low-noise regime, arXiv:2402.01810.</li>
+<li>B. J. K. Kleijn, A. W. van der Vaart, The Bernstein–von Mises theorem under misspecification, Electron. J. Stat. 6, 354 (2012).</li>
 <li>A. P. Bartók, J. Kermode, N. Bernstein, G. Csányi, Machine learning a general-purpose interatomic potential for silicon, Phys. Rev. X 8, 041048 (2018).</li>
 <li>J. G. MacKinnon, M. Ø. Nielsen, M. D. Webb, Cluster-robust inference: a guide to empirical practice, J. Econometrics 232, 272 (2023).</li>
 <li>R. D. Cook, S. Weisberg, Residuals and Influence in Regression (1982).</li>
