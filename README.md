@@ -1,0 +1,36 @@
+# Calibrated parameter-space uncertainty for linear ACE, propagated to silicon properties
+
+Analysis code, results, figures and paper source for J. R. Kermode, *Calibrated parameter-space uncertainty for linear ACE,
+propagated to silicon properties* (in preparation).
+
+The uncertainty methods themselves (the CR3 jackknife shape, Mondrian conformal calibration of per-atom forces, QR ARD, POPS)
+are part of [ace-jax](https://github.com/ACEsuit/ace-jax); this repository holds the study that uses them.
+
+## Layout
+
+- `bench/si_qoi_uq/`: the study. `run.py` runs the pipeline stages (diagnostics, samples, delta, assemble, report);
+  `analysis/` holds the follow-up analyses (defect diagnosis and discrepancy term, vacancy, per-atom force calibration,
+  descriptor-novelty groups, the accuracy-cost figure); `artifact/paper.py` generates the paper from `results/` only.
+  `RECON.md` is the research log: decisions, checks and negative results, in order.
+- `bench/si_qoi_uq/results/`, `figures/`: every number and figure in the paper.
+- `bench/si_qoi/`: the silicon QoI comparison and scoring (from ace-jax).
+- `bench/accuracy_cost/results/metrics.jsonl`, `bench/defect_uq/scoring/`: inputs and helpers taken from ace-jax.
+- `docs/dev/specs/`: the original specification of the study.
+- `tests/`: unit tests of the observable rows and the delta method.
+
+## Setup
+
+```bash
+uv sync
+uv run pytest
+uv run python bench/si_qoi_uq/artifact/paper.py    # paper from results/ -> bench/si_qoi_uq/artifact/paper/index.html
+```
+
+Rerunning the fits, committees and harness needs the GAP-18 silicon database and a Python 3 port of
+[libAtoms/silicon-testing-framework](https://github.com/libAtoms/silicon-testing-framework), which is used unmodified and is
+not included here (the upstream repository has no licence). Paths to data and run directories are set at the top of the
+scripts and by `SIQ_RUNS`.
+
+## Licence
+
+MIT. The ace-jax-derived files keep ace-jax's MIT licence.
