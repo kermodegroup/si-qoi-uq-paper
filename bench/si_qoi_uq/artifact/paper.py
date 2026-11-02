@@ -54,6 +54,9 @@ cov_rows = "".join(
 lam_rows = "".join(f"<tr><td>{m}</td>" + "".join(f"<td class=n>{f(lam[m].get(k))}</td>" for k in ("E", "F", "V", "pool"))
                    + f"<td class=n>{f(lam[m]['V'] / lam[m]['F'])}</td><td class=n>{f(lam[m]['E'] / lam[m]['F'])}</td></tr>"
                    for m in models)
+zlist = lambda m: ", ".join(f"{float(r['z']):+.1f}" for r in _qrows if r["model"] == m and r["method"] == "CR3-headline"
+                           and r["scale"] == "lam_F" and "interstitial" in r["qoi"])
+jp = lambda m, name, kind: (lambda e: pfmt(e["p_value"]) if e else "?")(joint.get(m, {}).get(name, {}).get(kind, {}).get("scaled", {}).get("eps_0.001"))
 jrows = ""
 pfmt = lambda p_: f"{p_:.2g}" if p_ > 0 else "&lt; 1e-300"
 for m in models:
@@ -611,9 +614,22 @@ its 95 % coverage and median σ/tol.</figcaption></figure>
 as a sensitivity. "Covariance from": the delta method or the committee.</caption>
 <thead><tr><th>model</th><th>method</th><th>covariance from</th><th>df</th><th>d²</th><th>χ²<sub>95</sub></th><th>p</th></tr></thead>
 <tbody>{jrows}</tbody></table></div>
-<p class="note">[Interpret: per-QoI coverage near nominal while the joint test rejects for λ<sub>F</sub> → errors correlated
-beyond S; λ<sub>V</sub> passes.]</p>
-<figure><img src="fig3_qoi_correlation.png" alt="QoI correlation matrix"><figcaption>Figure 3. QoI correlations from the CR3 committee.</figcaption></figure>
+<p>The QoIs share one coefficient vector, so their errors are correlated, and Figure 3 shows how. In the CR3 committee for o4d20 the
+correlations form blocks: the elastic constants with each other and with the β-Sn and sh phase energies, which are both compressed
+diamond-like structures; and the four point defects with each other (0.3–0.8), most strongly the three interstitials. Most other pairs
+are only weakly correlated.</p>
+<p>The joint test (Table 4) asks whether the whole error vector is consistent with this covariance. For o4d20 the headline passes
+(p = {jp("o4d20", "CR3/lam_F", "committee")} with the committee covariance, {jp("o4d20", "CR3/lam_F", "delta")} with the delta method),
+even though five QoIs miss individually. Three of the five are the interstitials, which the covariance expects to move together, so
+jointly they weigh less than three independent misses. For o3d12 the headline fails
+(p = {jp("o3d12", "CR3/lam_F", "committee")} and {jp("o3d12", "CR3/lam_F", "delta")}), although it covers more QoIs one at a time. Its
+three interstitials miss by z = {zlist("o3d12")}, all in the same direction; we have not separated their share of d² from the rest. The virial scale passes for both
+models (p from {jp("o3d12", "CR3/lam_V", "delta")} to {jp("o4d20", "CR3/lam_V", "committee")}). Every baseline fails, by many orders of
+magnitude for B1 and B3. So does B2 for o3d12, which covers 15 of 20 QoIs one at a time: per-QoI coverage alone does not show that
+a covariance is right. The delta-method and committee covariances agree, and the outcomes do not change for ε from
+10<sup>−4</sup> to 10<sup>−2</sup> of the mean diagonal. The discrepancy term of Section 3.8 is not included here.</p>
+<figure><img src="fig3_qoi_correlation.png" alt="QoI correlation matrix of the o4d20 CR3 committee"><figcaption>Figure 3. Correlation
+between the QoIs in the CR3 committee for o4d20 (K = 200 members).</figcaption></figure>
 <h3>3.6 Delta method, committees and nonlinearity</h3>
 <p>{"; ".join(f"{m}: {nflag[m]} of {ncmp[m]} QoIs differ by more than 10 % between delta and λ = 1 committee" for m in models)}.</p>
 {phys_txt}
