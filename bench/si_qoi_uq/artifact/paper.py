@@ -368,8 +368,7 @@ Gaussian (\(\varrho_g=1\) for Gaussian errors). A covariate-shift diagnostic
 but does not rescale σ.</p>
 <p><b>Why the propagation does not use these scales.</b> λ<sub>g</sub> and q<sub>g</sub> temper force <em>outputs</em> atom by
 atom. They do not define a covariance in θ, and a QoI depends on every atom and on relaxed geometries. Propagation therefore uses one
-global λ (Section 3.3). The groups also enter this study as a diagnostic breakdown of the test-split scores (Figure 5), and
-Section 3.2 tests these per-atom force uncertainties directly. Energy and virial uncertainties use the unscaled posterior
+global λ (Section 3.3). Section 3.2 tests these per-atom force uncertainties directly. Energy and virial uncertainties use the unscaled posterior
 variance.</p>
 <h3>2.6 Baselines</h3>
 <p>We compare the CR3 propagation with three baselines. Each changes one ingredient, the shape of the covariance or the way its
@@ -407,6 +406,12 @@ and V equally within a configuration and configurations equally. As in Section 3
 (\(\lVert L^{\mathsf T}b\rVert\lt 10^{-3}\) of the median of their kind) are dropped. No QoI, and no DFT QoI value, enters any scale.
 The headline uses \(\lambda_F\): forces are most of the training rows, and they are the quantity calibrated per atom in Section 3.2.
 In the Gaussian reading of Figure 7, \(\lambda_F\) is the global line, against the per-group \(\lambda_g\).</p>
+<p>A single scale is a compromise. Figure 5 breaks the test-split scale down by configuration type: it ranges from about 1 to 15
+across types and observables, largest for the virials of the bt cells, the vacancy and interstitial cells and, for o3d12, the
+hexagonal-diamond forces, and smallest for the energies of the crystal phases. The ratios of the global scales (Table 2) show the same at the level of observables.</p>
+<figure><img src="fig5_scale_diagnostics.png" alt="Test-split scale per observable and configuration type, both models"><figcaption>Figure 5.
+Test-split scale λ = RMS z with the CR3 shape, per observable (energy, force, virial) and GAP-18 configuration type, for both models
+("all": the global λ<sub>E</sub>, λ<sub>F</sub>, λ<sub>V</sub> of Table 2). Missing bars: types without that observable.</figcaption></figure>
 <div class="wrap"><table><caption>Table 2. Test-split scales (CR3 shape).</caption>
 <thead><tr><th>model</th><th>λ<sub>E</sub></th><th>λ<sub>F</sub></th><th>λ<sub>V</sub></th><th>λ<sub>pool</sub></th><th>λ<sub>V</sub>/λ<sub>F</sub></th><th>λ<sub>E</sub>/λ<sub>F</sub></th></tr></thead>
 <tbody>""" + lam_rows + r"""</tbody></table></div>
@@ -525,6 +530,9 @@ for m, fs in phys.items():
                  f"rescaled σ; the phase energies reach {min(phase):.1f}–{max(phase):.1f}× it, a genuine nonlinearity (phases relax into other "
                  "structures at λ<sub>F</sub>).</p>")
 pops = pw.get(("o3d12", "pops"))
+pops_sd = f(pops['sd_E_meV_per_atom'] if pops else None, 0)
+b3txt = " and ".join(f"{int(float(b3[m]['k95']))}/{int(float(b3[m]['n']))} ({m})" for m in models if b3[m])
+b1txt = " and ".join(f"{int(float(b1[m]['k95']))}/{int(float(b1[m]['n']))} ({m})" for m in models if b1[m])
 pops_w = "; ".join(f"{m}: 5 % cut {pw[(m, 'popslev5')]['sd_E_meV_per_atom']:.3g}, 50 % cut {pw[(m, 'popslev50')]['sd_E_meV_per_atom']:.3g}, "
                    f"CR3 {pw[(m, 'cr3')]['sd_E_meV_per_atom']:.2f} / {pw[(m, 'cr3lamF')]['sd_E_meV_per_atom']:.2f}"
                    for m in ("o3d12", "o4d20") if all((m, k) in pw for k in ("popslev5", "popslev50", "cr3")))
@@ -574,17 +582,21 @@ beyond S; λ<sub>V</sub> passes.]</p>
 {phys_txt}
 <figure><img src="fig4_elastic_ellipses.png" alt="Elastic constant covariance ellipses, two routes"><figcaption>Figure 4. Elastic constants: stress and energy routes.</figcaption></figure>
 <h3>3.7 Baselines</h3>
-<p>B2 with ace-jax defaults: the hypercube bounds come from low-leverage rows, and members spread the bulk energy (o3d12) by
-{f(pops['sd_E_meV_per_atom'] if pops else None, 0)} meV/atom; almost every relaxation fails. Restricting the members to rows
-at or above the median leverage gives physical members for both models, but no consistent width. The blow-up comes from a handful
-of near-zero-leverage rows. Rejecting unphysical members cannot remove it: every full-box axis spans 10<sup>6</sup>–10<sup>7</sup> eV/atom of
-bulk energy, so no member of either model is within 5 eV/atom of the mean on rattled diamond cells (0/200). A sweep of the
-leverage cut (dropping the lowest 1, 2, 5, 10, 25 or 50 % of rows; members screened on three rattled diamond cells) shows that
-dropping 1 % already gives physical members, and that the o4d20 width hardly depends on the cut (median worst-cell |ΔE|
-0.001–0.003 eV/atom, against 0.017 for CR3 × λ<sub>F</sub>). Committees were run at the 5 % cut, which keeps closest to POPS's
-default of every row, and at 50 %. Bulk-energy spread per member set (meV/atom), against the CR3 members at λ = 1 and at
-λ<sub>F</sub>: {pops_w}. B2 covers {pops_cov}. POPS has no calibration step, so its width follows whatever the support selection gives.</p>
-<figure><img src="fig5_scale_diagnostics.png" alt="Scale per observable and config type"><figcaption>Figure 5. λ per observable type and config_type.</figcaption></figure>""", "drafted", level=3)
+<p>The three baselines of Section 2.6 each fall short in a different way (Figure 1, Figure 1b and Table 3). B3, the CR3 shape without
+calibration, covers only {b3txt} of the QoIs at 95 %: the shape alone is several times too narrow, as the test-split scales of
+Section 3.3 already show. B1, the posterior with one conformal scale, covers {b1txt}. It has a calibrated overall size but the wrong
+shape, so it is too wide for some QoIs and too narrow for others, and it fails the joint test outright (Table 4).</p>
+<p>B2, POPS, needed more care. With ace-jax's default, which builds the hypercube from every training row, the members are
+unphysical: the bounds are set by a handful of rows with near-zero leverage, whose corrections are unbounded, and the members spread
+the bulk energy of o3d12 by {pops_sd} meV/atom, so that almost every relaxation fails. Rejecting unphysical members cannot rescue
+this. Every axis of the full box spans 10<sup>6</sup>–10<sup>7</sup> eV/atom of bulk energy, and no member of either model comes within
+5 eV/atom of the mean on rattled diamond cells (0 of 200).</p>
+<p>Dropping the lowest-leverage rows from the box fixes it. A sweep of the cut (the lowest 1, 2, 5, 10, 25 or 50 % of rows, members
+screened on three rattled diamond cells) shows that dropping 1 % already gives physical members. The width then hardly depends on the
+cut for o4d20: the median worst-cell energy change is 0.001–0.003 eV/atom, against 0.017 for CR3 × λ<sub>F</sub>. We ran committees at
+the 5 % cut, the closest to POPS's own default, and at 50 % (Table 3b). Their bulk-energy spreads, against the CR3 members at λ = 1 and at
+λ<sub>F</sub>, are {pops_w} meV/atom. B2 covers {pops_cov}. POPS has no calibration step, so its width is whatever the choice of support rows
+gives: too narrow for o4d20, and of roughly the right size but in the wrong places for o3d12.</p>""", "drafted", level=3)
 
 trend_rows = ""
 for m in ("o3d12", "o4d20"):

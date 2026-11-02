@@ -182,6 +182,9 @@ def scales_fig(results, out, models):
             ax.bar(np.arange(len(cats)) + (j - 1) * 0.27, v, width=0.25, color=CAT[j], edgecolor=SURFACE,
                    linewidth=1.5, label={"E": "energy", "F": "force", "V": "virial"}[t])
         ax.set_yscale("log")
+        from matplotlib.ticker import FuncFormatter, NullFormatter
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}")); ax.yaxis.set_minor_formatter(NullFormatter())
+        ax.set_yticks([1, 2, 5, 10, 20]); ax.set_ylim(0.9, 20)
         ax.set_xticks(range(len(cats)), cats, rotation=60, ha="right")
         ax.set_ylabel("λ = RMS z (CR3 shape)", color=INK, fontsize=8)
         ax.set_title(f"{m}: test-split scale per observable and config_type", color=INK, fontsize=10, loc="left")
