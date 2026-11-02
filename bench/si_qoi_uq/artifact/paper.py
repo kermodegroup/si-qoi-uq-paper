@@ -140,7 +140,14 @@ heterogeneous across local environments (distortion, coordination) and correlate
   <li>It is served by ace-jax as forces_std, forces_cov and a conformal region per atom (Sections 3.1 and 7.7).</li>
   </ul></li>
 <li><b>Gap 2: derived properties.</b> A QoI depends on every atom and on relaxed geometries, so per-atom intervals cannot be
-combined into a QoI interval. For a linear model the consistent object is a distribution over coefficients θ: one draw gives
+combined into a QoI interval. A QoI's uncertainty has two parts [Simmons, Hudson, Swinburne and Kermode, in prep.]. The
+aleatoric part is the sampling error of the simulation that computes the QoI, assessed with statistical convergence tests
+[Grossfield and Zuckerman 2009; Lelièvre, Rousset and Stoltz 2010, Sec. 2.3]. The epistemic part comes from the uncertainty in
+the fit. It is most widely estimated with a committee of \\(n\\) potentials, an idea long established in statistics [Hoeting et
+al. 1999]. If member \\(i\\) predicts \\(D_i\\sim\\mathcal N(\\mu_i,\\sigma_i^2)\\), independently, the predictive variance
+\\(\\tfrac1n\\sum_i\\sigma_i^2+\\tfrac1{n-1}\\sum_i(\\mu_i-\\bar\\mu)^2\\) is the mean aleatoric variance plus the committee's
+spread of means, the epistemic part. The QoIs here come from relaxations and static calculations, so their aleatoric part is zero
+and their uncertainty is purely epistemic. For a linear model the consistent object is a distribution over coefficients θ: one draw gives
 energies, forces and stresses together, and any QoI follows.</li>
 <li><b>Contribution B:</b> propagation of the same CR3 distribution, with one scale fitted to held-out forces, to 21 silicon QoIs.
 It uses implicit differentiation through every relaxation, including the lattice constant, cross-checked by committees of the
@@ -808,6 +815,10 @@ sec("refs", "References (to verify)", """<ol class="refs">
 <li>V. Vovk, D. Lindsay, I. Nouretdinov, A. Gammerman, Mondrian confidence machine, technical report, Royal Holloway, University of London (2003).</li>
 <li>V. Vovk, A. Gammerman, G. Shafer, Algorithmic Learning in a Random World, Springer (2005).</li>
 <li>R. D. Cook, S. Weisberg, Residuals and Influence in Regression (1982).</li>
+<li>G. Simmons, T. Hudson, T. D. Swinburne, J. R. Kermode, review of uncertainty quantification for machine-learned interatomic potentials, in preparation.</li>
+<li>J. A. Hoeting, D. Madigan, A. E. Raftery, C. T. Volinsky, Bayesian model averaging: a tutorial, Stat. Sci. 14, 382 (1999).</li>
+<li>A. Grossfield, D. M. Zuckerman, Quantifying uncertainty and sampling quality in biomolecular simulations, Annu. Rep. Comput. Chem. 5, 23 (2009).</li>
+<li>T. Lelièvre, M. Rousset, G. Stoltz, Free Energy Computations: A Mathematical Perspective, Imperial College Press (2010).</li>
 <li>D. M. Allen, The relationship between variable selection and data augmentation and a method for prediction, Technometrics 16, 125 (1974).</li>
 <li>P. J. Huber (1967); H. White, Econometrica 50, 1 (1982); U. K. Müller, Econometrica 81, 1805 (2013).</li>
 <li>R. Dunn, L. Wasserman, A. Ramdas, Distribution-free prediction sets for two-layer hierarchical models, JASA (2023).</li>
