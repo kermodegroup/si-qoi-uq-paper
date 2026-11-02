@@ -543,7 +543,6 @@ sec("results", "3.4  Coverage and sharpness", f"""
 <tbody>{cov_rows}</tbody></table></div>
 <figure><img src="fig6_model_compare.png" alt="Per QoI, error over tolerance with 95 percent intervals for o4d20 and o3d12, DFT as crosses at zero"><figcaption>Figure 1. Model prediction minus DFT, in units of the benchmark tolerance, with the 95 % interval (CR3 × λ<sub>F</sub>) for o4d20 (circles) and o3d12 (squares); DFT is the cross at 0 and the shaded band is ± 1 tolerance. The axis is linear within ± 1 and logarithmic beyond. The larger model's intervals are {tight:.1f}× tighter in median σ/tol while its coverage stays comparable.</figcaption></figure>
 <figure><img src="fig2_coverage.png" alt="Coverage per method with binomial intervals"><figcaption>Figure 1b. Coverage per method.</figcaption></figure>
-<figure><img src="fig1_z_strip.png" alt="Standardised error per QoI"><figcaption>Figure 2. z<sub>Q</sub> per QoI (bands ±1, ±2).</figcaption></figure>
 <h3>3.5 Joint test</h3>
 <div class="wrap"><table><caption>Table 4. Mahalanobis test (correlation-scaled, ε = 10<sup>−3</sup>).</caption>
 <thead><tr><th>model</th><th>method</th><th>S from</th><th>df</th><th>d²</th><th>χ²<sub>95</sub></th><th>p</th></tr></thead>
