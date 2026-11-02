@@ -241,7 +241,20 @@ benchmark models; ARD gives the same coverage (Table 1), and it provides the per
 Section 7.7.</p>""", "drafted")
 
 sec("theory-cr3", "3  Misspecification-robust shape: the CR3 jackknife", r"""
-<p>For a cluster \(k=1,\dots,n_{\text{cl}}\) of rows (here: one whole configuration with its energy, force and virial rows) with
+<p><b>POPS.</b> The closest existing approach for linear potentials is POPS [Swinburne and Perez 2024]. For each training row
+\(i\), with residual \(r_i\) and leverage \(h_i=\psi_i^{\mathsf T}A^{-1}\psi_i\), the pointwise optimal parameter set is
+\(\hat\theta+\delta_i\), with \(\delta_i=A^{-1}\psi_i\,r_i/h_i\) the smallest change (in the \(A\) metric) that makes the model
+reproduce that row exactly. The spread of the \(\delta_i\), as an ensemble or as a hypercube in their principal directions, is
+the uncertainty. It does not shrink as data are added, because each \(\delta_i\) stays finite while the model is misspecified.</p>
+<p><b>Comparison.</b> CR3 below is built from the same per-row influence, \(A^{-1}\psi_i r_i\), but asks the opposite question:
+how far the fit moves when a configuration is removed, not how far it must move to fit a row exactly. For one row the two differ
+only in the leverage factor, \(1/(1-h_i)\) for deletion against \(1/h_i\) for an exact fit. CR3 is therefore largest for rows the
+fit leans on, and POPS for rows the fit hardly sees, whose corrections are unbounded as \(h_i\to0\) (Section 7.4). CR3 also deletes
+whole configurations, so that the correlated energy, force and virial rows of one configuration move together, and it is a
+covariance that is calibrated by one scale on held-out data (Section 4); POPS has no calibration step. Like any sampling variance,
+the CR3 covariance shrinks as data are added, which is why the scale is needed: CR3 supplies the shape, and the held-out data the
+size.</p>
+<p><b>CR3.</b> For a cluster \(k=1,\dots,n_{\text{cl}}\) of rows (here: one whole configuration with its energy, force and virial rows) with
 whitened rows \(\Psi_k\) (the cluster's rows \(\psi^{\mathsf T}\) stacked), whitened targets \(\tilde y_k\) and residuals \(\rho_k=\tilde y_k-\Psi_k\hat\theta\), the cluster hat block and the leverage-corrected (PRESS)
 score are</p>
 \[ H_{kk}=\Psi_kA^{-1}\Psi_k^{\mathsf T}=W_k^{\mathsf T}W_k,\quad W_k=R_S^{-\mathsf T}D^{-1}\Psi_k^{\mathsf T},\qquad
@@ -322,8 +335,7 @@ variance.</p>
 <h3>3.2 Baselines</h3>
 <p><b>B1 (posterior + conformal):</b> \(\Sigma=A^{-1}\) (the epistemic posterior) scaled by one conformal quantile \(\hat q\) of
 the test-split \(|z|\) (the standardised scores of Section 4, here with the posterior shape), pooled over E, F and V with configurations weighted equally.
-<b>B2 (POPS):</b> pointwise-optimal parameter sets; for training row \(i\) the minimum-norm correction that fits it exactly,
-\(\delta_i=A_\mu^{-1}\psi^w_i\,r_i/h_i\) with leverage \(h_i=\psi_i^{w\mathsf T}A_\mu^{-1}\psi^w_i\). Here \(\psi^w_i=b_i w_i\) carries
+<b>B2 (POPS):</b> the construction above as ace-jax implements it, \(\delta_i=A_\mu^{-1}\psi^w_i\,r_i/h_i\) with leverage \(h_i=\psi_i^{w\mathsf T}A_\mu^{-1}\psi^w_i\). Here \(\psi^w_i=b_i w_i\) carries
 structural weights only, \(r_i\) is the row's residual at the ridge solution, and \(A_\mu=M+\mu\operatorname{diag}(\Gamma_j^2)\) with
 \(M=\sum_i\psi^w_i\psi_i^{w\mathsf T}\) and the ridge \(\mu\) chosen on a path; members are drawn uniformly in the PCA hypercube of the
 \(\delta_i\). <b>B3:</b> CR3 with λ = 1.</p>""", "drafted from docs")
