@@ -892,6 +892,9 @@ for m in ("o4d20", "o3d12"):
         fc_rows += (f"<tr><td>{m}</td><td>{g}</td><td>{g_label(g)}</td><td class=n>{z['lam_rms'][g]:.2f}</td><td class=n>{z['q_table'][g]:.1f}</td>"
                     f"<td class=n>{int(z['n_cfg'][g])}</td><td class=n>{int(mk.sum())}</td>"
                     f"<td class=n>{float(_np.mean(z['score'][mk] <= z['q'][mk])):.3f}</td><td class=n>{rr(mk):.2f}</td></tr>")
+_nov = {m: json.load(open(RES / f"novelty_groups_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"novelty_groups_{m}.json").exists()}
+nov = lambda m, b, k: f"{_nov[m]['bins'][b][k]:.3f}" if m in _nov else "?"
+nov_share = lambda m: f"{100 * _nov[m]['bins']['>2']['share']:.1f} %" if m in _nov else "?"
 mg_r1 = f" = {_mg['r1']:.2f} Å" if _mg else ""
 mg_z = f" = {_mg['z_star']}" if _mg else ""
 sec("results-forces", "3.2  Calibrated per-atom forces (Mondrian conformal)", f"""
@@ -911,11 +914,17 @@ descriptors: atoms that are novel in descriptor space already have a large <i>v<
 re-sorts atoms the shape has ranked correctly. The shape errs instead along directions the descriptor projection does not single out.
 A stretched or partly dissociated atom loses neighbours, so its force rows, and with them <i>v</i>, shrink towards zero while its
 error does not, and the leading principal directions of the raw descriptor are likely to be dominated by large-norm, compressed environments.
-Coordination and shell distortion separate exactly those cases. We tested descriptor-based groups in development on an
-alloy model: a per-species Mahalanobis novelty grade in a whitened PCA of normalised descriptors, alone or crossed with the
-distortion bands. The descriptor-novel atoms were already over-covered by the geometric groups (0.97 at a nominal 0.90), and
-novelty groups either lowered overall coverage (0.88–0.89) or moved coverage from novel to typical atoms with no net gain
-(unpublished ace-jax development report).</p>
+Coordination and shell distortion separate exactly those cases. We tested descriptor-based groups on both silicon models,
+with the same test atoms and scores as Table 11. The grade is a per-species Mahalanobis distance γ in a whitened PCA of
+normalised site descriptors (36 components for o3d12, 69 for o4d20), fitted on 10 000 training atoms only, and used alone or
+crossed with the distortion bands. Without descriptor groups the coverage is {nov("o3d12", "all", "served")} (o3d12) and
+{nov("o4d20", "all", "served")} (o4d20), and the descriptor-novel atoms (γ &gt; 2, {nov_share("o3d12")} and {nov_share("o4d20")} of the
+test atoms) are already over-covered ({nov("o3d12", ">2", "served")} and {nov("o4d20", ">2", "served")}): the shape already widens with
+novelty. Novelty groups alone lower the coverage to {nov("o3d12", "all", "novelty")} and {nov("o4d20", "all", "novelty")}. Crossed with
+the distortion bands they change nothing for o3d12 ({nov("o3d12", "all", "crossed")}); for o4d20 they move coverage from the novel
+atoms ({nov("o4d20", ">2", "crossed")}) to the typical ones ({nov("o4d20", "<=1", "served")} → {nov("o4d20", "<=1", "crossed")}), a slightly
+more even calibration at the same overall level ({nov("o4d20", "all", "crossed")}), at the cost of three times as many groups. The same
+test on an alloy model gave the same picture (unpublished ace-jax development report). The geometric groups are therefore kept.</p>
 <figure><img src="fig7_force_calibration.png" alt="Per-atom force uncertainty against observed error, binned on predicted sigma and on observed error, for each model"><figcaption>Figure 7.
 Top: binned on predicted σ (20 equal-count bins), RMS observed |ΔF| against RMS σ, for the Mondrian
 σ<sub>F,i</sub> and for the global λ<sub>F</sub> of the propagation, with the per-atom density behind; points below
