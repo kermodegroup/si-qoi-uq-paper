@@ -419,8 +419,12 @@ Test-split scale λ = RMS z with the CR3 shape, per observable (energy, force, v
 <div class="wrap"><table><caption>Table 2. Test-split scales (CR3 shape).</caption>
 <thead><tr><th>model</th><th>λ<sub>E</sub></th><th>λ<sub>F</sub></th><th>λ<sub>V</sub></th><th>λ<sub>pool</sub></th><th>λ<sub>V</sub>/λ<sub>F</sub></th><th>λ<sub>E</sub>/λ<sub>F</sub></th></tr></thead>
 <tbody>""" + lam_rows + r"""</tbody></table></div>
-<p class="note">Both ratios fall outside [0.8, 1.25]: the degree of misspecification depends on the observable.
-[Discuss: virials under-covered by λ<sub>F</sub>; consequence for elastic constants and phase energies.]</p>""", "drafted", level=3)
+<p>The three scales differ: λ<sub>V</sub> is about a third larger than λ<sub>F</sub> (λ<sub>V</sub>/λ<sub>F</sub> = 1.33–1.38, outside
+[0.8, 1.25]), and λ<sub>E</sub> about a sixth smaller (0.82–0.84, just inside), so the degree of misspecification depends on the
+observable. With λ<sub>F</sub>, virials are therefore
+under-covered on the test split. The QoIs most like virials are the elastic constants, which are derivatives of the stress, and the
+phase energies, which come from energy–volume curves, so their intervals at λ<sub>F</sub> may be too narrow; Section 3.4 reports the
+coverage with λ<sub>V</sub> as a sensitivity.</p>""", "drafted", level=3)
 
 sec("method-prop", "2.7  Propagation to QoIs", r"""
 <p>The distribution propagated is \(\theta\sim\mathcal N(\hat\theta,\lambda^2LL^{\mathsf T})\); one sample gives energy, forces and
@@ -764,11 +768,11 @@ them, DFT training labels; o3d12, o4d20, eV); model against model (o4d20 as trut
 models' own harness values: paired / regression prediction, eV).</caption>
 <thead><tr><th>class</th><th>n<sub>def</sub>/n<sub>b</sub></th><th>partner term</th><th>SE</th><th>hold-out o3d12</th><th>hold-out o4d20</th><th>model vs model</th></tr></thead>
 <tbody>{ec_rows}</tbody></table></div>
-<p class="note">For interstitials the data-only evidence favours the regression estimator. The paired form takes most partners
+<p>For interstitials the data-only evidence favours the regression estimator. The paired form takes most partners
 from 2-atom bulk cells, so a partner's residual enters ×108 (0.35 eV RMS, the size of the bias), its standard error is larger, and
 it extrapolates worse to held-out cold snapshots (half the RMSE for regression, in both models; likewise for divacancies). The
 model-against-model test does not separate them (both inside the true spread), and neither estimator handles the vacancy in any test.
-<b>The headline therefore uses regression for interstitials;</b> the vacancy is treated below. The regression estimator also agrees
+The headline therefore uses regression for interstitials; the vacancy is treated below. The regression estimator also agrees
 better with the observed interstitial errors. That was seen before the data-only tests were run and is not part of the
 argument, but it means the choice was not made blind; the all-paired result is kept as a sensitivity.</p>
 <div class="wrap"><table><caption>Table 8. Defect QoIs, CR3 × λ<sub>F</sub>: error, σ without and with the discrepancy term
@@ -791,7 +795,7 @@ per-size combination recovers 0.65 eV of the 0.77 eV model-to-model difference, 
 63-atom cell gives direct evidence with no extrapolation: its bulk-subtracted residual is +0.61 eV (o3d12) and 0.00 eV (o4d20), and
 relaxing it ({cold_txt}) suggests that o3d12 over-relaxes. Both models relax the harness vacancy to a symmetric structure (vacancy
 neighbour distances {geo_txt}); the harness gives no DFT structure to compare.</p>
-<p class="note">Selection risk: the closeness of the 63-atom intercept to the vacancy QoI errors was seen before the heterogeneity and
+<p>One selection risk remains: the closeness of the 63-atom intercept to the vacancy QoI errors was seen before the heterogeneity and
 model-against-model checks. The choice rests on those checks and on the cold cell, which use no DFT QoI value.</p>
 <figure><img src="fig8_model_compare_disc.png" alt="Per QoI, error over tolerance with 95 percent intervals for both models with the defect discrepancy term, the vacancy from the per-size estimator; intervals without the term as thin black bars, and the vacancy with the pooled-size estimator as dashed grey bars"><figcaption>Figure 8.
 As Figure 1, with the headline discrepancy term on the four defect QoIs (CR3 × λ<sub>F</sub>): the regression estimator for the
