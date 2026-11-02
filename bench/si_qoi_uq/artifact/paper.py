@@ -246,8 +246,22 @@ whitened rows \(\Psi_k\) (the cluster's rows \(\psi^{\mathsf T}\) stacked), whit
 score are</p>
 \[ H_{kk}=\Psi_kA^{-1}\Psi_k^{\mathsf T}=W_k^{\mathsf T}W_k,\quad W_k=R_S^{-\mathsf T}D^{-1}\Psi_k^{\mathsf T},\qquad
    \tilde g_k=\Psi_k^{\mathsf T}(I-H_{kk})^{-1}\rho_k . \]
+<p>Each object has a direct reading.</p>
+<ul>
+<li>\(H_{kk}\) is the cluster's block of the hat matrix: it maps the cluster's targets to its own fitted values, so it measures how
+far the fit is pulled towards that configuration. Because \(\Lambda\succ0\), its eigenvalues lie in \([0,1)\). An eigenvalue near 0
+means the configuration is predicted by the rest of the data; one near 1 means the fit nearly interpolates it along that direction,
+and its residual there underestimates the error it would have if it were left out.</li>
+<li>\(W_k\) is the cluster's rows expressed in whitened coefficient coordinates, scaled by the prior (\(D\)) and by the Cholesky
+factor of \(S\) (Section 2.3). In these coordinates the posterior is isotropic, so \(H_{kk}=W_k^{\mathsf T}W_k\) is a plain Gram
+matrix; computing \(W_k\) costs one triangular solve per cluster.</li>
+<li>\(\tilde g_k\) is the cluster's contribution to the gradient of the least-squares objective, \(\Psi_k^{\mathsf T}\rho_k\),
+evaluated with its leave-cluster-out (PRESS) residuals \((I-H_{kk})^{-1}\rho_k\) instead of its ordinary residuals. It is the pull of
+configuration \(k\) on the coefficients as an unseen configuration would exert it.</li>
+</ul>
 <p>With the hyperparameters fixed, deleting cluster \(k\) moves the mean by exactly \(\hat\theta-\hat\theta_{(-k)}=A^{-1}\tilde g_k\)
-(the cluster DFBETA). Because \(\Lambda\succ0\), every eigenvalue of \(H_{kk}\) lies in \([0,1)\). The centred meat and the
+(the cluster DFBETA [Cook and Weisberg 1982, Sec. 3.6]). The spread of these shifts over clusters is the CR3 covariance. The
+centred meat and the
 delete-one-cluster (CR3) covariance are</p>
 \[ \tilde M=\sum_k(\tilde g_k-\bar g)(\tilde g_k-\bar g)^{\mathsf T},\qquad
    \Sigma_{\text{CR3}}=A^{-1}\tilde MA^{-1}=D^{-1}\tilde Q\tilde Q^{\mathsf T}D^{-1},\quad
