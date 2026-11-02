@@ -835,6 +835,18 @@ training atoms. The flag f is 1 when the atom's coordination differs from the mo
 four-fold atoms in increasingly distorted environments, from near-ideal diamond (group 0) to the most distorted 1 % (group 6); odd
 groups are the same bands for under- or over-coordinated atoms, such as those at surfaces, defects and in the liquid. Table 11 gives
 each group's limits. They depend on geometry only, and are the same for both models.</p>
+<p>The groups are deliberately geometric rather than built from the site descriptor itself, for example from clusters or bins in a
+low-rank (PCA) projection of it. A conformal group only helps where the ratio of the error to the predicted shape differs from
+group to group. The CR3 shape is already a quadratic form in the atom's force rows, so it grows with distance from the training
+descriptors: atoms that are novel in descriptor space already have a large <i>v</i>, and grouping by the same novelty mostly
+re-sorts atoms the shape has ranked correctly. The shape errs instead along directions the descriptor projection does not single out.
+A stretched or partly dissociated atom loses neighbours, so its force rows, and with them <i>v</i>, shrink towards zero while its
+error does not, and the leading principal directions of the raw descriptor are likely to be dominated by large-norm, compressed environments.
+Coordination and shell distortion separate exactly those cases. We tested descriptor-based groups in development on an
+alloy model: a per-species Mahalanobis novelty grade in a whitened PCA of normalised descriptors, alone or crossed with the
+distortion bands. The descriptor-novel atoms were already over-covered by the geometric groups (0.97 at a nominal 0.90), and
+novelty groups either lowered overall coverage (0.88–0.89) or moved coverage from novel to typical atoms with no net gain
+(unpublished ace-jax development report).</p>
 <figure><img src="fig7_force_calibration.png" alt="Per-atom force uncertainty against observed error, binned on predicted sigma and on observed error, for each model"><figcaption>Figure 7.
 Top: binned on predicted σ (20 equal-count bins), RMS observed |ΔF| against RMS σ, for the Mondrian
 σ<sub>F,i</sub> and for the global λ<sub>F</sub> of the propagation, with the per-atom density behind; points below
