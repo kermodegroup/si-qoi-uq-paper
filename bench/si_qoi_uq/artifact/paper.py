@@ -333,13 +333,25 @@ global λ (Section 4). The groups also enter this study as a diagnostic breakdow
 Section 7.7 tests these per-atom force uncertainties directly. Energy and virial uncertainties use the unscaled posterior
 variance.</p>
 <h3>3.2 Baselines</h3>
-<p><b>B1 (posterior + conformal):</b> the approach of Best et al. [2024]: \(\Sigma=A^{-1}\) (the epistemic posterior) scaled by one conformal quantile \(\hat q\) of
-the test-split \(|z|\) (the standardised scores of Section 4, here with the posterior shape), pooled over E, F and V with configurations weighted equally.
-<b>B2 (POPS):</b> the construction above [Swinburne and Perez 2024] as ace-jax implements it [ace-jax], ported from the reference package POPSRegression [Swinburne, POPSRegression], \(\delta_i=A_\mu^{-1}\psi^w_i\,r_i/h_i\) with leverage \(h_i=\psi_i^{w\mathsf T}A_\mu^{-1}\psi^w_i\). Here \(\psi^w_i=b_i w_i\) carries
-structural weights only, \(r_i\) is the row's residual at the ridge solution, and \(A_\mu=M+\mu\operatorname{diag}(\Gamma_j^2)\) with
-\(M=\sum_i\psi^w_i\psi_i^{w\mathsf T}\) and the ridge \(\mu\) chosen on a path; members are drawn uniformly in the hypercube spanned by the principal directions of the \(\delta_i\), with bounds from their
-extreme projections, as in Swinburne and Perez [2024]. <b>B3:</b> CR3 with λ = 1.</p>
-<p>Fisher et al. [2026] take the conformal step further: they calibrate joint conformal sets for energies, forces and virials
+<p>We compare the CR3 propagation with three baselines. Each changes one ingredient, the shape of the covariance or the way its
+size is set, so that the comparison shows which ingredient matters.</p>
+<p>The first baseline, B1, is the approach of Best et al. [2024]. It keeps the Bayesian posterior as the shape, \(\Sigma=A^{-1}\),
+and corrects its size with one conformal quantile \(\hat q\). The quantile is taken from the absolute standardised scores
+\(|z|\) of the held-out test split (Section 4, here computed with the posterior shape), pooled over energies, forces and virials,
+with every configuration given equal weight. B1 therefore uses the same held-out data, and the same kind of single scale, as our
+method. It differs only in the shape, so it tests whether the CR3 covariance describes the errors better than the posterior.</p>
+<p>The second baseline, B2, is POPS [Swinburne and Perez 2024], as implemented in ace-jax [ace-jax] by a port of the reference
+package POPSRegression [Swinburne, POPSRegression]. For each training row \(i\) the correction is
+\(\delta_i=A_\mu^{-1}\psi^w_i\,r_i/h_i\), with leverage \(h_i=\psi_i^{w\mathsf T}A_\mu^{-1}\psi^w_i\). Here \(\psi^w_i=b_i w_i\) carries the
+row weights but no noise scale, \(r_i\) is the row's residual at the ridge solution, and \(A_\mu=M+\mu\operatorname{diag}(\Gamma_j^2)\),
+with \(M=\sum_i\psi^w_i\psi_i^{w\mathsf T}\) and the ridge parameter \(\mu\) chosen on a path. Members are drawn uniformly in the
+hypercube spanned by the principal directions of the \(\delta_i\), with bounds from their extreme projections, as in Swinburne and
+Perez [2024]. The ace-jax default builds the box from every row. Section 7.4 also reports boxes built only from rows above a
+leverage percentile, because the low-leverage rows make the default box unphysical. B2 has no calibration step, so it tests a
+misspecification-aware shape without a fitted scale.</p>
+<p>The third baseline, B3, is the CR3 covariance with \(\lambda=1\). It isolates the effect of the scale: the difference between B3
+and the headline is entirely the calibration of Section 4.</p>
+<p>Fisher et al. [2026] take the conformal step further. They calibrate joint conformal sets for energies, forces and virials
 (Bonferroni-corrected boxes, Mahalanobis ellipsoids, and losses under conformal risk control) and propagate them to derived
 quantities such as elastic constants and vacancy formation energies, where modelling the correlations captures error
 cancellation. B1 and our CR3 method use one scalar scale instead. We do not use multivariate conformal prediction here; combining
