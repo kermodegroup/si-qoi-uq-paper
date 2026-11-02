@@ -325,3 +325,7 @@ The fit uses the BLR prior and shared noise, solved by QR on explicit rows.
 - **Vacancy estimator switched (decision 2026-11-01):** the headline vacancy term is the inverse-variance per-size combination
   (o3d12 +0.808 ± 0.030, o4d20 +0.136 ± 0.016 eV); paired and pooled regression remain sensitivities. Headline CR3 × λ_F with the
   term at 95 % (68 %): o3d12 20/20 (18), o4d20 18/20 (15). All defect |z| < 1.3; the two o4d20 misses are sh and the (100) surface.
+- **Config-type jackknife, o4d20** (`results/type_jackknife_o4d20.*`, exact leave-one-type-out by prefix/suffix QR merges,
+  6818 s): λ_E/F/V 0.7 / 2.2 / 3.9 against CR3's 5.0 / 6.2 / 8.2. Delta-method λ_F coverage 16/17 at 95 % and 16/17 at 68 %
+  (CR3: 12 and 10), median σ/tol 1.77 against 0.53. All defect |z| ≤ 0.5. It covers the defects without a discrepancy term but
+  over-covers (nominal 68 %); for o3d12 it does not reach the interstitials. Reported as a conservative alternative (paper 7.5c).
