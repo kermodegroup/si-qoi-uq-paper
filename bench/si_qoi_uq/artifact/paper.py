@@ -338,7 +338,12 @@ the test-split \(|z|\) (the standardised scores of Section 4, here with the post
 <b>B2 (POPS):</b> the construction above [Swinburne and Perez 2024] as ace-jax implements it [ace-jax], ported from the reference package POPSRegression [Swinburne, POPSRegression], \(\delta_i=A_\mu^{-1}\psi^w_i\,r_i/h_i\) with leverage \(h_i=\psi_i^{w\mathsf T}A_\mu^{-1}\psi^w_i\). Here \(\psi^w_i=b_i w_i\) carries
 structural weights only, \(r_i\) is the row's residual at the ridge solution, and \(A_\mu=M+\mu\operatorname{diag}(\Gamma_j^2)\) with
 \(M=\sum_i\psi^w_i\psi_i^{w\mathsf T}\) and the ridge \(\mu\) chosen on a path; members are drawn uniformly in the hypercube spanned by the principal directions of the \(\delta_i\), with bounds from their
-extreme projections, as in Swinburne and Perez [2024]. <b>B3:</b> CR3 with λ = 1.</p>""", "drafted from docs")
+extreme projections, as in Swinburne and Perez [2024]. <b>B3:</b> CR3 with λ = 1.</p>
+<p>Fisher et al. [2026] take the conformal step further: they calibrate joint conformal sets for energies, forces and virials
+(Bonferroni-corrected boxes, Mahalanobis ellipsoids, and losses under conformal risk control) and propagate them to derived
+quantities such as elastic constants and vacancy formation energies, where modelling the correlations captures error
+cancellation. B1 and our CR3 method use one scalar scale instead. We do not use multivariate conformal prediction here; combining
+it with the CR3 shape is left to future work.</p>""", "drafted from docs")
 
 sec("method-calib", "4  Calibrating one global scale", r"""
 <p>On the 248 held-out test configurations, every row \(b\) gives a standardised score \(z=(y-\hat y)/\lVert L^{\mathsf T}b\rVert\),
@@ -840,6 +845,7 @@ sec("refs", "References", """<p class="note">Checked against publisher or reposi
 <li>R. Drautz, Atomic cluster expansion for accurate and transferable interatomic potentials, Phys. Rev. B 99, 014104 (2019).</li>
 <li>R. Dunn, L. Wasserman, A. Ramdas, Distribution-free prediction sets for two-layer hierarchical models, J. Am. Stat. Assoc. 118, 2491–2502 (2023).</li>
 <li>A. Grossfield, D. M. Zuckerman, Quantifying uncertainty and sampling quality in biomolecular simulations, in Annual Reports in Computational Chemistry, Vol. 5, Elsevier (2009).</li>
+<li>K. Fisher, M. Herbst, J. Kermode, Y. Marzouk, Multivariate conformal uncertainty propagation in multitask atomistic simulation: successes and pitfalls, arXiv:2609.31384 (2026).</li>
 <li>J. A. Hoeting, D. Madigan, A. E. Raftery, C. T. Volinsky, Bayesian model averaging: a tutorial, Stat. Sci. 14, 382–417 (1999).</li>
 <li>P. J. Huber, The behavior of maximum likelihood estimates under nonstandard conditions, Proc. Fifth Berkeley Symp. Math. Stat. Probab. 1, 221–233 (1967).</li>
 <li>G. Imbalzano, Y. Zhuang, V. Kapil, K. Rossi, E. A. Engel, F. Grasselli, M. Ceriotti, Uncertainty estimation for molecular dynamics and sampling, J. Chem. Phys. 154, 074102 (2021).</li>
