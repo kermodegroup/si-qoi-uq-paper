@@ -161,9 +161,9 @@ share is invisible to any delete-one jackknife; in the GAP-18 database every def
 diagnose this bias, measure it from the training labels alone, and compare three remedies: a discrepancy term, a coarser jackknife,
 and reweighted fits (defect–bulk difference rows, and iteratively reweighted least squares).</p>
 <p>Section 2 sets out the methodology: the linear ACE fit and ARD (2.1–2.3), the CR3 shape (2.4), the per-atom force calibration
-(2.5), the baselines (2.6), the global scale (2.7), the propagation to QoIs (2.8), the discrepancy term for shared biases (2.9) and the
-reweighted fits (2.10). Section 3 gives the validation statistics and the results, starting with the per-atom forces, and Section 4
-discusses them.</p>""", "draft")
+(2.5), the baselines (2.6), the propagation to QoIs (2.7), the discrepancy term for shared biases (2.8) and the reweighted fits
+(2.9). Section 3 gives the validation statistics and the results: the per-atom forces first, then the global scale that the
+propagation uses, then the QoIs. Section 4 discusses them.</p>""", "draft")
 
 sec("theory-model", "2  Methodology", r"""
 <h3>2.1 Linear ACE: model and observations</h3>
@@ -250,9 +250,9 @@ the uncertainty. It does not shrink as data are added, because each \(\delta_i\)
 <p><b>Comparison.</b> CR3 below is built from the same per-row influence, \(A^{-1}\psi_i r_i\), but asks the opposite question:
 how far the fit moves when a configuration is removed, not how far it must move to fit a row exactly. For one row the two differ
 only in the leverage factor, \(1/(1-h_i)\) for deletion against \(1/h_i\) for an exact fit. CR3 is therefore largest for rows the
-fit leans on, and POPS for rows the fit hardly sees, whose corrections are unbounded as \(h_i\to0\) (Section 3.6). CR3 also deletes
+fit leans on, and POPS for rows the fit hardly sees, whose corrections are unbounded as \(h_i\to0\) (Section 3.7). CR3 also deletes
 whole configurations, so that the correlated energy, force and virial rows of one configuration move together, and it is a
-covariance that is calibrated by one scale on held-out data (Section 2.7); POPS has no calibration step. Like any sampling variance,
+covariance that is calibrated by one scale on held-out data (Section 3.3); POPS has no calibration step. Like any sampling variance,
 the CR3 covariance shrinks as data are added, which is why the scale is needed: CR3 supplies the shape, and the held-out data the
 size.</p>
 <p><b>CR3.</b> For a cluster \(k=1,\dots,n_{\text{cl}}\) of rows (here: one whole configuration with its energy, force and virial rows) with
@@ -286,7 +286,7 @@ homoscedastic special case. It is stored as a factor
 \(R\) with \(RR^{\mathsf T}=\tilde Q\tilde Q^{\mathsf T}\) (rank ≤ number of clusters), so that</p>
 \[ \Sigma=LL^{\mathsf T},\qquad L=D^{-1}R\in\mathbb R^{p\times r}, \]
 <p>with \(r\) the rank. For any observable row \(b\), \(\sigma(b)=\lambda\,\lVert L^{\mathsf T}b\rVert\), where \(\lambda\) is a scale
-calibrated on held-out data (Section 2.7). The CR3 covariance measures how much a
+calibrated on held-out data (Section 3.3). The CR3 covariance measures how much a
 prediction depends on which configurations were in the fit: large where the fit leans on configurations it reproduces
 poorly. It is a parameter variance used as a proxy for approximation error, which is why it needs a scale.</p>
 <h3>2.5 Calibrated per-atom forces: the Mondrian conformal scale</h3>
@@ -330,7 +330,7 @@ Gaussian (\(\varrho_g=1\) for Gaussian errors). A covariate-shift diagnostic
 but does not rescale σ.</p>
 <p><b>Why the propagation does not use these scales.</b> λ<sub>g</sub> and q<sub>g</sub> temper force <em>outputs</em> atom by
 atom. They do not define a covariance in θ, and a QoI depends on every atom and on relaxed geometries. Propagation therefore uses one
-global λ (Section 2.7). The groups also enter this study as a diagnostic breakdown of the test-split scores (Figure 5), and
+global λ (Section 3.3). The groups also enter this study as a diagnostic breakdown of the test-split scores (Figure 5), and
 Section 3.2 tests these per-atom force uncertainties directly. Energy and virial uncertainties use the unscaled posterior
 variance.</p>
 <h3>2.6 Baselines</h3>
@@ -338,7 +338,7 @@ variance.</p>
 size is set, so that the comparison shows which ingredient matters.</p>
 <p>The first baseline, B1, is the approach of Best et al. [2024]. It keeps the Bayesian posterior as the shape, \(\Sigma=A^{-1}\),
 and corrects its size with one conformal quantile \(\hat q\). The quantile is taken from the absolute standardised scores
-\(|z|\) of the held-out test split (Section 2.7, here computed with the posterior shape), pooled over energies, forces and virials,
+\(|z|\) of the held-out test split (Section 3.3, here computed with the posterior shape), pooled over energies, forces and virials,
 with every configuration given equal weight. B1 therefore uses the same held-out data, and the same kind of single scale, as our
 method. It differs only in the shape, so it tests whether the CR3 covariance describes the errors better than the posterior.</p>
 <p>The second baseline, B2, is POPS [Swinburne and Perez 2024], as implemented in ace-jax [ace-jax] by a port of the reference
@@ -347,33 +347,38 @@ package POPSRegression [Swinburne, POPSRegression]. For each training row \(i\) 
 row weights but no noise scale, \(r_i\) is the row's residual at the ridge solution, and \(A_\mu=M+\mu\operatorname{diag}(\Gamma_j^2)\),
 with \(M=\sum_i\psi^w_i\psi_i^{w\mathsf T}\) and the ridge parameter \(\mu\) chosen on a path. Members are drawn uniformly in the
 hypercube spanned by the principal directions of the \(\delta_i\), with bounds from their extreme projections, as in Swinburne and
-Perez [2024]. The ace-jax default builds the box from every row. Section 3.6 also reports boxes built only from rows above a
+Perez [2024]. The ace-jax default builds the box from every row. Section 3.7 also reports boxes built only from rows above a
 leverage percentile, because the low-leverage rows make the default box unphysical. B2 has no calibration step, so it tests a
 misspecification-aware shape without a fitted scale.</p>
 <p>The third baseline, B3, is the CR3 covariance with \(\lambda=1\). It isolates the effect of the scale: the difference between B3
-and the headline is entirely the calibration of Section 2.7.</p>
+and the headline is entirely the calibration of Section 3.3.</p>
 <p>Fisher et al. [2026] take the conformal step further. They calibrate joint conformal sets for energies, forces and virials
 (Bonferroni-corrected boxes, Mahalanobis ellipsoids, and losses under conformal risk control) and propagate them to derived
 quantities such as elastic constants and vacancy formation energies, where modelling the correlations captures error
 cancellation. B1 and our CR3 method use one scalar scale instead. We do not use multivariate conformal prediction here; combining
 it with the CR3 shape is left to future work.</p>""", "drafted from docs", level=3)
 
-sec("method-calib", "2.7  Calibrating one global scale", r"""
-<p>On the 248 held-out test configurations, every row \(b\) gives a standardised score \(z=(y-\hat y)/\lVert L^{\mathsf T}b\rVert\),
-with \(\hat y=b\cdot\hat\theta\) (energies per atom, force components, virial components). The scale for observable type
-\(q\in\{E,F,V\}\) is \(\lambda_q=\operatorname{RMS}(z_q)\), over that type's rows; \(\lambda_{\text{pool}}\) weights E, F and V equally within a configuration and
-configurations equally. Rows that vanish by site symmetry (\(\lVert L^{\mathsf T}b\rVert\lt 10^{-3}\) of the median of their kind)
-are dropped. No QoI, and no DFT QoI value, enters any scale.</p>
+sec("method-calib", "3.3  One global scale for propagation", r"""
+<p>The per-atom scales \(\lambda_g\) of Section 3.2 calibrate force outputs atom by atom, but they do not define a covariance in θ
+(Section 2.5). Propagation needs a single scale \(\lambda\) for the CR3 distribution \(\theta\sim\mathcal N(\hat\theta,\lambda^2LL^{\mathsf T})\).
+We fit it on the same 248 held-out test configurations as Section 3.2, with the same CR3 shape, but on the BLR fits that the QoI
+benchmark uses and over all rows of a type at once, not per environment group. Every row \(b\) gives a standardised score
+\(z=(y-\hat y)/\lVert L^{\mathsf T}b\rVert\), with \(\hat y=b\cdot\hat\theta\) (energies per atom, force components, virial components). The
+scale for observable type \(q\in\{E,F,V\}\) is \(\lambda_q=\operatorname{RMS}(z_q)\) over that type's rows; \(\lambda_{\text{pool}}\) weights E, F
+and V equally within a configuration and configurations equally. As in Section 3.2, rows that vanish by site symmetry
+(\(\lVert L^{\mathsf T}b\rVert\lt 10^{-3}\) of the median of their kind) are dropped. No QoI, and no DFT QoI value, enters any scale.
+The headline uses \(\lambda_F\): forces are most of the training rows, and they are the quantity calibrated per atom in Section 3.2.
+In the Gaussian reading of Figure 7, \(\lambda_F\) is the global line, against the per-group \(\lambda_g\).</p>
 <div class="wrap"><table><caption>Table 2. Test-split scales (CR3 shape).</caption>
 <thead><tr><th>model</th><th>λ<sub>E</sub></th><th>λ<sub>F</sub></th><th>λ<sub>V</sub></th><th>λ<sub>pool</sub></th><th>λ<sub>V</sub>/λ<sub>F</sub></th><th>λ<sub>E</sub>/λ<sub>F</sub></th></tr></thead>
 <tbody>""" + lam_rows + r"""</tbody></table></div>
 <p class="note">Both ratios fall outside [0.8, 1.25]: the degree of misspecification depends on the observable.
 [Discuss: virials under-covered by λ<sub>F</sub>; consequence for elastic constants and phase energies.]</p>""", "drafted", level=3)
 
-sec("method-prop", "2.8  Propagation to QoIs", r"""
+sec("method-prop", "2.7  Propagation to QoIs", r"""
 <p>The distribution propagated is \(\theta\sim\mathcal N(\hat\theta,\lambda^2LL^{\mathsf T})\); one sample gives energy, forces and
 stress consistently. Per-atom force ellipsoids are never combined.</p>
-<h4>2.8.1 The QoIs</h4>
+<h4>2.7.1 The QoIs</h4>
 <p>The 21 QoIs are those of the silicon test suite of Bartók et al. [2018], with their DFT (CASTEP) reference values, run with
 the tolerances of the ace-jax silicon benchmark (a Python 3 port of that test framework):
 C<sub>11</sub>, C<sub>12</sub>, C<sub>44</sub>, B; eight phase energies relative to diamond (compressed hcp excluded as extrapolation);
@@ -381,7 +386,7 @@ vacancy and three interstitial formation energies (216-atom cells); the relaxed 
 decohesion stress; the glide and shuffle unstable stacking-fault energies; the phonon RMS against DFT. Every protocol starts
 from the model's own relaxed diamond cell, so no QoI is linear in θ. The phonon RMS is a distance to DFT and has no DFT
 value: it is left out of coverage (n = 20).</p>
-<h4>2.8.2 Delta method by implicit differentiation</h4>
+<h4>2.7.2 Delta method by implicit differentiation</h4>
 <p>Write the energy of a structure with coordinates \(x\) (positions, and cell where relaxed) as \(E=b_E(x)\cdot\theta+E^0(x)\), with
 \(b_E(x)\) its energy row (Section 2.1) and \(E^0(x)\) the reference energies. A QoI \(Q(\theta)\) is computed at a relaxed geometry
 \(x^*(\theta)\) solving \(\nabla_xE=0\), so</p>
@@ -414,7 +419,7 @@ committee-only.</li>
 </ul>
 <p>Rows are checked against finite differences in θ (to ~10<sup>−5</sup>) and the values they imply reproduce the harness to
 ~10<sup>−10</sup> (energy QoIs) and 0.04 GPa (elastic constants).</p>
-<h4>2.8.3 Committees</h4>
+<h4>2.7.3 Committees</h4>
 <p>K = 200 draws \(\theta_k=\hat\theta+L\xi_k\), \(\xi_k\sim\mathcal N(0,I_r)\) (fixed seeds), are run through the unmodified benchmark harness. Per the protocol,
 the draws are made once at λ = 1 and QoI deviations are rescaled, \(Q_k(\lambda)=\hat Q+\lambda(Q_k-\hat Q)\), with \(Q_k\) member \(k\)'s QoI and
 \(\hat Q\) the mean model's; a full
@@ -422,7 +427,7 @@ re-run at λ<sub>F</sub> tests that linearisation. In that re-run a member is re
 DFT value, if a test fails, if any relaxed interatomic distance falls below 2.0 Å (collapse), or if its diamond cell is
 Born-unstable. The headline σ is the delta-method σ where it agrees with the λ = 1 committee to 10 %, else the committee's.</p>""", "drafted", level=3)
 
-sec("method-disc", "2.9  Shared extrapolation bias: a discrepancy term for defect QoIs", r"""
+sec("method-disc", "2.8  Shared extrapolation bias: a discrepancy term for defect QoIs", r"""
 <p>A bias shared by every training configuration of a kind is invisible to any delete-one jackknife: deleting one
 configuration does not move the fit along it. The defect formation energies expose such a bias. Every training interstitial,
 vacancy and divacancy cell is a hot MD snapshot, while the QoIs are relaxed defects.</p>
@@ -448,18 +453,18 @@ suffix factor (the types after \(k\)). The shape is the centred spread of those 
 <p><b>Estimator.</b> The intercept can be formed with each defect snapshot's nearest bulk snapshot as reference (paired; the form
 that is also the synthetic row above) or with a bulk thermal trend fitted over all bulk cells near the defect volume (regression).
 The headline uses regression for interstitials (data-only evidence, Table 7c) and, for the vacancy, regression per training-cell
-size (63 and 215 atoms) combined by inverse variance, because the two sizes disagree and one pooled trend is rejected (Section 3.8).</p>
+size (63 and 215 atoms) combined by inverse variance, because the two sizes disagree and one pooled trend is rejected (Section 3.9).</p>
 <p><b>Discrepancy term.</b> For the QoIs of defect class \(t\), the variance becomes
 \(\sigma_Q^2=\sigma_{Q,\text{method}}^2+r^{*2}_t+s^{*2}_t\), with \(\sigma_{Q,\text{method}}\) the σ of the UQ method without the term (interstitial class for the three interstitials; vacancy class for the
 vacancy). Every other QoI is unchanged. This leaves the pure parameter-space propagation for these QoIs and is reported as a
 separate, labelled method.</p>""", "drafted", level=3)
 
-sec("method-reweight", "2.10  Changing the fit: defect–bulk difference rows and IRLS with automatic targets", r"""
+sec("method-reweight", "2.9  Changing the fit: defect–bulk difference rows and IRLS with automatic targets", r"""
 <p>These change θ̂, so they address accuracy rather than the UQ. They test whether the defect bias is a fitting
 compromise, which the weights can move, or a limit of the model. The prior (σ<sub>c</sub>) and shared noise stay at the
 benchmark's; each variant is a weighted least-squares solve by QR of \([\operatorname{diag}\sqrt\Lambda;\,\Omega_w\Phi]\), with \(\Omega_w\) the
 diagonal matrix of row weights (structural weight / noise scale, times the multipliers below).</p>
-<p><b>Difference rows.</b> The rows \(d_i\) of Section 2.9, with target \(y_i\), weighted at \(k\) times the defect cell's own
+<p><b>Difference rows.</b> The rows \(d_i\) of Section 2.8, with target \(y_i\), weighted at \(k\) times the defect cell's own
 energy-row weight (\(k\), the difference-row weight factor, is varied). <em>Augment</em> adds them to the design; <em>replace</em> also drops the defect cells' energy rows,
 keeping their force and virial rows. A difference row is a linear combination of existing rows: it adds no configuration,
 only weight on the defect–bulk contrast.</p>
@@ -521,25 +526,25 @@ DEF_Q = (("vacancy_energy", "vacancy"), ("dumbbell_interstitial_energy", "dumbbe
 qrow = lambda m, k, meth="CR3-headline", sc="lam_F": next((r for r in rd("qoi_uq.csv") if r["model"] == m and r["qoi"] == k
                                                           and r["method"] == meth and r["scale"] == sc), None)
 tight = (head["o3d12"]["median_sigma_over_tol"] / head["o4d20"]["median_sigma_over_tol"]) if all(head.get(m) for m in ("o3d12", "o4d20")) else float("nan")
-sec("results", "3.3  Coverage and sharpness", f"""
+sec("results", "3.4  Coverage and sharpness", f"""
 <div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % CI]) and sharpness.</caption>
 <thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th></tr></thead>
 <tbody>{cov_rows}</tbody></table></div>
 <figure><img src="fig6_model_compare.png" alt="Per QoI, error over tolerance with 95 percent intervals for o4d20 and o3d12, DFT as crosses at zero"><figcaption>Figure 1. Model prediction minus DFT, in units of the benchmark tolerance, with the 95 % interval (CR3 × λ<sub>F</sub>) for o4d20 (circles) and o3d12 (squares); DFT is the cross at 0 and the shaded band is ± 1 tolerance. The axis is linear within ± 1 and logarithmic beyond. The larger model's intervals are {tight:.1f}× tighter in median σ/tol while its coverage stays comparable.</figcaption></figure>
 <figure><img src="fig2_coverage.png" alt="Coverage per method with binomial intervals"><figcaption>Figure 1b. Coverage per method.</figcaption></figure>
 <figure><img src="fig1_z_strip.png" alt="Standardised error per QoI"><figcaption>Figure 2. z<sub>Q</sub> per QoI (bands ±1, ±2).</figcaption></figure>
-<h3>3.4 Joint test</h3>
+<h3>3.5 Joint test</h3>
 <div class="wrap"><table><caption>Table 4. Mahalanobis test (correlation-scaled, ε = 10<sup>−3</sup>).</caption>
 <thead><tr><th>model</th><th>method</th><th>S from</th><th>df</th><th>d²</th><th>χ²<sub>95</sub></th><th>p</th></tr></thead>
 <tbody>{jrows}</tbody></table></div>
 <p class="note">[Interpret: per-QoI coverage near nominal while the joint test rejects for λ<sub>F</sub> → errors correlated
 beyond S; λ<sub>V</sub> passes.]</p>
 <figure><img src="fig3_qoi_correlation.png" alt="QoI correlation matrix"><figcaption>Figure 3. QoI correlations from the CR3 committee.</figcaption></figure>
-<h3>3.5 Delta method, committees and nonlinearity</h3>
+<h3>3.6 Delta method, committees and nonlinearity</h3>
 <p>{"; ".join(f"{m}: {nflag[m]} of {ncmp[m]} QoIs differ by more than 10 % between delta and λ = 1 committee" for m in models)}.</p>
 {phys_txt}
 <figure><img src="fig4_elastic_ellipses.png" alt="Elastic constant covariance ellipses, two routes"><figcaption>Figure 4. Elastic constants: stress and energy routes.</figcaption></figure>
-<h3>3.6 Baselines</h3>
+<h3>3.7 Baselines</h3>
 <p>B2 with ace-jax defaults: the hypercube bounds come from low-leverage rows, and members spread the bulk energy (o3d12) by
 {f(pops['sd_E_meV_per_atom'] if pops else None, 0)} meV/atom; almost every relaxation fails. Restricting the members to rows
 at or above the median leverage gives physical members for both models, but no consistent width. The blow-up comes from a handful
@@ -619,7 +624,7 @@ for m in ("o4d20", "o3d12"):
             est_rows += (f"<tr><td>{m}</td><td>{lab}</td><td class=n>{int(r0['k95'])} ({int(r0['k68'])})</td>"
                          f"<td class=n>{h_['k95']} ({h_['k68']})</td><td class=n>{a_['k95']} ({a_['k68']})</td>"
                          f"<td class=n>{b_['k95']} ({b_['k68']})</td><td class=n>{ra:+.2f} / {rb:+.2f}</td></tr>")
-sec("results-defects", "3.7  Defect formation energies: diagnosis and the discrepancy term", f"""
+sec("results-defects", "3.8  Defect formation energies: diagnosis and the discrepancy term", f"""
 <p>For both models the relaxed interstitial formation energies are the QoIs that are confidently wrong: all three are too
 low, and outside the 95 % interval. They are low for every ACE and PACE model in the benchmark too, and the tetrahedral one
 for GAP-18.</p>
@@ -659,17 +664,17 @@ models' own harness values: paired / regression prediction, eV).</caption>
 from 2-atom bulk cells, so a partner's residual enters ×108 (0.35 eV RMS, the size of the bias), its standard error is larger, and
 it extrapolates worse to held-out cold snapshots (half the RMSE for regression, in both models; likewise for divacancies). The
 model-against-model test does not separate them (both inside the true spread), and neither estimator handles the vacancy in any test.
-<b>The headline therefore uses regression for interstitials;</b> the vacancy is treated in Section 3.8. The regression estimator also agrees
+<b>The headline therefore uses regression for interstitials;</b> the vacancy is treated in Section 3.9. The regression estimator also agrees
 better with the observed interstitial errors. That was seen before the data-only tests were run and is not part of the
 argument, but it means the choice was not made blind; the all-paired result is kept as a sensitivity.</p>
 <div class="wrap"><table><caption>Table 8. Defect QoIs, CR3 × λ<sub>F</sub>: error, σ without and with the discrepancy term
 (eV), and z.</caption>
 <thead><tr><th>model</th><th>QoI</th><th>DFT − model</th><th>σ</th><th>σ with term</th><th>z</th></tr></thead>
 <tbody>{dz_rows}</tbody></table></div>
-<p class="note">A delete-one-config-type jackknife, which stays in parameter space, is compared in Section 3.9. Changing the fit
-instead is reported in Section 3.10.</p>""", "partial", level=3)
+<p class="note">A delete-one-config-type jackknife, which stays in parameter space, is compared in Section 3.10. Changing the fit
+instead is reported in Section 3.11.</p>""", "partial", level=3)
 
-sec("results-vacancy", "3.8  The vacancy", f"""
+sec("results-vacancy", "3.9  The vacancy", f"""
 <p>The vacancy shows no thermal trend in either pooled estimator, and both fail the model-against-model test. The training
 vacancy cells come in two sizes, 63 and 215 atoms, and the sizes disagree.</p>
 <div class="wrap"><table><caption>Table 8b. Zero-temperature vacancy bias from the regression form, per training-cell size, the
@@ -703,7 +708,7 @@ for m, d_ in tj.items():
                     f"<td class=n>{a_['k95']} ({a_['k68']}) / {a_['n']}</td><td class=n>{b_['k95']} ({b_['k68']}) / {b_['n']}</td>"
                     f"<td class=n>{a_['median_sigma_over_tol']:.2f}</td><td class=n>{zs}</td></tr>")
 if tj:
-    sec("results-typejk", "3.9  A coarser jackknife: deleting whole config types", f"""
+    sec("results-typejk", "3.10  A coarser jackknife: deleting whole config types", f"""
 <p>The defect bias is shared within config types, so a jackknife that deletes a whole type at a time might see it without leaving
 parameter space. Delta-method coverage of the 17 QoIs with delta rows, at the type shape's own test-split scales.</p>
 <div class="wrap"><table><caption>Table 8c. Delete-one-configuration (CR3) against delete-one-config-type (27 types). λ<sub>E</sub> /
@@ -753,7 +758,7 @@ if ib:
         ib_rows += (f"<tr><td>{lab}</td><td class=n>{v['test']['all']['E']:.1f}</td><td class=n>{v['test']['all']['F']:.3f}</td>"
                     f"<td class=n>{v['test']['all']['V']:.0f}</td><td class=n>{v['history'][-1]['spread']:.2f} ({len(v['history'])} it.)</td>"
                     f"<td class=n>{v['n_capped']}</td>" + qsum(qv.get(("irls", name), {})) + "</tr>")
-sec("results-reweight", "3.10  Changing the fit: difference rows and IRLS (o3d12)", f"""
+sec("results-reweight", "3.11  Changing the fit: difference rows and IRLS (o3d12)", f"""
 <p>Every number below is a mean-model harness run (no UQ). QoI columns give error/tolerance: the vacancy, the worst of the
 three interstitials, the worst of the eight phase energies, the RMS over the 20 scored QoIs, and the number within tolerance.</p>
 <div class="wrap"><table><caption>Table 9. Defect–bulk difference rows. Test-split RMSE (E, V in meV/atom; F in eV/Å), training
@@ -828,7 +833,7 @@ inside the benchmark tolerance).</li>
 <li>Observable-dependent scales: λ<sub>V</sub>/λ<sub>F</sub> > 1; choose λ by the QoI's physics (stress-like QoIs) or report both.</li>
 <li>Linearisation: delta ≈ committee at λ = 1; at λ<sub>F</sub> phase energies are strongly nonlinear; robust spreads.</li>
 <li>Why per-atom Mondrian scales do not propagate; a θ-space analogue would need group-dependent shapes.</li>
-<li>Failure mode of the POPS baseline: the leverage selection of the support rows sets its width (Section 3.6).</li>
+<li>Failure mode of the POPS baseline: the leverage selection of the support rows sets its width (Section 3.7).</li>
 <li>A delete-one jackknife cannot see a bias shared across all training configurations of a kind. For relaxed defects the
 bias is measurable from training labels (zero-temperature extrapolation of the defect–bulk residual), but does not transfer
 through a parameter-space correction; an observable-space discrepancy term restores coverage. Relaxed or low-temperature
@@ -885,6 +890,10 @@ _ids = [x.split(chr(34))[1] for x in S]
 if "results-forces" in _ids and "method-valid" in _ids:
     _f = S.pop(_ids.index("results-forces"))
     S.insert([x.split(chr(34))[1] for x in S].index("method-valid") + 1, _f)
+_ids = [x.split(chr(34))[1] for x in S]
+if "method-calib" in _ids and "results-forces" in _ids:
+    _c = S.pop(_ids.index("method-calib"))
+    S.insert([x.split(chr(34))[1] for x in S].index("results-forces") + 1, _c)
 toc = "".join(f'<li><a href="#{s.split(chr(34))[1]}">{s.split("<h2>")[1].split("<")[0].strip()}</a></li>' for s in S if "<h2>" in s)
 page = f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
