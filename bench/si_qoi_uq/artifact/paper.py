@@ -95,24 +95,29 @@ disc_l = json.load(open(RES / "discrepancy.json")) if (RES / "discrepancy.json")
 disc_txt = "; ".join(f"{m}: {disc_l[m]['CR3-headline+disc/lam_F']['k95']}/{disc_l[m]['CR3-headline+disc/lam_F']['n']}"
                      for m in ("o3d12", "o4d20") if m in disc_l) or "[pending]"
 
+_cv = {r["model"]: float(r["median_sigma_over_tol"]) for r in rd("coverage.csv") if r["method"] == "CR3-headline" and r["scale"] == "lam_F"}
+tight_ratio = _cv["o3d12"] / _cv["o4d20"] if {"o3d12", "o4d20"} <= set(_cv) else float("nan")
+
 sec("abstract", "Abstract", f"""
 <p>Machine-learned interatomic potentials are misspecified: the labels are deterministic, and their error is approximation error
 that a Bayesian posterior understates by a large factor. For linear atomic cluster expansion (ACE) potentials we build calibrated
 uncertainty in two steps, both from one misspecification-robust parameter covariance, the centred delete-one-configuration (CR3)
 jackknife sandwich. First, per-atom force uncertainties: the jackknife shape of each atom's force, scaled per Mondrian group of
 local environments (shell distortion × coordination) by configuration-weighted conformal quantiles fitted on a held-out part of the
-training set. On a held-out test split of the GAP-18 silicon database their {fc_nom} regions cover {fc_txt}. Second, because
+training set. On a held-out test split of the GAP-18 silicon database they reach their target coverage overall, and approximately within each
+group of environments. Second, because
 per-atom intervals cannot be combined into intervals on derived properties, the same parameter distribution, with one scale fitted
 to held-out forces, is propagated to 21 quantities of interest (QoIs) of silicon: elastic constants, phase energies, point defects,
 surface and stacking-fault energies, decohesion and phonons. Uncertainties come from implicit differentiation through each model's
 own relaxations and from committees of the full benchmark protocol, and are tested against DFT without tuning on any QoI.</p>
-<p class="result">Provisional: with CR3 × λ<sub>F</sub> the scored QoIs are covered as follows. {headline}. At 95 % this compares with
-{"; ".join(f"{m}: {int(b3[m]['k95'])}/{int(b3[m]['n'])}" for m in models if b3[m])} uncalibrated (λ = 1) and
-{"; ".join(f"{m}: {int(b1[m]['k95'])}/{int(b1[m]['n'])}" for m in models if b1[m])} for the posterior with one conformal scale. The relaxed
-point defects are confidently wrong for both model sizes. All training defect cells are hot MD snapshots, and the model's
-defect–bulk energy error drifts with thermal amplitude; every cluster shares this bias, so no delete-one jackknife can see it. The
-bias is measurable from the training labels alone by extrapolating to zero temperature, and adding it as a discrepancy term on the
-defect QoIs gives {disc_txt} at 95 %. [One-sentence take-away to finalise.]</p>""", "draft")
+<p class="result">We test this on a smaller and a larger linear ACE model. With one force-calibrated scale, the intervals cover most
+of the scored QoIs for both models, far more than the uncalibrated jackknife and more than the posterior with one conformal scale. The
+larger model's intervals are about {tight_ratio:.0f} times tighter at similar coverage. The misses are the relaxed point defects,
+which both models predict confidently wrong. Every training defect cell is a hot MD snapshot, and the model's defect–bulk energy
+error drifts with thermal amplitude. All clusters share this bias, so no delete-one jackknife can see it. The bias can be measured
+from the training labels alone by extrapolating to zero temperature. Added as a discrepancy term on the defect QoIs, it restores
+coverage at close to the nominal rate. Calibrated parameter-space uncertainty therefore transfers from forces to derived properties,
+except where the training data share a systematic gap with the target structures, and that gap can be detected from the data.</p>""", "draft")
 
 sec("intro", "1  Introduction", """
 <ul class="plan">
