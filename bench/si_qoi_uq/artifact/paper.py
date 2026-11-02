@@ -335,10 +335,10 @@ variance.</p>
 <h3>3.2 Baselines</h3>
 <p><b>B1 (posterior + conformal):</b> the approach of Best et al. [2024]: \(\Sigma=A^{-1}\) (the epistemic posterior) scaled by one conformal quantile \(\hat q\) of
 the test-split \(|z|\) (the standardised scores of Section 4, here with the posterior shape), pooled over E, F and V with configurations weighted equally.
-<b>B2 (POPS):</b> the construction above as ace-jax implements it, \(\delta_i=A_\mu^{-1}\psi^w_i\,r_i/h_i\) with leverage \(h_i=\psi_i^{w\mathsf T}A_\mu^{-1}\psi^w_i\). Here \(\psi^w_i=b_i w_i\) carries
+<b>B2 (POPS):</b> the construction above [Swinburne and Perez 2024] as ace-jax implements it [ace-jax], ported from the reference package POPSRegression [Swinburne, POPSRegression], \(\delta_i=A_\mu^{-1}\psi^w_i\,r_i/h_i\) with leverage \(h_i=\psi_i^{w\mathsf T}A_\mu^{-1}\psi^w_i\). Here \(\psi^w_i=b_i w_i\) carries
 structural weights only, \(r_i\) is the row's residual at the ridge solution, and \(A_\mu=M+\mu\operatorname{diag}(\Gamma_j^2)\) with
-\(M=\sum_i\psi^w_i\psi_i^{w\mathsf T}\) and the ridge \(\mu\) chosen on a path; members are drawn uniformly in the PCA hypercube of the
-\(\delta_i\). <b>B3:</b> CR3 with λ = 1.</p>""", "drafted from docs")
+\(M=\sum_i\psi^w_i\psi_i^{w\mathsf T}\) and the ridge \(\mu\) chosen on a path; members are drawn uniformly in the hypercube spanned by the principal directions of the \(\delta_i\), with bounds from their
+extreme projections, as in Swinburne and Perez [2024]. <b>B3:</b> CR3 with λ = 1.</p>""", "drafted from docs")
 
 sec("method-calib", "4  Calibrating one global scale", r"""
 <p>On the 248 held-out test configurations, every row \(b\) gives a standardised score \(z=(y-\hat y)/\lVert L^{\mathsf T}b\rVert\),
@@ -853,6 +853,7 @@ sec("refs", "References", """<p class="note">Checked against publisher or reposi
 <li>J. E. Pustejovsky, E. Tipton, Small-sample methods for cluster-robust variance estimation and hypothesis testing in fixed effects models, J. Bus. Econ. Stat. 36, 672–683 (2018).</li>
 <li>G. Simmons, T. Hudson, T. D. Swinburne, J. R. Kermode, review of uncertainty quantification for machine-learned interatomic potentials, in preparation.</li>
 <li>T. D. Swinburne, D. Perez, Parameter uncertainties for imperfect surrogate models in the low-noise regime, Mach. Learn.: Sci. Technol. 6, 015008 (2024).</li>
+<li>T. D. Swinburne, POPSRegression: Bayesian regression for low-noise data with misspecification uncertainty, Python package, https://pypi.org/project/popsregression/.</li>
 <li>R. J. Tibshirani, R. F. Barber, E. J. Candès, A. Ramdas, Conformal prediction under covariate shift, Adv. Neural Inf. Process. Syst. 32, 2530–2540 (2019).</li>
 <li>V. Vovk, A. Gammerman, G. Shafer, Algorithmic Learning in a Random World, Springer (2005).</li>
 <li>V. Vovk, D. Lindsay, I. Nouretdinov, A. Gammerman, Mondrian confidence machine, On-line Compression Modelling project (old series), Working Paper 4, Royal Holloway, University of London (2003).</li>
