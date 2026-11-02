@@ -188,11 +188,25 @@ def scales_fig(results, out, models):
     _save(fig, out, "fig5_scale_diagnostics")
 
 
-def model_compare(results, out, models, meth="CR3-headline", sc="lam_F"):
+def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=False):
     """Per QoI, (Q - Q_DFT) / tolerance for each model with its 95 % interval, DFT as a cross at 0: the bigger
-    model's intervals are tighter while coverage stays similar.  Symmetric-log axis, linear within +-1 tolerance."""
+    model's intervals are tighter while coverage stays similar.  Symmetric-log axis, linear within +-1 tolerance.
+    disc=True: the same with the defect discrepancy term (results/discrepancy.csv, headline estimator), the intervals
+    without it drawn as thin dark bars on the defect QoIs -> fig8_model_compare_disc."""
     rows = _rows(results)
     cov = {(r["model"], r["method"], r["scale"]): r for r in csv.DictReader(open(results / "coverage.csv"))}
+    dsig = {}
+    if disc:
+        if not (results / "discrepancy.csv").exists():
+            return
+        for r in csv.DictReader(open(results / "discrepancy.csv")):
+            if r["method"] == f"{meth}+disc" and r["scale"] == sc:
+                dsig[(r["model"], r["qoi"])] = (float(r["sigma"]), float(r["sigma_disc"]))
+        dj = json.load(open(results / "discrepancy.json"))
+        for m in models:
+            k = dj.get(m, {}).get(f"{meth}+disc/{sc}")
+            if k:
+                cov[(m, meth, sc)] = {"k95": k["k95"], "n": k["n"], "median_sigma_over_tol": k["median_sigma_over_tol"]}
     fig, ax = plt.subplots(figsize=(11, 4.6), facecolor=SURFACE)
     _style(ax)
     x = np.arange(len(COVER_KEYS))
@@ -203,6 +217,12 @@ def model_compare(results, out, models, meth="CR3-headline", sc="lam_F"):
         r = {q["qoi"]: q for q in rows if q["model"] == m and q["method"] == meth and q["scale"] == sc}
         e = np.array([(r[k]["mean"] - r[k]["dft"]) / r[k]["tol"] if k in r else np.nan for k in COVER_KEYS])
         h = np.array([Z95 * r[k]["sigma"] / r[k]["tol"] if k in r else np.nan for k in COVER_KEYS])
+        if disc:
+            h0 = h.copy()
+            h = np.array([Z95 * dsig[(m, k)][0] / r[k]["tol"] if (m, k) in dsig and k in r else hh for k, hh in zip(COVER_KEYS, h)])
+            sel = np.array([(m, k) in dsig and dsig[(m, k)][1] > 0 for k in COVER_KEYS])
+            ax.errorbar((x + (j - 0.5) * 0.28)[sel], e[sel], yerr=h0[sel], fmt="none", ecolor=INK, elinewidth=1.2, capsize=2,
+                        zorder=4, label="without the discrepancy term" if j == 0 else None)
         c = cov.get((m, meth, sc), {})
         lab = f"{m}: {c.get('k95', '?')}/{c.get('n', '?')} inside 95 %, median σ/tol {float(c.get('median_sigma_over_tol', 'nan')):.2f}"
         ax.errorbar(x + (j - 0.5) * 0.28, e, yerr=h, fmt=MARK[j], ms=6, color=CAT[j], ecolor=CAT[j], elinewidth=2,
@@ -213,7 +233,7 @@ def model_compare(results, out, models, meth="CR3-headline", sc="lam_F"):
     ax.set_ylabel("(Q − Q_DFT) / tolerance  (symlog)", color=INK, fontsize=8)
     ax.legend(fontsize=8, frameon=False, ncol=2, loc="lower left", bbox_to_anchor=(0, 1.0))
     fig.tight_layout()
-    _save(fig, out, "fig6_model_compare")
+    _save(fig, out, "fig8_model_compare_disc" if disc else "fig6_model_compare")
 
 
 def force_calibration(results, out, nbins=20):
@@ -274,5 +294,6 @@ def all_figures(results, out, runs, models, extras):
     elastic(out, [m for m in models if m in extras], extras)
     scales_fig(results, out, models)
     model_compare(results, out, models)
+    model_compare(results, out, models, disc=True)
     force_calibration(results, out)
     json.dump({"correlation_model": m3}, open(out / "figures.json", "w"))

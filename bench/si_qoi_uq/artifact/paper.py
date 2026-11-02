@@ -565,7 +565,7 @@ dropping 1 % already gives physical members, and that the o4d20 width hardly dep
 0.001–0.003 eV/atom, against 0.017 for CR3 × λ<sub>F</sub>). Committees were run at the 5 % cut, which keeps closest to POPS's
 default of every row, and at 50 %. Bulk-energy spread per member set (meV/atom), against the CR3 members at λ = 1 and at
 λ<sub>F</sub>: {pops_w}. B2 covers {pops_cov}. POPS has no calibration step, so its width follows whatever the support selection gives.</p>
-<figure><img src="fig5_scale_diagnostics.png" alt="Scale per observable and config type"><figcaption>Figure 5. λ per observable type and config_type.</figcaption></figure>""", "partial", level=3)
+<figure><img src="fig5_scale_diagnostics.png" alt="Scale per observable and config type"><figcaption>Figure 5. λ per observable type and config_type.</figcaption></figure>""", "drafted", level=3)
 
 trend_rows = ""
 for m in ("o3d12", "o4d20"):
@@ -657,6 +657,10 @@ a bias that all interstitial clusters share. With per-atom energy weighting, 0.4
 (models with r*: {models_disc}).</caption>
 <thead><tr><th>model</th><th>method</th><th>95 % without</th><th>95 % with [CI]</th><th>68 %</th><th>median σ/tol</th></tr></thead>
 <tbody>{dcov_rows}</tbody></table></div>
+<figure><img src="fig8_model_compare_disc.png" alt="Per QoI, error over tolerance with 95 percent intervals for both models with the defect discrepancy term; the intervals without it shown as thin black bars on the four defect QoIs"><figcaption>Figure 8.
+As Figure 1, with the discrepancy term on the four defect QoIs (headline estimator, CR3 × λ<sub>F</sub>). Thin black bars: the
+same QoIs' 95 % intervals without the term. Only the vacancy and the three interstitials change; the term widens them enough to
+reach DFT, by much more for o3d12, whose defect bias is larger.</figcaption></figure>
 <div class="wrap"><table><caption>Table 7b. Sensitivity to the r* estimator, CR3 × λ<sub>F</sub> and λ<sub>V</sub>, 95 % (68 %) coverage of the
 20 QoIs. Headline: regression for the interstitial class, per-size regression for the vacancy. Paired: each defect snapshot against its nearest
 bulk snapshot (the form that is also a synthetic row). Regression: the bulk reference is a per-atom thermal trend fitted over all
@@ -682,7 +686,7 @@ argument, but it means the choice was not made blind; the all-paired result is k
 <thead><tr><th>model</th><th>QoI</th><th>DFT − model</th><th>σ</th><th>σ with term</th><th>z</th></tr></thead>
 <tbody>{dz_rows}</tbody></table></div>
 <p class="note">A delete-one-config-type jackknife, which stays in parameter space, is compared in Section 3.10. Changing the fit
-instead is reported in Section 3.11.</p>""", "partial", level=3)
+instead is reported in Section 3.11.</p>""", "drafted", level=3)
 
 sec("results-vacancy", "3.9  The vacancy", f"""
 <p>The vacancy shows no thermal trend in either pooled estimator, and both fail the model-against-model test. The training
@@ -700,7 +704,7 @@ per-size combination recovers 0.65 eV of the 0.77 eV model-to-model difference, 
 relaxing it ({cold_txt}) suggests that o3d12 over-relaxes. Both models relax the harness vacancy to a symmetric structure (vacancy
 neighbour distances {geo_txt}); the harness gives no DFT structure to compare.</p>
 <p class="note">Selection risk: the closeness of the 63-atom intercept to the vacancy QoI errors was seen before the heterogeneity and
-model-against-model checks. The choice rests on those checks and on the cold cell, which use no DFT QoI value.</p>""", "partial", level=3)
+model-against-model checks. The choice rests on those checks and on the cold cell, which use no DFT QoI value.</p>""", "drafted", level=3)
 
 tj = {m: json.load(open(RES / f"type_jackknife_{m}.json")) for m in ("o4d20", "o3d12") if (RES / f"type_jackknife_{m}.json").exists()}
 tjz = {}
@@ -730,7 +734,7 @@ z (λ<sub>F</sub>) of the vacancy / dumbbell / hexagonal / tetrahedral QoIs.</ca
 every defect QoI inside, without any discrepancy term, but at the price of intervals about 3× wider overall: nearly every QoI falls
 within ±1σ against a nominal 68 %, so it over-covers. For o3d12 it does not reach the interstitials: there the hot-snapshot bias is
 shared across the interstitial, vacancy and divacancy types alike, so deleting one type still leaves it in the fit. It is a conservative,
-parameter-space alternative to the discrepancy term, not a calibrated fix.</p>""", "partial", level=3)
+parameter-space alternative to the discrepancy term, not a calibrated fix.</p>""", "drafted", level=3)
 
 dr = json.load(open(RES / "diff_rows_o3d12.json")) if (RES / "diff_rows_o3d12.json").exists() else None
 ib = json.load(open(RES / "irls_balance_o3d12.json")) if (RES / "irls_balance_o3d12.json").exists() else None
@@ -788,7 +792,7 @@ but leaves the defects as they are. The tolerance-guided version improves the de
 surface, and its QoI results are optimistic by construction. Neither converged fully within 60 iterations. Regret balancing
 cannot see the defect bias for the same reason the UQ cannot: on held-out hot snapshots the difference rows sit near their
 floor (cross-validated RMSE 0.46 eV), and the error that matters is the extrapolation to relaxed geometries. A first IRLS
-attempt with a fixed 0.05 eV difference-row target and no caps diverged, because the target is below the floor o3d12 can reach (about 0.14 eV).</p>""", "partial", level=3)
+attempt with a fixed 0.05 eV difference-row target and no caps diverged, because the target is below the floor o3d12 can reach (about 0.14 eV).</p>""", "drafted", level=3)
 
 import numpy as _np
 fc_rows = ""
@@ -862,7 +866,7 @@ o4d20's bulk-like group 0 (half the test atoms): λ<sub>0</sub> is 4–6× the o
 region still covers at the nominal rate. The RMS scale is dominated by a few extreme hold-out scores; the conformal quantile is
 robust to them. Here λ<sub>F</sub>
 was fitted on this same test split, so its line is in-sample for its overall level; λ<sub>g</sub> and q<sub>g</sub> come from the
-training hold-out.</p>""", "partial", level=3)
+training hold-out.</p>""", "drafted", level=3)
 
 sec("discussion", "4  Discussion", """
 <ul class="plan">
