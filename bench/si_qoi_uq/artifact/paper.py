@@ -81,17 +81,36 @@ def lbf(m, meth, kind="committee"):
     return float(r["log_bf_vs_headline"]) if r and r.get("log_bf_vs_headline") not in ("", None) else float("nan")
 lbf_txt = lambda m, meth, kind="committee": f"{lbf(m, meth, kind):+.1f}"
 _ood = {m: json.load(open(RES / f"ood_mondrian_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"ood_mondrian_{m}.json").exists()}
+_ls = {m: json.load(open(RES / f"learned_scale_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"learned_scale_{m}.json").exists()}
 OOD_COLS = (("all", "all held out"), ("crack_110_1-10", "crack (110)"), ("crack_111_1-10", "crack (111)"), ("screw_disloc", "screw dislocation"))
-OOD_METH = (("mondrian", "Mondrian"), ("one_group", "one hold-out quantile"), ("global", "global scale (ID test)"))
-def _ood_cell(r, k):
-    v = r[k]
-    ci = r.get(f"{k}_ci90")
-    return f"{v:.2f}" + (f" [{ci[0]:.2f}, {ci[1]:.2f}]" if ci else "")
-ood_rows = "".join(f"<tr><td>{m}</td><td>{lab}</td><td class=n>{_ood[m]['in_distribution'][k]:.2f}</td>" + "".join(
-    f"<td class=n>{_ood_cell(_ood[m]['all'] if c == 'all' else _ood[m]['per_type'][c], k)}</td>" for c, _ in OOD_COLS) + "</tr>"
-    for m in _ood for k, lab in OOD_METH)
+OOD_METH = (("mondrian", "Mondrian (geometric groups)"), ("learned", "learned continuous scale"),
+            ("one_group", "one hold-out quantile"), ("global", "global scale (ID test)"))
+def _ood_get(m, k, c="all", ci=False):
+    """Coverage (or its 90 % configuration-bootstrap interval) on the held-out set: learned_scale_<m>.json for the
+    conformal methods, ood_mondrian_<m>.json for the global scale."""
+    if k == "global":
+        r = _ood.get(m)
+        r = None if r is None else (r["all"] if c == "all" else r["per_type"][c])
+    else:
+        r = _ls.get(m)
+        r = None if r is None else (r["sets"]["ood"]["all"] if c == "all" else r["sets"]["ood"]["per_type"][c])
+    if r is None:
+        return None
+    return r.get(f"{k}_ci90") if ci else r[k]
+def _ood_id(m, k):
+    if k == "global":
+        return _ood[m]["in_distribution"]["global"] if m in _ood else None
+    return _ls[m]["sets"]["id_test"]["all"][k] if m in _ls else None
+def _ood_cell(m, k, c):
+    v, ci = _ood_get(m, k, c), _ood_get(m, k, c, ci=True)
+    return "–" if v is None else f"{v:.2f}" + (f" [{ci[0]:.2f}, {ci[1]:.2f}]" if ci else "")
+ood_rows = "".join(f"<tr><td>{m}</td><td>{lab}</td><td class=n>{f(_ood_id(m, k))}</td>" + "".join(
+    f"<td class=n>{_ood_cell(m, k, c)}</td>" for c, _ in OOD_COLS) + "</tr>" for m in ("o3d12", "o4d20") if m in _ls for k, lab in OOD_METH)
 ood_n = lambda m: f"{_ood[m]['all']['atoms']} atoms in {_ood[m]['all']['configs']} configurations" if m in _ood else "–"
-ood_v = lambda m, k, c="all": (f"{(_ood[m]['all'] if c == 'all' else _ood[m]['per_type'][c])[k]:.2f}" if m in _ood else "–")
+ood_v = lambda m, k, c="all": "–" if _ood_get(m, k, c) is None else f"{_ood_get(m, k, c):.2f}"
+ls_id = lambda m, k: "–" if m not in _ls else f"{_ls[m]['sets']['id_test']['all'][k]:.2f}"
+ls_spread = lambda m, k: "–" if m not in _ls else f"{max(v[k] for v in _ls[m]['sets']['id_test']['per_group'].values()) - min(v[k] for v in _ls[m]['sets']['id_test']['per_group'].values()):.2f}"
+ls_rad = lambda m, k: "–" if m not in _ls else f"{_ls[m]['sets']['id_test']['all']['median_radius'][k]:.1f}"
 _og = json.load(open(RES / "force_onegroup.json")) if (RES / "force_onegroup.json").exists() else {}
 og_all = lambda m, k: f"{_og[m][k]['all']:.2f}" if m in _og else "–"
 og_rng = lambda m, k: f"{min(_og[m][k]['per_group']):.2f}–{max(_og[m][k]['per_group']):.2f}" if m in _og else "–"
@@ -428,6 +447,15 @@ finite-sample correction is set by the number of configurations, not atoms. The 
 Gaussian (\(\varrho_g=1\) for Gaussian errors). A covariate-shift diagnostic
 (a density ratio on a PCA of the site descriptor, giving a weighted quantile) flags atoms outside the calibration support,
 but does not rescale σ.</p>
+<p><b>A learned continuous scale.</b> The geometric groups are hand-designed. As an alternative that uses the site descriptor
+itself, we learn the scale as a smooth function of the environment (normalised conformal prediction [Papadopoulos et al. 2008;
+Lei et al. 2018]). Let \(\phi_i\) be atom \(i\)'s whitened principal components of the normalised site descriptor, from a PCA of
+training atoms only. A ridge regression \(f(\phi)=\beta_0+\beta^{\mathsf T}\phi+\gamma^{\mathsf T}\phi^{2}\) of \(\log s_i^2\)
+is fitted on one half of the calibration configurations (each configuration weighted once; ridge by five-fold
+configuration cross-validation). The other half gives one conformal quantile \(q\) of \(s_i/e^{f(\phi_i)/2}\) (atom-weighted, as the Mondrian weights are
+when pooled over groups), and the region is
+\(s\le q\,e^{f(\phi)/2}\): the CR3 ellipsoid with a size that varies continuously with the environment. The split is repeated
+over five seeds.</p>
 <p><b>Why the propagation does not use these scales.</b> λ<sub>g</sub> and q<sub>g</sub> temper force <em>outputs</em> atom by
 atom. They do not define a covariance in θ, and a QoI depends on every atom and on relaxed geometries. Propagation therefore uses one
 global λ (Section 3.3). Section 3.2 tests these per-atom force uncertainties directly. Energy and virial uncertainties use the unscaled posterior
@@ -1013,29 +1041,37 @@ o4d20's bulk-like group 0 (half the test atoms): λ<sub>0</sub> is 4–6× the o
 region still covers at the nominal rate. The RMS scale is dominated by a few extreme hold-out scores; the conformal quantile is
 robust to them. Here λ<sub>F</sub>
 was fitted on this same test split, so its line is in-sample for its overall level; λ<sub>g</sub> and q<sub>g</sub> come from the
-training hold-out.</p><p>Does the grouping matter? The fair comparison is one conformal quantile for all atoms, fitted on the same training
-hold-out at the same α. It covers {og_all("o3d12", "one_group")} (o3d12) and {og_all("o4d20", "one_group")} (o4d20) of the
-test atoms, against {og_all("o3d12", "mondrian")} and {og_all("o4d20", "mondrian")} for the Mondrian groups, and its coverage
-varies more between groups ({og_rng("o3d12", "one_group")} and {og_rng("o4d20", "one_group")}, against
-{og_rng("o3d12", "mondrian")} and {og_rng("o4d20", "mondrian")}). It falls short most in groups 0 and 2, the near-ideal and
-moderately distorted four-fold atoms that make up three quarters of the test atoms. The CR3 shape with the global
-λ<sub>F</sub> of the propagation covers {fb("o3d12", "headline")} and {fb("o4d20", "headline")} and is about as even as
-Mondrian, but λ<sub>F</sub> is fitted on these test configurations, so that agreement is in sample and is not a validation.
-Out of sample, the groups are what bring the per-atom forces to nominal coverage.</p>
+training hold-out.</p><p>Does the grouping matter? The comparison is one conformal quantile for all atoms from the same training hold-out at the
+same α. Weighted like the Mondrian groups (each configuration once in every group it populates, which pooled over the groups
+is an atom-weighted quantile to 0.01), it covers {og_all("o3d12", "one_group")} (o3d12) and {og_all("o4d20", "one_group")} (o4d20)
+of the test atoms, against {og_all("o3d12", "mondrian")} and {og_all("o4d20", "mondrian")} for the groups, with coverage across
+groups of {og_rng("o3d12", "one_group")} and {og_rng("o4d20", "one_group")} against {og_rng("o3d12", "mondrian")} and
+{og_rng("o4d20", "mondrian")}. The CR3 shape therefore carries almost all of the dependence on the environment, and the groups
+make coverage only somewhat more even, for o3d12. The weighting matters more: a quantile that counts each configuration once
+in total is about 12 % smaller and covers only {og_all("o3d12", "one_group_cfgw")} and {og_all("o4d20", "one_group_cfgw")},
+because the many small, well-predicted cells then dominate it. The CR3 shape with the propagation's global λ<sub>F</sub> covers
+{fb("o3d12", "headline")} and {fb("o4d20", "headline")}, but λ<sub>F</sub> is fitted on these test configurations, so that is in
+sample and not a validation.</p>
 <p>An out-of-distribution test asks whether this holds for environments absent from the fit. We refitted both ARD models
 with GAP-18's cracks ((111) and (110) cleavage, 1-10 front) and screw dislocations removed from training, from the
 calibration hold-out and from the test file, and scored the {ood_n("o3d12")} that were removed (Table 2c). The design follows
-the big-cell check of an alloy model in the ace-jax development tests (unpublished). The global scale is now fitted on the in-distribution test split, so it is
-out of sample here, like the Mondrian scales. Over all held-out atoms the Mondrian regions cover {ood_v("o3d12", "mondrian")}
-(o3d12) and {ood_v("o4d20", "mondrian")} (o4d20), against {ood_v("o3d12", "one_group")} and {ood_v("o4d20", "one_group")} for one
-hold-out quantile and {ood_v("o3d12", "global")} and {ood_v("o4d20", "global")} for the global scale. The cracks are covered
-((111) {ood_v("o3d12", "mondrian", "crack_111_1-10")}, (110) {ood_v("o3d12", "mondrian", "crack_110_1-10")} for o3d12;
-{ood_v("o4d20", "mondrian", "crack_111_1-10")} and {ood_v("o4d20", "mondrian", "crack_110_1-10")} for o4d20). The screw
-dislocations are under-covered by every method ({ood_v("o3d12", "mondrian", "screw_disloc")} for o3d12 with Mondrian, about
-the same as the global scale; {ood_v("o4d20", "mondrian", "screw_disloc")} for o4d20). Their atoms are four-fold and only
-mildly distorted, so they fall into the bulk-like groups, but their errors are larger relative to the CR3 shape than those of
-the training atoms in the same groups. Geometric groups cannot separate the two; a descriptor-based grade might, which we
-have not tested on these cells.</p>
+the big-cell check of an alloy model in the ace-jax development tests (unpublished). On these refits we also compare the learned
+continuous scale (Section 2.5) with the geometric groups. In distribution it covers {ls_id("o3d12", "learned")} (o3d12) and
+{ls_id("o4d20", "learned")} (o4d20) against {ls_id("o3d12", "mondrian")} and {ls_id("o4d20", "mondrian")} for the groups, with the
+most even coverage across the Mondrian groups of the three conformal methods (range {ls_spread("o3d12", "learned")} and
+{ls_spread("o4d20", "learned")}, against {ls_spread("o3d12", "mondrian")} and {ls_spread("o4d20", "mondrian")} for the groups and
+{ls_spread("o3d12", "one_group")} and {ls_spread("o4d20", "one_group")} for one quantile) and the smallest regions (median radius
+{ls_rad("o3d12", "learned")} and {ls_rad("o4d20", "learned")} against {ls_rad("o3d12", "mondrian")} and
+{ls_rad("o4d20", "mondrian")}). It needs no hand-chosen criteria, although it fits its quantile on half the hold-out.</p>
+<p>Out of distribution the three conformal methods agree: over all held-out atoms they cover {ood_v("o3d12", "mondrian")},
+{ood_v("o3d12", "learned")} and {ood_v("o3d12", "one_group")} (o3d12; Mondrian, learned, one quantile) and
+{ood_v("o4d20", "mondrian")}, {ood_v("o4d20", "learned")} and {ood_v("o4d20", "one_group")} (o4d20). The global scale fitted on
+the in-distribution test split, now out of sample, covers {ood_v("o3d12", "global")} and {ood_v("o4d20", "global")}. The cracks
+are covered by all of them. The screw dislocations are under-covered by all of them ({ood_v("o3d12", "mondrian", "screw_disloc")}
+and {ood_v("o4d20", "mondrian", "screw_disloc")} with Mondrian). Their atoms are four-fold and only mildly distorted, and their
+descriptors give the learned scale no more warning than the geometry gives the groups: the errors are larger relative to the CR3
+shape than for training atoms in similar environments, and neither geometry nor the descriptor projection we use marks them as
+different.</p>
 <div class="wrap"><table><caption>Table 2c. Out-of-distribution per-atom force coverage at nominal 90 %: ARD refits without
 cracks and screw dislocations, scored on them (90 % intervals from a bootstrap over configurations). "ID test": the same
 refit's coverage on the in-distribution test split.</caption>
@@ -1147,10 +1183,12 @@ sec("refs", "References", """<p class="note">Checked against publisher or reposi
 <li>M. Kellner, M. Ceriotti, Uncertainty quantification by direct propagation of shallow ensembles, Mach. Learn.: Sci. Technol. 5, 035006 (2024).</li>
 <li>B. J. K. Kleijn, A. W. van der Vaart, The Bernstein–von Mises theorem under misspecification, Electron. J. Stat. 6, 354–381 (2012).</li>
 <li>T. Lelièvre, M. Rousset, G. Stoltz, Free Energy Computations: A Mathematical Perspective, Imperial College Press (2010).</li>
+<li>J. Lei, M. G'Sell, A. Rinaldo, R. J. Tibshirani, L. Wasserman, Distribution-free predictive inference for regression, J. Am. Stat. Assoc. 113, 1094–1111 (2018).</li>
 <li>J. G. MacKinnon, M. Ø. Nielsen, M. D. Webb, Cluster-robust inference: a guide to empirical practice, J. Econometrics 232, 272–299 (2023).</li>
 <li>J. G. MacKinnon, H. White, Some heteroskedasticity-consistent covariance matrix estimators with improved finite sample properties, J. Econometrics 29, 305–325 (1985).</li>
 <li>U. K. Müller, Risk of Bayesian inference in misspecified models, and the sandwich covariance matrix, Econometrica 81, 1805–1849 (2013).</li>
 <li>F. Musil, M. J. Willatt, M. A. Langovoy, M. Ceriotti, Fast and accurate uncertainty estimation in chemical machine learning, J. Chem. Theory Comput. 15, 906–915 (2019).</li>
+<li>H. Papadopoulos, V. Vovk, A. Gammerman, Normalized nonconformity measures for regression conformal prediction, Proc. IASTED Int. Conf. Artificial Intelligence and Applications, 64–69 (2008).</li>
 <li>J. E. Pustejovsky, E. Tipton, Small-sample methods for cluster-robust variance estimation and hypothesis testing in fixed effects models, J. Bus. Econ. Stat. 36, 672–683 (2018).</li>
 <li>G. Simmons, T. Hudson, T. D. Swinburne, J. R. Kermode, review of uncertainty quantification for machine-learned interatomic potentials, in preparation.</li>
 <li>T. D. Swinburne, D. Perez, Parameter uncertainties for imperfect surrogate models in the low-noise regime, Mach. Learn.: Sci. Technol. 6, 015008 (2024).</li>
