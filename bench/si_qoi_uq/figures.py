@@ -239,7 +239,7 @@ def force_calibration(results, out, nbins=20):
         _style(ax)
         ax.hexbin(sm, np.maximum(e, lo), gridsize=60, xscale="log", yscale="log", bins="log", cmap="Greys", mincnt=1,
                   linewidths=0, alpha=0.45, extent=(np.log10(lo), np.log10(hi), np.log10(lo), np.log10(hi)))
-        for k, (sd, lab, mk, col) in enumerate(((sm, "Mondrian forces_std (λ_g)", "o", CAT[0]),
+        for sd, lab, mk, col in (((sm, "Mondrian forces_std (λ_g)", "o", CAT[0]),
                                                  (sg, "global λ_F", "s", CAT[1]))):
             bx, by = binned(sd, e, sd)
             ax.plot(bx, by, marker=mk, color=col, lw=2, ms=6, mec=SURFACE, label=lab, zorder=3)
@@ -252,7 +252,7 @@ def force_calibration(results, out, nbins=20):
         ax.legend(fontsize=7, frameon=False, loc="upper left")
         ax = axes[1, j]
         _style(ax)
-        for k, (sd, lab, mk, col) in enumerate(((sm, "Mondrian forces_std (λ_g)", "o", CAT[0]),
+        for sd, lab, mk, col in (((sm, "Mondrian forces_std (λ_g)", "o", CAT[0]),
                                                  (sg, "global λ_F", "s", CAT[1]))):
             bx, by = binned(e, sd, e)
             ax.plot(bx, by, marker=mk, color=col, lw=2, ms=6, mec=SURFACE, label=lab, zorder=3)

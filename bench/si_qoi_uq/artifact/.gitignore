@@ -1,0 +1,4 @@
+# generated pages and figure copies (build.py, paper.py)
+*.html
+*.png
+paper/
