@@ -333,7 +333,7 @@ global λ (Section 4). The groups also enter this study as a diagnostic breakdow
 Section 7.7 tests these per-atom force uncertainties directly. Energy and virial uncertainties use the unscaled posterior
 variance.</p>
 <h3>3.2 Baselines</h3>
-<p><b>B1 (posterior + conformal):</b> \(\Sigma=A^{-1}\) (the epistemic posterior) scaled by one conformal quantile \(\hat q\) of
+<p><b>B1 (posterior + conformal):</b> the approach of Best et al. [2024]: \(\Sigma=A^{-1}\) (the epistemic posterior) scaled by one conformal quantile \(\hat q\) of
 the test-split \(|z|\) (the standardised scores of Section 4, here with the posterior shape), pooled over E, F and V with configurations weighted equally.
 <b>B2 (POPS):</b> the construction above as ace-jax implements it, \(\delta_i=A_\mu^{-1}\psi^w_i\,r_i/h_i\) with leverage \(h_i=\psi_i^{w\mathsf T}A_\mu^{-1}\psi^w_i\). Here \(\psi^w_i=b_i w_i\) carries
 structural weights only, \(r_i\) is the row's residual at the ridge solution, and \(A_\mu=M+\mu\operatorname{diag}(\Gamma_j^2)\) with
