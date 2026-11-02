@@ -490,15 +490,26 @@ sec("method-valid", "3  Results", r"""
 <p class="note">Status: both models complete at the BLR fit, including both POPS committees; the ARD fits are summarised in Table 1. Every number below is read from
 <code>bench/si_qoi_uq/results/</code>.</p>
 <h3>3.1 Validation statistics</h3>
-<ul>
-<li>Per QoI \(z_Q=(\hat Q-Q_{\text{DFT}})/\sigma_Q\), with \(\hat Q\) the mean model's value, and coverage of Gaussian 68 % and 95 % intervals; counts with
-Clopper–Pearson 95 % intervals (n = 20).</li>
-<li>Joint test: \(\Delta^{\mathsf T}(C_Q+\epsilon I)^{-1}\Delta\), with \(\Delta\) the vector of \(\hat Q-Q_{\text{DFT}}\) over the scored
-QoIs and \(C_Q=\lambda^2G\,LL^{\mathsf T}G^{\mathsf T}\) (delta method; \(G\) the QoI rows stacked) or the committee
-covariance, on the correlation-scaled problem, \(\epsilon=10^{-3}\times\) mean diagonal (sensitivity 10<sup>−4</sup>, 10<sup>−2</sup>),
-against \(\chi^2\) at the numerical rank.</li>
-<li>Sharpness: median \(\sigma_Q/\text{tol}_Q\), with \(\text{tol}_Q\) the benchmark's tolerance for QoI \(Q\).</li>
-</ul>""", "drafted")
+<p>Section 2 ends with a σ for every prediction we test: a per-atom force covariance and conformal region (Section 2.5), a
+scaled CR3 covariance in θ (Section 2.4), and from it a σ<sub>Q</sub> for each QoI by the delta method or by committees, with or
+without the discrepancy term (Sections 2.7 and 2.8). The same few statistics judge all of them against held-out data or DFT. None
+of them is used to fit any scale.</p>
+<p>For the per-atom forces (Section 3.2), the test is the coverage of the conformal regions on the 248 test configurations,
+overall and in each Mondrian group, together with the RMS of the observed force error over the predicted σ<sub>F,i</sub>, which is
+1 for a calibrated Gaussian reading. For the QoIs (Sections 3.4–3.11), each prediction gives a standardised error
+\(z_Q=(\hat Q-Q_{\text{DFT}})/\sigma_Q\), with \(\hat Q\) the mean model's value. We count how many of the 20 scored QoIs fall inside
+the Gaussian 68 % and 95 % intervals, and give each count a Clopper–Pearson 95 % interval: with only 20 QoIs, any count from 17 to 20 is consistent with a nominal 95 % (16 or fewer has probability below 2 %
+if the coverage is truly 95 %).</p>
+<p>Counts treat the QoIs as independent, but they share the same coefficients, so their errors are correlated. The joint test
+(Section 3.5) therefore compares the whole error vector \(\Delta\), the \(\hat Q-Q_{\text{DFT}}\) over the scored QoIs, with its
+predicted covariance through the Mahalanobis distance \(\Delta^{\mathsf T}(C_Q+\epsilon I)^{-1}\Delta\). Here
+\(C_Q=\lambda^2G\,LL^{\mathsf T}G^{\mathsf T}\) for the delta method, with \(G\) the QoI rows stacked, or the committee covariance. The
+problem is first scaled to unit diagonal, \(\epsilon\) is \(10^{-3}\) of the mean diagonal (with \(10^{-4}\) and \(10^{-2}\) as
+sensitivities), and the distance is compared with \(\chi^2\) at the numerical rank. A method can pass the per-QoI counts and still fail
+this test, if its errors are correlated in a way its covariance does not predict.</p>
+<p>Coverage alone rewards intervals that are too wide. We therefore also report sharpness, the median of \(\sigma_Q/\text{tol}_Q\)
+with \(\text{tol}_Q\) the benchmark's tolerance for QoI \(Q\): a value below 1 means the interval is narrower than the accuracy the
+benchmark asks for. A useful method has near-nominal coverage at the smallest sharpness.</p>""", "drafted")
 
 phys_txt = ""
 for m, fs in phys.items():
