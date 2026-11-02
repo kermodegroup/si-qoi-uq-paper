@@ -12,7 +12,7 @@ from .harness import RUNS
 from .propagate import COVER_KEYS, KEYS, PHONON, DELTA_TOL, clopper, committee, dft, harness_values, joint_test, tol_abs
 
 Z68, Z95 = 1.0, 1.959963984540054
-POPS_SETS = (("pops", "B2"), ("popsblr", "B2blr"), ("popslev50", "B2lev50"), ("popsblrlev50", "B2blrlev50"))
+POPS_SETS = (("pops", "B2"), ("popsblr", "B2blr"), ("popslev50", "B2lev50"), ("popsblrlev50", "B2blrlev50"), ("popslev5", "B2lev5"))
 
 
 def _lin(m, v):

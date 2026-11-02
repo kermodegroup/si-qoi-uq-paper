@@ -7,7 +7,11 @@ principal directions of sum delta delta^T = A W A, bounds = the min/max of the p
 members theta_k = c* + support u_k with u_k uniform in the box (fixed seed): the box whose second moment
 is the POPS hypercube covariance.  Writes pops_box.npz (c_star, support, lo, hi, ridge) next to the fit.
 
-    python -m bench.si_qoi_uq.pops_fit o3d12|o4d20
+    python -m bench.si_qoi_uq.pops_fit o3d12|o4d20 [--levels 75,90,95,99]
+
+--levels: only the boxes at these leverage percentiles (both ridges, names pops_box[_blr]_lev{pct}), each screened on
+three rattled diamond cells (a = 5.2, 5.46, 5.8 A; E and F are exact rows) for the members' energy and force spread
+-> pops_screen.json next to the fit.  Without it, the four boxes of the original run.
 """
 import json, pathlib, subprocess, sys
 
@@ -24,8 +28,12 @@ def main():
     from ace_jax.fit.pipeline import predict as ppred
     from ace_jax.fit.pops import hypercube_support
     from .harness import RUNS
-    m = sys.argv[1]
-    out = RUNS / "fits" / m / "pops"
+    args = sys.argv[1:]
+    levels = None
+    if "--levels" in args:
+        i = args.index("--levels"); levels = [float(x) for x in args[i + 1].split(",")]; del args[i:i + 2]
+    m = args[0]
+    out = RUNS / "fits" / m / ("pops" if levels is None else "pops_sweep")   # the sweep never touches the run boxes
     out.mkdir(parents=True, exist_ok=True)
     kept = {}
     orig = ppred._pops_setup
@@ -52,8 +60,11 @@ def main():
     rF = ridge["F"] if isinstance(ridge, dict) else ridge
     # leverage percentile 50: only the high-leverage half of the rows define members (ace-jax's default 0 keeps
     # every row, and the min/max box is then set by low-leverage rows whose corrections r_i / h_i explode)
-    for name, rd, lev in (("pops_box", rF, 0.0), ("pops_box_blr", "blr", 0.0),
-                          ("pops_box_lev50", rF, 50.0), ("pops_box_blr_lev50", "blr", 50.0)):
+    boxes = (("pops_box", rF, 0.0), ("pops_box_blr", "blr", 0.0), ("pops_box_lev50", rF, 50.0), ("pops_box_blr_lev50", "blr", 50.0))
+    if levels is not None:
+        boxes = tuple((f"pops_box{b}_lev{lev:g}", rd_, lev) for lev in levels for b, rd_ in (("", rF), ("_blr", "blr")))
+    screen = {}
+    for name, rd, lev in boxes:
         A, coef, keepm = path._coef(rd, lev)
         W, _ = path.rows.moment_sums(coef)
         support = hypercube_support(A @ W @ A, 1.0e-8)
@@ -61,7 +72,36 @@ def main():
         c_star = np.asarray(path.c_star)                         # the mean the predictions used (POPS_MEAN)
         np.savez(out / f"{name}.npz", c_star=c_star, support=np.asarray(support), lo=np.asarray(lo),
                  hi=np.asarray(hi), ridge=str(rd), leverage_pct=lev, ridge_selected=json.dumps(ridge), git=git)
-        print(f"{name}: support {support.shape}, ridge {rd}, leverage pct {lev}")
+        print(f"{name}: support {support.shape}, ridge {rd}, leverage pct {lev}", flush=True)
+        if levels is not None:
+            screen[name] = dict(ridge=str(rd), leverage_pct=lev, n_support=int(np.asarray(support).shape[1]),
+                                **member_screen(m, c_star, np.asarray(support), np.asarray(lo), np.asarray(hi)))
+            print(f"  {screen[name]}", flush=True)
+    if levels is not None:
+        prev = json.load(open(out / "pops_screen.json")) if (out / "pops_screen.json").exists() else {}
+        json.dump({**prev, **screen}, open(out / "pops_screen.json", "w"), indent=1)
+
+
+def member_screen(m, c_star, support, lo, hi, K=200):
+    """Members theta_k = c* + support u_k, u_k uniform in [lo, hi] (the seed and draw of run.py samples),
+    against the BLR fit's rows on three rattled diamond cells: per member the worst |dE| per atom and
+    max |dF| over the cells, relative to c*."""
+    from ase.build import bulk
+    from .run import lin_for
+    from .linear import observable_rows
+    lin = lin_for(m, "cr3")
+    from .run import SEEDS
+    u = np.random.default_rng(SEEDS["pops"]).uniform(lo, hi, size=(K, len(lo)))
+    d = u @ support.T                                              # theta_k - c*
+    dE, dF = np.zeros(K), np.zeros(K)
+    for a, r in ((5.46, 0.03), (5.2, 0.1), (5.8, 0.1)):
+        at = bulk("Si", "diamond", a=a, cubic=True); at.rattle(r, seed=1)
+        bE, BF, _ = observable_rows(at, lin)
+        bE, BF = bE[:support.shape[0]], BF[:, :support.shape[0]]   # POPS fixes the lsq E0: no E0 columns (run.py pads zeros)
+        dE = np.maximum(dE, np.abs(d @ bE) / len(at)); dF = np.maximum(dF, np.abs(d @ BF.T).max(1))
+    ok = lambda e, f: int(((dE < e) & (dF < f)).sum())
+    return dict(median_dE_eV_atom=float(np.median(dE)), median_dF_eV_A=float(np.median(dF)),
+                pass_tight=ok(0.05, 1.0), pass_loose=ok(5.0, 50.0), K=K)
 
 if __name__ == "__main__":
     main()

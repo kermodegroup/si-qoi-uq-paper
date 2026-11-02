@@ -12,6 +12,7 @@ TABLE_METHODS = [("CR3-headline", "lam_F", "CR3, λ_F"), ("CR3-headline", "lam_V
                  ("B3-headline", "lam_1", "B3: CR3, λ = 1"), ("B1-headline", "q_b1", "B1: posterior × q̂"),
                  ("B2-committee", "lam_1", "B2: POPS (auto ridge)"), ("B2blr-committee", "lam_1", "B2: POPS (ridge blr)"),
                  ("B2lev50-committee", "lam_1", "B2 variant: POPS, leverage pct 50"),
+                 ("B2lev5-committee", "lam_1", "B2 variant: POPS, leverage pct 5"),
                  ("B2blrlev50-committee", "lam_1", "B2 variant: POPS, ridge blr, leverage pct 50"),
                  ("CR3ell3-delta", "lam_F", "sensitivity: CR3 3 r_cut clusters, delta, own λ_F")]
 

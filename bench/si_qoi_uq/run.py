@@ -113,7 +113,8 @@ def stage_samples(m, log=print):
                              lin.theta_hat[None] + lamF * (xi @ L.T), lin, theta_mean=lin.theta_hat,
                              seed=SEEDS[name], lam=lamF)
     for tag, fname in (("pops", "pops_box.npz"), ("popsblr", "pops_box_blr.npz"),
-                       ("popslev50", "pops_box_lev50.npz"), ("popsblrlev50", "pops_box_blr_lev50.npz")):
+                       ("popslev50", "pops_box_lev50.npz"), ("popsblrlev50", "pops_box_blr_lev50.npz"),
+                       ("popslev5", "pops_box_lev5.npz")):   # the leverage-5 box of the sweep (pops_fit --levels; RECON)
         box = fit_dir(m, "pops") / fname
         if not box.exists():
             continue
