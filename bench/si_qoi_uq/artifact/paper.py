@@ -158,8 +158,8 @@ against DFT, one QoI at a time and jointly, and compare them with two baselines:
 pointwise optimal parameter sets (POPS) [Swinburne and Perez 2024].</p>
 <p>We also show where calibrated parameter-space uncertainty fails, and why. A bias that all training configurations of one kind
 share is invisible to any delete-one jackknife; in the GAP-18 database every defect cell is a hot molecular-dynamics snapshot. We
-diagnose this bias, measure it from the training labels alone, and compare two remedies that leave the fit unchanged: a
-discrepancy term and a coarser jackknife.</p>
+diagnose this bias, measure it from the training labels alone, and add it to the defect QoIs as a discrepancy term, which
+leaves the fit unchanged.</p>
 <p>Section 2 sets out the methodology: the linear ACE fit and ARD (2.1–2.3), the CR3 shape (2.4), the per-atom force calibration
 (2.5), the baselines (2.6), the propagation to QoIs (2.7) and the discrepancy term for shared biases (2.8). Section 3 gives the validation statistics and the results: the per-atom forces first, then the global scale that the
 propagation uses, then the QoIs. Section 4 discusses them.</p>""", "draft")
@@ -445,10 +445,6 @@ linear in the data, so it is a synthetic observation:</p>
 (the POPS construction applied to the synthetic row, in the CR3 or posterior metric), added as \(\Sigma\mathrel{+}=\delta_t\delta_t^{\mathsf T}\),
 projects only 0.1–0.2 eV of a 1 eV \(r^*\) onto the relaxed-defect QoI rows. The extrapolated hot-snapshot contrast and the
 relaxed defect's formation row point in different directions in θ, so coverage did not change.</p>
-<p><b>A coarser jackknife.</b> As an alternative that stays in parameter space, the CR3 construction is repeated with whole GAP-18
-config types as clusters (27 types). Clusters then span many batches, so the deletion is done exactly instead of by PRESS scores:
-per-type QR statistics, and each leave-one-type-out mean from a QR merge of a prefix factor (prior plus the types before type \(k\)) and a
-suffix factor (the types after \(k\)). The shape is the centred spread of those 27 means, scaled by its own test-split λ.</p>
 <p><b>Estimator.</b> The intercept can be formed with each defect snapshot's nearest bulk snapshot as reference (paired; the form
 that is also the synthetic row above) or with a bulk thermal trend fitted over all bulk cells near the defect volume (regression).
 The headline uses regression for interstitials (data-only evidence, Table 7c) and, for the vacancy, regression per training-cell
@@ -652,8 +648,7 @@ argument, but it means the choice was not made blind; the all-paired result is k
 <div class="wrap"><table><caption>Table 8. Defect QoIs, CR3 × λ<sub>F</sub>: error, σ without and with the discrepancy term
 (eV), and z.</caption>
 <thead><tr><th>model</th><th>QoI</th><th>DFT − model</th><th>σ</th><th>σ with term</th><th>z</th></tr></thead>
-<tbody>{dz_rows}</tbody></table></div>
-<p>A delete-one-config-type jackknife, which stays in parameter space, is compared in Section 3.10.</p>""", "drafted", level=3)
+<tbody>{dz_rows}</tbody></table></div>""", "drafted", level=3)
 
 sec("results-vacancy", "3.9  The vacancy", f"""
 <p>The vacancy shows no thermal trend in either pooled estimator, and both fail the model-against-model test. The training
@@ -677,36 +672,6 @@ As Figure 1, with the headline discrepancy term on the four defect QoIs (CR3 × 
 interstitials (Section 3.8) and the per-size inverse-variance estimator for the vacancy (Section 3.9). Thin black bars: the same QoIs'
 95 % intervals without the term. Dashed grey bars: the vacancy with the pooled-size regression estimator, which hardly widens it.
 Only the four defect QoIs change.</figcaption></figure>""", "drafted", level=3)
-
-tj = {m: json.load(open(RES / f"type_jackknife_{m}.json")) for m in ("o4d20", "o3d12") if (RES / f"type_jackknife_{m}.json").exists()}
-tjz = {}
-for r in rd("type_jackknife_o4d20.csv") + rd("type_jackknife_o3d12.csv"):
-    if r["scale"] == "lam_F":
-        tjz[(r["model"], r["shape"], r["qoi"])] = r["z"]
-tj_rows = ""
-for m, d_ in tj.items():
-    for shape, lab in (("cr3", "delete one configuration (CR3)"), ("type", "delete one config type")):
-        lam_ = d_["lam_cr3" if shape == "cr3" else "lam_type"]
-        zs = " / ".join(f"{tjz.get((m, shape, k), float('nan')):+.1f}" for k in ("vacancy_energy", "dumbbell_interstitial_energy",
-                                                                                  "hexagonal_interstitial_energy", "tetrahedral_interstitial_energy"))
-        a_, b_ = d_[f"{shape}/lam_F"], d_[f"{shape}/lam_V"]
-        tj_rows += (f"<tr><td>{m}</td><td>{lab}</td><td class=n>{lam_['E']:.1f} / {lam_['F']:.1f} / {lam_['V']:.1f}</td>"
-                    f"<td class=n>{a_['k95']} ({a_['k68']}) / {a_['n']}</td><td class=n>{b_['k95']} ({b_['k68']}) / {b_['n']}</td>"
-                    f"<td class=n>{a_['median_sigma_over_tol']:.2f}</td><td class=n>{zs}</td></tr>")
-if tj:
-    sec("results-typejk", "3.10  A coarser jackknife: deleting whole config types", f"""
-<p>The defect bias is shared within config types, so a jackknife that deletes a whole type at a time might see it without leaving
-parameter space. Delta-method coverage of the 17 QoIs with delta rows, at the type shape's own test-split scales.</p>
-<div class="wrap"><table><caption>Table 8c. Delete-one-configuration (CR3) against delete-one-config-type (27 types). λ<sub>E</sub> /
-λ<sub>F</sub> / λ<sub>V</sub> from the test split; 95 % (68 %) coverage with λ<sub>F</sub> and λ<sub>V</sub>; median σ/tol with λ<sub>F</sub>;
-z (λ<sub>F</sub>) of the vacancy / dumbbell / hexagonal / tetrahedral QoIs.</caption>
-<thead><tr><th>model</th><th>shape</th><th>λ (E / F / V)</th><th>λ<sub>F</sub></th><th>λ<sub>V</sub></th><th>σ/tol</th><th>defect z</th></tr></thead>
-<tbody>{tj_rows}</tbody></table></div>
-<p>The type shape needs far smaller scales (it captures held-out error better than per-configuration deletion). For o4d20 it brings
-every defect QoI inside, without any discrepancy term, but at the price of intervals about 3× wider overall: nearly every QoI falls
-within ±1σ against a nominal 68 %, so it over-covers. For o3d12 it does not reach the interstitials: there the hot-snapshot bias is
-shared across the interstitial, vacancy and divacancy types alike, so deleting one type still leaves it in the fit. It is a conservative,
-parameter-space alternative to the discrepancy term, not a calibrated fix.</p>""", "drafted", level=3)
 
 import numpy as _np
 fc_rows = ""
