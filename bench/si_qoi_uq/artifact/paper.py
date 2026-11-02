@@ -159,8 +159,7 @@ pointwise optimal parameter sets (POPS) [Swinburne and Perez 2024].</p>
 <p>We also show where calibrated parameter-space uncertainty fails, and why. A bias that all training configurations of one kind
 share is invisible to any delete-one jackknife; in the GAP-18 database every defect cell is a hot molecular-dynamics snapshot. We
 diagnose this bias, measure it from the training labels alone, and compare three remedies: a discrepancy term, a coarser jackknife,
-and reweighted fits (defect–bulk difference rows, and iteratively reweighted least squares). Along the way we replace the Cholesky
-form of the evidence for automatic relevance determination (ARD), which was held at its lower bound on these fits, by a QR form.</p>
+and reweighted fits (defect–bulk difference rows, and iteratively reweighted least squares).</p>
 <p>Section 2 describes the linear ACE fit and ARD, and Section 3 the CR3 shape and the per-atom calibration. Sections 4–6 give the
 global scale, the propagation and the validation statistics. Section 7 reports the results, the defect analysis and the ablations,
 and Section 8 discusses them.</p>""", "draft")
@@ -222,26 +221,23 @@ sec("theory-ard", "2.3  Automatic relevance determination", rf"""
 type-II maximum likelihood in the prior-scaled system \(S=D^{{-1}}AD^{{-1}}\), \(D=\operatorname{{diag}}\Gamma\). The BLR fit is ARD at
 \(a_k=-2\log\sigma_c\) for every \(k\). In sequential mode, used here, the noise scale \(\sigma\) stays at the BLR fit's value and only the
 \(a_k\) are fitted.</p>
-<p><b>QR evidence.</b> Near-interpolating fits leave \(\operatorname{{cond}}(S)\) beyond \(1/\epsilon_{{\text{{mach}}}}\). The evidence, its
-gradient and Hessian, and the posterior are therefore computed from the QR factor of
+<p><b>QR evidence.</b> As for the BLR fit (Section 2.2), the evidence, its gradient and Hessian, and the posterior are computed
+from the QR factor of
 \([\operatorname{{diag}}(e^{{a_{{k(j)}}/2}});\,R_wD^{{-1}}/\sigma]=Q_SR_S\) (so \(R_S^{{\mathsf T}}R_S=S\)), whose condition number is
 \(\sqrt{{\operatorname{{cond}}(S)}}\). The posterior stores \(R_S^{{\mathsf T}}\) as its Cholesky factor, so the CR3 jackknife and the per-atom force variances are unchanged. The \(a_k\) are bounded below at
 \(a_{{\text{{floor}}}}=\log(\lambda_{{\max}}/10^{{22}})\), with \(\lambda_{{\max}}\) the largest eigenvalue of the data part of \(S\)
 (\(D^{{-1}}\Psi^{{\mathsf T}}\Psi D^{{-1}}\)) at the starting noise scale, and an endpoint with every \(a_k\) on the floor and the gradient pointing below it
 is flagged as degenerate and refused.</p>
-<p>With the earlier Cholesky evidence the floor sat at \(\operatorname{{cond}}(S)=10^{{14}}\), about 12 nats above the evidence optimum on both
-silicon models. Every \(a_k\) ended on it and the mean lost accuracy (o4d20 test energy 3.5 → 16.4 meV/atom in the fit's own report;
-the floor's prior, not roundoff, was the cause; ace-jax issue #136, fixed in PR #137).</p>
-<div class="wrap"><table><caption>Table 1. ARD (QR) against the benchmark BLR fits. ARD log-precisions per body order (endpoint); floor /
+<div class="wrap"><table><caption>Table 1. ARD against the benchmark BLR fits. ARD log-precisions per body order (endpoint); floor /
 BLR prior; test-split RMSE ARD / BLR (E, V per atom); test-split λ<sub>F</sub> ARD / BLR; propagated CR3 × λ<sub>F</sub> coverage, 95 % (68 %),
 ARD / BLR, over the 20 scored QoIs.</caption>
 <thead><tr><th>model</th><th>a<sub>k</sub></th><th>floor / BLR</th><th>E (meV/atom)</th><th>F (eV/Å)</th><th>V (meV/atom)</th><th>λ<sub>F</sub></th><th>coverage</th></tr></thead>
 <tbody>{ard_rows}</tbody></table></div>
-<p>With the QR evidence the fits are not degenerate. For o4d20 every \(a_k\) is interior, and for o3d12 only the two-body precision sits on
-the new floor. ARD weakens the prior relative to the BLR's single \(\sigma_c\) on most body orders (on all of them for o3d12; for
+<p>Neither fit is degenerate. For o4d20 every \(a_k\) is interior, and for o3d12 only the two-body precision sits on
+the floor. ARD weakens the prior relative to the BLR's single \(\sigma_c\) on most body orders (on all of them for o3d12; for
 o4d20 only the 5-body block is held more tightly), yet the means match the BLR fits on the held-out test split, and the test-split
 scales and the propagated coverage agree. The QoI results below use the BLR fits, which are the
-benchmark models; ARD gives the same coverage (acceptance run in the repository), and it provides the per-atom force calibration of
+benchmark models; ARD gives the same coverage (Table 1), and it provides the per-atom force calibration of
 Section 7.7.</p>""", "drafted")
 
 sec("theory-cr3", "3  Misspecification-robust shape: the CR3 jackknife", r"""
@@ -478,7 +474,7 @@ qrow = lambda m, k, meth="CR3-headline", sc="lam_F": next((r for r in rd("qoi_uq
                                                           and r["method"] == meth and r["scale"] == sc), None)
 tight = (head["o3d12"]["median_sigma_over_tol"] / head["o4d20"]["median_sigma_over_tol"]) if all(head.get(m) for m in ("o3d12", "o4d20")) else float("nan")
 sec("results", "7  Results", f"""
-<p class="note">Status: both models complete at the BLR fit, including both POPS committees; the ARD acceptance run (PR #137) is summarised in Table 1. Every number below is read from
+<p class="note">Status: both models complete at the BLR fit, including both POPS committees; the ARD fits are summarised in Table 1. Every number below is read from
 <code>bench/si_qoi_uq/results/</code>.</p>
 <h3>7.1 Coverage and sharpness</h3>
 <div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % CI]) and sharpness.</caption>
@@ -756,8 +752,8 @@ for m in ("o4d20", "o3d12"):
                     f"<td class=n>{int(z['n_cfg'][g])}</td><td class=n>{int(mk.sum())}</td>"
                     f"<td class=n>{float(_np.mean(z['score'][mk] <= z['q'][mk])):.3f}</td><td class=n>{rr(mk):.2f}</td></tr>")
 sec("results-forces", "7.7  Calibrated per-atom forces (Mondrian conformal)", f"""
-<p>Per-atom force uncertainty against the observed error on the 248 test configurations, from the ARD fits of
-PR #137 (the posterior files that hold the Mondrian groups and scales; models: {", ".join(fc_have) or "pending"}). Symmetry-zero
+<p>Per-atom force uncertainty against the observed error on the 248 test configurations, from the ARD fits
+(whose posteriors hold the Mondrian groups and scales; models: {", ".join(fc_have) or "pending"}). Symmetry-zero
 atoms are dropped, as in the scale diagnostics.</p>
 <figure><img src="fig7_force_calibration.png" alt="Per-atom force uncertainty against observed error, binned on predicted sigma and on observed error, for each model"><figcaption>Figure 7.
 Top: binned on predicted σ (20 equal-count bins), RMS observed |ΔF| against RMS σ, for the Mondrian
@@ -787,7 +783,7 @@ inside the benchmark tolerance).</li>
 <li>Observable-dependent scales: λ<sub>V</sub>/λ<sub>F</sub> > 1; choose λ by the QoI's physics (stress-like QoIs) or report both.</li>
 <li>Linearisation: delta ≈ committee at λ = 1; at λ<sub>F</sub> phase energies are strongly nonlinear; robust spreads.</li>
 <li>Why per-atom Mondrian scales do not propagate; a θ-space analogue would need group-dependent shapes.</li>
-<li>Failure modes found: ARD floor (issue #136, fixed in PR #137), POPS leverage selection.</li>
+<li>Failure mode of the POPS baseline: the leverage selection of the support rows sets its width (Section 7.4).</li>
 <li>A delete-one jackknife cannot see a bias shared across all training configurations of a kind. For relaxed defects the
 bias is measurable from training labels (zero-temperature extrapolation of the defect–bulk residual), but does not transfer
 through a parameter-space correction; an observable-space discrepancy term restores coverage. Relaxed or low-temperature
