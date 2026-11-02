@@ -76,7 +76,7 @@ S = []  # sections
 
 
 def sec(id_, title, body, status="", level=2):
-    chip = f'<span class="status {status}">{status}</span>' if status else ""
+    chip = ""                  # drafting status chips are not shown in the manuscript
     head = f'<h{level}>{title} {chip}</h{level}>' if level else ""
     S.append(f'<section id="{id_}">{head}{body}</section>')
 
@@ -515,8 +515,6 @@ training labels and the fitted mean alone, so the same term can be added to the 
 the baselines included.</p>""", "", level=4)
 
 sec("method-valid", "3  Results", r"""
-<p class="note">Status: both models complete at the BLR fit, including both POPS committees; the ARD fits are summarised in Table 1. Every number below is read from
-<code>bench/si_qoi_uq/results/</code>.</p>
 <h3>3.1 Validation statistics</h3>
 <p>Section 2 ends with a σ for every prediction we test: a per-atom force covariance and conformal region (Section 2.5), a
 scaled CR3 covariance in θ (Section 2.4), and from it a σ<sub>Q</sub> for each QoI by the delta method or by committees, with or
@@ -1073,11 +1071,10 @@ mjx-container {{ overflow-x: auto; overflow-y: hidden; max-width: 100%; }}
 <nav aria-label="Contents"><ol>{toc}</ol></nav>
 <main>
 <header>
-<p class="byline">Manuscript skeleton · ace-jax UQ preprint and MMM keynote §9 · generated from <code>bench/si_qoi_uq</code></p>
 <h1>Calibrated parameter-space uncertainty for linear ACE, propagated to silicon properties</h1>
 <p class="author">James R. Kermode</p>
 <p class="affil">Warwick Centre for Predictive Modelling, School of Engineering, University of Warwick, Coventry CV4 7AL, United Kingdom</p>
-<p class="byline">Status chips: <span class="status draft">drafted</span> text complete for review; <span class="status outline">outline</span> argument only; <span class="status partial">partial</span> results still arriving.</p>
+
 </header>
 {''.join(S)}
 </main></div></body></html>
