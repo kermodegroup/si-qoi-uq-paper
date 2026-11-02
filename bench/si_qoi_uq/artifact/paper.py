@@ -80,6 +80,18 @@ def lbf(m, meth, kind="committee"):
     r = ev.get((m, meth, kind))
     return float(r["log_bf_vs_headline"]) if r and r.get("log_bf_vs_headline") not in ("", None) else float("nan")
 lbf_txt = lambda m, meth, kind="committee": f"{lbf(m, meth, kind):+.1f}"
+_ood = {m: json.load(open(RES / f"ood_mondrian_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"ood_mondrian_{m}.json").exists()}
+OOD_COLS = (("all", "all held out"), ("crack_110_1-10", "crack (110)"), ("crack_111_1-10", "crack (111)"), ("screw_disloc", "screw dislocation"))
+OOD_METH = (("mondrian", "Mondrian"), ("one_group", "one hold-out quantile"), ("global", "global scale (ID test)"))
+def _ood_cell(r, k):
+    v = r[k]
+    ci = r.get(f"{k}_ci90")
+    return f"{v:.2f}" + (f" [{ci[0]:.2f}, {ci[1]:.2f}]" if ci else "")
+ood_rows = "".join(f"<tr><td>{m}</td><td>{lab}</td><td class=n>{_ood[m]['in_distribution'][k]:.2f}</td>" + "".join(
+    f"<td class=n>{_ood_cell(_ood[m]['all'] if c == 'all' else _ood[m]['per_type'][c], k)}</td>" for c, _ in OOD_COLS) + "</tr>"
+    for m in _ood for k, lab in OOD_METH)
+ood_n = lambda m: f"{_ood[m]['all']['atoms']} atoms in {_ood[m]['all']['configs']} configurations" if m in _ood else "–"
+ood_v = lambda m, k, c="all": (f"{(_ood[m]['all'] if c == 'all' else _ood[m]['per_type'][c])[k]:.2f}" if m in _ood else "–")
 _og = json.load(open(RES / "force_onegroup.json")) if (RES / "force_onegroup.json").exists() else {}
 og_all = lambda m, k: f"{_og[m][k]['all']:.2f}" if m in _og else "–"
 og_rng = lambda m, k: f"{min(_og[m][k]['per_group']):.2f}–{max(_og[m][k]['per_group']):.2f}" if m in _og else "–"
@@ -1010,6 +1022,25 @@ moderately distorted four-fold atoms that make up three quarters of the test ato
 λ<sub>F</sub> of the propagation covers {fb("o3d12", "headline")} and {fb("o4d20", "headline")} and is about as even as
 Mondrian, but λ<sub>F</sub> is fitted on these test configurations, so that agreement is in sample and is not a validation.
 Out of sample, the groups are what bring the per-atom forces to nominal coverage.</p>
+<p>An out-of-distribution test asks whether this holds for environments absent from the fit. We refitted both ARD models
+with GAP-18's cracks ((111) and (110) cleavage, 1-10 front) and screw dislocations removed from training, from the
+calibration hold-out and from the test file, and scored the {ood_n("o3d12")} that were removed (Table 2c). The design follows
+the big-cell check of an alloy model in the ace-jax development tests (unpublished). The global scale is now fitted on the in-distribution test split, so it is
+out of sample here, like the Mondrian scales. Over all held-out atoms the Mondrian regions cover {ood_v("o3d12", "mondrian")}
+(o3d12) and {ood_v("o4d20", "mondrian")} (o4d20), against {ood_v("o3d12", "one_group")} and {ood_v("o4d20", "one_group")} for one
+hold-out quantile and {ood_v("o3d12", "global")} and {ood_v("o4d20", "global")} for the global scale. The cracks are covered
+((111) {ood_v("o3d12", "mondrian", "crack_111_1-10")}, (110) {ood_v("o3d12", "mondrian", "crack_110_1-10")} for o3d12;
+{ood_v("o4d20", "mondrian", "crack_111_1-10")} and {ood_v("o4d20", "mondrian", "crack_110_1-10")} for o4d20). The screw
+dislocations are under-covered by every method ({ood_v("o3d12", "mondrian", "screw_disloc")} for o3d12 with Mondrian, about
+the same as the global scale; {ood_v("o4d20", "mondrian", "screw_disloc")} for o4d20). Their atoms are four-fold and only
+mildly distorted, so they fall into the bulk-like groups, but their errors are larger relative to the CR3 shape than those of
+the training atoms in the same groups. Geometric groups cannot separate the two; a descriptor-based grade might, which we
+have not tested on these cells.</p>
+<div class="wrap"><table><caption>Table 2c. Out-of-distribution per-atom force coverage at nominal 90 %: ARD refits without
+cracks and screw dislocations, scored on them (90 % intervals from a bootstrap over configurations). "ID test": the same
+refit's coverage on the in-distribution test split.</caption>
+<thead><tr><th>model</th><th>method</th><th>ID test</th><th>all held out</th><th>crack (110)</th><th>crack (111)</th><th>screw dislocation</th></tr></thead>
+<tbody>{ood_rows}</tbody></table></div>
 <p>Figure 2 also shows the per-atom forces of the baselines, to which the QoI comparison of Section 3.4 applies. B3 is
 about λ<sub>F</sub> times too narrow everywhere. B1, the posterior shape with one scale, under-covers
 ({fb("o3d12", "B1")} for o3d12, {fb("o4d20", "B1")} for o4d20), most in groups 0 and 2. B2 is close for o3d12
