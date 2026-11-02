@@ -77,7 +77,8 @@ S = []  # sections
 
 def sec(id_, title, body, status="", level=2):
     chip = f'<span class="status {status}">{status}</span>' if status else ""
-    S.append(f'<section id="{id_}"><h{level}>{title} {chip}</h{level}>{body}</section>')
+    head = f'<h{level}>{title} {chip}</h{level}>' if level else ""
+    S.append(f'<section id="{id_}">{head}{body}</section>')
 
 
 b3 = {m: get(m, "B3-headline", "lam_1") for m in models}
@@ -173,7 +174,7 @@ share is invisible to any delete-one jackknife; in the GAP-18 database every def
 diagnose this bias, measure it from the training labels alone, and add it to the defect QoIs as a discrepancy term, which
 leaves the fit unchanged.</p>
 <p>Section 2 sets out the methodology: the linear ACE fit and ARD (2.1–2.3), the CR3 shape (2.4), the per-atom force calibration
-(2.5), the baselines (2.6), the propagation to QoIs (2.7) and the discrepancy term for shared biases (2.8). Section 3 gives the validation statistics and the results: the per-atom forces first, then the global scale that the
+(2.5), the baselines (2.6) and the propagation to QoIs (2.7). Section 3 gives the validation statistics and the results: the per-atom forces first, then the global scale that the
 propagation uses, then the QoIs. Section 4 discusses them.</p>""", "draft")
 
 _par = {p_["size"]: p_ for p_ in json.load(open(RES / "ace_pareto.json"))} if (RES / "ace_pareto.json").exists() else {}
@@ -473,7 +474,7 @@ re-run at λ<sub>F</sub> tests that linearisation. In that re-run a member is re
 DFT value, if a test fails, if any relaxed interatomic distance falls below 2.0 Å (collapse), or if its diamond cell is
 Born-unstable. The headline σ is the delta-method σ where it agrees with the λ = 1 committee to 10 %, else the committee's.</p>""", "drafted", level=3)
 
-sec("method-disc", "2.8  Shared extrapolation bias: a discrepancy term for defect QoIs", r"""
+sec("method-disc", "Measuring the bias: a discrepancy term", r"""
 <p>A bias shared by every training configuration of a kind is invisible to any delete-one jackknife: deleting one
 configuration does not move the fit along it. The defect formation energies expose such a bias. Every training interstitial,
 vacancy and divacancy cell is a hot MD snapshot, while the QoIs are relaxed defects.</p>
@@ -495,14 +496,14 @@ relaxed defect's formation row point in different directions in θ, so coverage 
 <p><b>Estimator.</b> The intercept can be formed with each defect snapshot's nearest bulk snapshot as reference (paired; the form
 that is also the synthetic row above) or with a bulk thermal trend fitted over all bulk cells near the defect volume (regression).
 The headline uses regression for interstitials (data-only evidence, Table 7c) and, for the vacancy, regression per training-cell
-size (63 and 215 atoms) combined by inverse variance, because the two sizes disagree and one pooled trend is rejected (Section 3.8).</p>
+size (63 and 215 atoms) combined by inverse variance, because the two sizes disagree and one pooled trend is rejected (see The vacancy, below).</p>
 <p><b>Discrepancy term.</b> For the QoIs of defect class \(t\), the variance becomes
 \(\sigma_Q^2=\sigma_{Q,\text{method}}^2+r^{*2}_t+s^{*2}_t\), with \(\sigma_{Q,\text{method}}\) the σ of the UQ method without the term (interstitial class for the three interstitials; vacancy class for the
 vacancy). Every other QoI is unchanged. This leaves the pure parameter-space propagation for these QoIs and is reported as a
 separate, labelled method.</p>
 <p>Nothing in this analysis is specific to the CR3 propagation. The bias r*<sub>t</sub> and its standard error come from the
 training labels and the fitted mean alone, so the same term can be added to the σ<sub>Q</sub> of any method that shares that mean,
-the baselines included.</p>""", "drafted", level=3)
+the baselines included.</p>""", "", level=4)
 
 sec("method-valid", "3  Results", r"""
 <p class="note">Status: both models complete at the BLR fit, including both POPS committees; the ARD fits are summarised in Table 1. Every number below is read from
@@ -726,7 +727,7 @@ for m in ("o4d20", "o3d12"):
 sec("results-defects", "3.8  Defect formation energies: diagnosis and the discrepancy term", f"""
 <p>For both models the relaxed interstitial formation energies are the QoIs that are confidently wrong: all three are too
 low, and outside the 95 % interval. This holds for every method of Section 3.7, not only the headline, so the diagnosis below
-is about the fit, not the UQ method; the discrepancy term it leads to (Section 2.8) applies to any of them. Table 7 shows it for
+is about the fit, not the UQ method; the discrepancy term it leads to (below) applies to any of them. Table 7 shows it for
 the posterior baseline B1 as well as for CR3: with the term B1 covers {b1disc}. They are low for every ACE and PACE model in the benchmark too, and the tetrahedral one
 for GAP-18.</p>
 <div class="wrap"><table><caption>Table 5. The training residual trend predicts the QoI error. Interstitial cells,
@@ -737,7 +738,9 @@ errors (DFT − model) of the dumbbell / hexagonal / tetrahedral interstitials, 
 <p>Over the hot cells the model's interstitial error averages near zero, so the CR3 intervals are calibrated there (test-split
 z RMS 0.85–1.13 for those cells). The error grows towards the cold limit, and the relaxed defect lies beyond the data along
 a bias that all interstitial clusters share. With per-atom energy weighting, 0.4–1.6 eV in a 217-atom cell costs only
-2–7 meV/atom in the fit.</p>
+2–7 meV/atom in the fit.</p>""", "drafted", level=3)
+
+sec("results-defects2", "", f"""
 <div class="wrap"><table><caption>Table 6. Synthetic zero-temperature contrast rows (DFT training labels only): residual r*
 ± standard error at the unchanged fit, against the CR3 × λ<sub>F</sub> σ of the same row.</caption>
 <thead><tr><th>model</th><th>defect class</th><th>r* (eV)</th><th>CR3 σ (eV)</th><th>snapshots</th></tr></thead>
@@ -765,13 +768,13 @@ models' own harness values: paired / regression prediction, eV).</caption>
 from 2-atom bulk cells, so a partner's residual enters ×108 (0.35 eV RMS, the size of the bias), its standard error is larger, and
 it extrapolates worse to held-out cold snapshots (half the RMSE for regression, in both models; likewise for divacancies). The
 model-against-model test does not separate them (both inside the true spread), and neither estimator handles the vacancy in any test.
-<b>The headline therefore uses regression for interstitials;</b> the vacancy is treated in Section 3.8. The regression estimator also agrees
+<b>The headline therefore uses regression for interstitials;</b> the vacancy is treated below. The regression estimator also agrees
 better with the observed interstitial errors. That was seen before the data-only tests were run and is not part of the
 argument, but it means the choice was not made blind; the all-paired result is kept as a sensitivity.</p>
 <div class="wrap"><table><caption>Table 8. Defect QoIs, CR3 × λ<sub>F</sub>: error, σ without and with the discrepancy term
 (eV), and z.</caption>
 <thead><tr><th>model</th><th>QoI</th><th>DFT − model</th><th>σ</th><th>σ with term</th><th>z</th></tr></thead>
-<tbody>{dz_rows}</tbody></table></div>""", "drafted", level=3)
+<tbody>{dz_rows}</tbody></table></div>""", "", level=0)
 
 sec("results-vacancy", "The vacancy", f"""
 <p>The vacancy shows no thermal trend in either pooled estimator, and both fail the model-against-model test. The training
@@ -792,7 +795,7 @@ neighbour distances {geo_txt}); the harness gives no DFT structure to compare.</
 model-against-model checks. The choice rests on those checks and on the cold cell, which use no DFT QoI value.</p>
 <figure><img src="fig8_model_compare_disc.png" alt="Per QoI, error over tolerance with 95 percent intervals for both models with the defect discrepancy term, the vacancy from the per-size estimator; intervals without the term as thin black bars, and the vacancy with the pooled-size estimator as dashed grey bars"><figcaption>Figure 8.
 As Figure 1, with the headline discrepancy term on the four defect QoIs (CR3 × λ<sub>F</sub>): the regression estimator for the
-interstitials (Section 3.8) and the per-size inverse-variance estimator for the vacancy (Section 3.8). Thin black bars: the same QoIs'
+interstitials and the per-size inverse-variance estimator for the vacancy. Thin black bars: the same QoIs'
 95 % intervals without the term. Dashed grey bars: the vacancy with the pooled-size regression estimator, which hardly widens it.
 Only the four defect QoIs change.</figcaption></figure>""", "", level=4)
 
@@ -941,6 +944,10 @@ _ids = [x.split(chr(34))[1] for x in S]
 if "method-calib" in _ids and "results-forces" in _ids:
     _c = S.pop(_ids.index("method-calib"))
     S.insert([x.split(chr(34))[1] for x in S].index("results-forces") + 1, _c)
+_ids = [x.split(chr(34))[1] for x in S]
+if "method-disc" in _ids and "results-defects" in _ids:
+    _d = S.pop(_ids.index("method-disc"))
+    S.insert([x.split(chr(34))[1] for x in S].index("results-defects") + 1, _d)
 toc = "".join(f'<li><a href="#{s.split(chr(34))[1]}">{s.split("<h2>")[1].split("<")[0].strip()}</a></li>' for s in S if "<h2>" in s)
 page = f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
