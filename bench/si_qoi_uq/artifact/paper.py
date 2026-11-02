@@ -85,9 +85,14 @@ b3 = {m: get(m, "B3-headline", "lam_1") for m in models}
 b1 = {m: get(m, "B1-headline", "q_b1") for m in models}
 lam_lo = min(min(v for k, v in lam[m].items() if k != "pool") for m in models)
 lam_hi = max(max(v for k, v in lam[m].items() if k != "pool") for m in models)
-phr = {r["qoi"]: r for r in rd("lamF_physical.csv")}
-nonphase = [r["ratio_physical_vs_rescaled"] for k, r in phr.items() if not k.startswith("dE_") and r["ratio_physical_vs_rescaled"] not in ("", None)]
-phase = [r["ratio_physical_vs_rescaled"] for k, r in phr.items() if k.startswith("dE_") and r["ratio_physical_vs_rescaled"] not in ("", None)]
+phr = {(r["model"], r["qoi"]): r for r in rd("lamF_physical.csv")}
+_ratios = lambda m, ph: [float(r["ratio_physical_vs_rescaled"]) for (mm, k), r in phr.items() if mm == m and k.startswith("dE_") == ph
+                         and r["ratio_physical_vs_rescaled"] not in ("", None)]
+nonphase = {m: _ratios(m, False) for m in models}
+phase = {m: _ratios(m, True) for m in models}
+_dvc = [r for r in dvc if r.get("flagged") in ("True", "False", True, False) and "JAX" not in r["qoi"]]
+dvc_rng = {m: (min(float(r["ratio"]) for r in _dvc if r["model"] == m), max(float(r["ratio"]) for r in _dvc if r["model"] == m)) for m in models}
+dvc_flag = {m: [r["qoi"] for r in _dvc if r["model"] == m and r.get("flagged") in ("True", True)] for m in models}
 disc_head = "; ".join(f"{m}: {v[k]['k95']}/{v[k]['n']}" for m, v in
                       (json.load(open(RES / "discrepancy.json")).items() if (RES / "discrepancy.json").exists() else [])
                       for k in ["CR3-headline+disc/lam_F"] if k in v) or "[pending]"
@@ -175,7 +180,7 @@ diagnose this bias, measure it from the training labels alone, and add it to the
 leaves the fit unchanged.</p>
 <p>Section 2 sets out the methodology: the linear ACE fit and ARD (2.1–2.3), the CR3 shape (2.4), the per-atom force calibration
 (2.5), the baselines (2.6) and the propagation to QoIs (2.7). Section 3 gives the validation statistics and the results: the per-atom forces first, then the global scale that the
-propagation uses, then the QoIs. Section 4 discusses them.</p>""", "draft")
+propagation uses, then the QoIs. Section 4 discusses them and Section 5 concludes.</p>""", "draft")
 
 _par = {p_["size"]: p_ for p_ in json.load(open(RES / "ace_pareto.json"))} if (RES / "ace_pareto.json").exists() else {}
 if {"o3d12", "o4d20", "o4d12", "o4d14"} <= set(_par):
@@ -534,12 +539,16 @@ this test, if its errors are correlated in a way its covariance does not predict
 with \(\text{tol}_Q\) the benchmark's tolerance for QoI \(Q\): a value below 1 means the interval is narrower than the accuracy the
 benchmark asks for. A useful method has near-nominal coverage at the smallest sharpness.</p>""", "drafted")
 
-phys_txt = ""
-for m, fs in phys.items():
-    phys_txt += (f"<p>{m}: the λ<sub>F</sub> re-run kept {fs['accepted']}/{fs['K']} members ({fs['rejected_collapse']} collapsed, "
-                 f"{fs['rejected_failed']} failed). Outside the phase energies, σ from the physical members is {min(nonphase):.2f}–{max(nonphase):.2f}× the "
-                 f"rescaled σ; the phase energies reach {min(phase):.1f}–{max(phase):.1f}× it, a genuine nonlinearity (phases relax into other "
-                 "structures at λ<sub>F</sub>).</p>")
+def _phase_names(m, lo):
+    """'the sh, β-Sn and hcp energies is 86, 43 and 24 times' for the phases whose physical/rescaled ratio is >= lo."""
+    it = sorted(((float(r["ratio_physical_vs_rescaled"]), k) for (mm, k), r in phr.items() if mm == m and k.startswith("dE_")
+                 and r["ratio_physical_vs_rescaled"] not in ("", None) and float(r["ratio_physical_vs_rescaled"]) >= lo), reverse=True)
+    names = [_qn(k).replace(" phase energy", "").replace("the ", "") for _, k in it]
+    nums = [f"{v:.0f}" for v, _ in it]
+    join = lambda xs: xs[0] if len(xs) == 1 else ", ".join(xs[:-1]) + " and " + xs[-1]
+    return f"the σ of the {join(names)} energies is {join(nums)} times"
+
+
 pops = pw.get(("o3d12", "pops"))
 pops_sd = f(pops['sd_E_meV_per_atom'] if pops else None, 0)
 b3txt = " and ".join(f"{int(float(b3[m]['k95']))}/{int(float(b3[m]['n']))} ({m})" for m in models if b3[m])
@@ -565,11 +574,11 @@ qrow = lambda m, k, meth="CR3-headline", sc="lam_F": next((r for r in rd("qoi_uq
 _qrows = rd("qoi_uq.csv")
 b1disc = " and ".join(f"{d_['k95']}/{d_['n']} ({m})" for m in models
                       for d_ in [disc.get(m, {}).get("B1-headline+disc/q_b1")] if d_) if disc else "?"
-_QN = {"vacancy_energy": "the vacancy", "dumbbell_interstitial_energy": "the dumbbell", "hexagonal_interstitial_energy": "the hexagonal",
+_QN = {"diamond_bulk_modulus": "the bulk modulus", "vacancy_energy": "the vacancy", "dumbbell_interstitial_energy": "the dumbbell", "hexagonal_interstitial_energy": "the hexagonal",
        "tetrahedral_interstitial_energy": "the tetrahedral interstitial", "surface_100 (J/m2)": "the (100) surface energy",
        "gamma_us glide (J/m2)": "γ<sub>us</sub> glide", "gamma_us shuffle (J/m2)": "γ<sub>us</sub> shuffle",
        "decohesion_max_stress": "the decohesion stress"}
-_qn = lambda k: _QN.get(k) or (k.replace("dE_", "the ").replace(" (meV/at)", " phase energy") if k.startswith("dE_") else k)
+_qn = lambda k: _QN.get(k) or (k.replace("dE_", "the ").replace(" (meV/at)", " phase energy").replace("beta-Sn", "β-Sn") if k.startswith("dE_") else k)
 def misses(m, meth="CR3-headline", sc="lam_F"):
     return [_qn(r["qoi"])
             for r in _qrows if r["model"] == m and r["method"] == meth and r["scale"] == sc and r["z"] not in ("", None)
@@ -641,9 +650,29 @@ a covariance is right. The delta-method and committee covariances agree, and the
 <figure><img src="fig3_qoi_correlation.png" alt="QoI correlation matrix of the o4d20 CR3 committee"><figcaption>Figure 3. Correlation
 between the QoIs in the CR3 committee for o4d20 (K = 200 members).</figcaption></figure>
 <h3>3.6 Delta method, committees and nonlinearity</h3>
-<p>{"; ".join(f"{m}: {nflag[m]} of {ncmp[m]} QoIs differ by more than 10 % between delta and λ = 1 committee" for m in models)}.</p>
-{phys_txt}
-<figure><img src="fig4_elastic_ellipses.png" alt="Elastic constant covariance ellipses, two routes"><figcaption>Figure 4. Elastic constants: stress and energy routes.</figcaption></figure>
+<p>The two routes to σ<sub>Q</sub> agree where both apply. At λ = 1, the delta-method σ is within 10 % of the committee's for all but
+{nflag["o4d20"]} of the {ncmp["o4d20"]} QoIs of o4d20 and {nflag["o3d12"]} of the {ncmp["o3d12"]} of o3d12; the ratio ranges from
+{dvc_rng["o4d20"][0]:.2f} to {dvc_rng["o4d20"][1]:.2f} for o4d20 and from {dvc_rng["o3d12"][0]:.2f} to {dvc_rng["o3d12"][1]:.2f} for o3d12.
+The flagged QoIs ({", ".join(_qn(k) for k in dvc_flag["o4d20"])} for o4d20; {", ".join(_qn(k) for k in dvc_flag["o3d12"])} for o3d12)
+are taken from the committee, as Section 2.7.3 prescribes. The implicit differentiation through each relaxation, including that of the
+lattice constant, is therefore accurate at the size of the CR3 distribution itself. The elastic constants are a stricter check,
+because they can be computed by two routes, from the stress or from the curvature of the energy. Figure 4 shows that the two give
+nearly the same covariance ellipses for both models, and that the DFT values lie inside the 1σ ellipses for o4d20 but well outside
+them for o3d12, whose C<sub>11</sub> is about 15 % too low.</p>
+<p>At λ<sub>F</sub> the distribution is several times wider, and the linear rescaling of the λ = 1 committee,
+Q<sub>k</sub>(λ) = Q̂ + λ(Q<sub>k</sub> − Q̂), can fail. The full re-run at λ<sub>F</sub> tests it. Of its 200 members,
+{phys["o4d20"]["accepted"]} (o4d20) and {phys["o3d12"]["accepted"]} (o3d12) pass the physicality rule fixed beforehand; the rest
+collapse ({phys["o4d20"]["rejected_collapse"]} and {phys["o3d12"]["rejected_collapse"]}), and none fails a test. Outside the phase
+energies, the σ of the physical members is {min(nonphase["o4d20"]):.2f}–{max(nonphase["o4d20"]):.2f}× the rescaled σ for o4d20 and
+{min(nonphase["o3d12"]):.2f}–{max(nonphase["o3d12"]):.2f}× for o3d12, so the rescaling holds for the elastic constants, defects and
+surfaces. The phase energies are different: for o4d20 {_phase_names("o4d20", 10)} the rescaled σ, and for o3d12
+{_phase_names("o3d12", 10)} it. These are the phases furthest from diamond, whose structures relax into other phases when θ moves far
+enough, so the phase-energy σ at λ<sub>F</sub> is a property of that relaxation path rather than of a Gaussian in θ. The headline
+keeps the rescaled σ, and Table 3b reports the full re-run as a sensitivity.</p>
+<figure><img src="fig4_elastic_ellipses.png" alt="Elastic constant covariance ellipses from the stress and energy routes, both models"><figcaption>Figure 4.
+Elastic constants: the 1σ covariance ellipses of (C<sub>11</sub>, C<sub>12</sub>) and (C<sub>11</sub>, C<sub>44</sub>) at λ<sub>F</sub> from
+the delta method, by the stress route (solid) and the energy route (dashed), for o4d20 (top) and o3d12 (bottom); the dot is the
+mean model's value and the star DFT.</figcaption></figure>
 <h3>3.7 Baselines</h3>
 <p>The three baselines of Section 2.6 each fall short in a different way (Figure 1, Figure 1b and Table 3). B3, the CR3 shape without
 calibration, covers only {b3txt} of the QoIs at 95 %: the shape alone is several times too narrow, as the test-split scales of
@@ -877,25 +906,60 @@ robust to them. Here λ<sub>F</sub>
 was fitted on this same test split, so its line is in-sample for its overall level; λ<sub>g</sub> and q<sub>g</sub> come from the
 training hold-out.</p>""", "drafted", level=3)
 
-sec("discussion", "4  Discussion", """
-<ul class="plan">
-<li>Take-away (moved from the abstract): calibrated parameter-space uncertainty transfers from forces to derived properties, except
-where the training data share a systematic gap with the target structures, and that gap can be detected from the data.</li>
-<li>A force-calibrated parameter covariance transfers to most QoIs at the 95 % level; median σ/tolerance """ + "; ".join(
-    f"{m} {head[m]['median_sigma_over_tol']:.2f}" for m in models if head[m]) + """ (the accurate model's intervals are
-inside the benchmark tolerance).</li>
-<li>Observable-dependent scales: λ<sub>V</sub>/λ<sub>F</sub> > 1; choose λ by the QoI's physics (stress-like QoIs) or report both.</li>
-<li>Linearisation: delta ≈ committee at λ = 1; at λ<sub>F</sub> phase energies are strongly nonlinear; robust spreads.</li>
-<li>Why per-atom Mondrian scales do not propagate; a θ-space analogue would need group-dependent shapes.</li>
-<li>Failure mode of the POPS baseline: the leverage selection of the support rows sets its width (Section 3.7).</li>
-<li>A delete-one jackknife cannot see a bias shared across all training configurations of a kind. For relaxed defects the
-bias is measurable from training labels (zero-temperature extrapolation of the defect–bulk residual), but does not transfer
-through a parameter-space correction; an observable-space discrepancy term restores coverage. Relaxed or low-temperature
-defect data would remove the need for it.</li>
-<li>Limitations: exchangeability of test split and QoI structures; hyperparameters fixed in the jackknife; locality as effective noise.</li>
-</ul>""", "outline")
+dk95 = lambda m: (lambda d_: f"{d_['k95']}/{d_['n']}" if d_ else "?")(disc.get(m, {}).get("CR3-headline+disc/lam_F"))
+sec("discussion", "4  Discussion", f"""
+<p>A single parameter covariance, the CR3 jackknife scaled once to held-out forces, gives usable uncertainties for derived
+properties that the fit never saw. For both models most QoIs fall inside their 95 % intervals ({k95("o3d12", "CR3-headline", "lam_F")}
+for o3d12, {k95("o4d20", "CR3-headline", "lam_F")} for o4d20), and the intervals scale with the model: the median σ/tol is
+{sot("o4d20", "CR3-headline", "lam_F")} for the accurate o4d20, whose intervals are mostly inside the benchmark tolerance, and
+{sot("o3d12", "CR3-headline", "lam_F")} for o3d12. The scale is fitted once, on forces of held-out configurations, and never on a QoI.
+The same CR3 shape serves per-atom forces, with scales per environment group (Section 3.2), and relaxed QoIs, with one global
+scale. The second use is what a distribution over θ buys: one draw gives energies, forces, stresses and every QoI together,
+consistently.</p>
+<p>The baselines show which ingredient matters. The CR3 shape without a scale (B3) is far too narrow, so calibration is essential,
+as expected for a parameter variance that shrinks with the amount of data. The Bayesian posterior with a calibrated scale (B1)
+has the right overall size but the wrong shape: it under-covers the QoIs and fails the joint test, because the posterior describes
+noise in the labels, not the approximation error of a misspecified model. POPS (B2) targets that error directly, but its width is
+set by which training rows define the hypercube, and with no calibration step it is too narrow for the larger model. The CR3 shape,
+which measures how far the fit moves when each configuration is left out, is the one that transfers, provided it is scaled.</p>
+<p>The scale is not unique. The virial scale is about a third larger than the force scale, and using it covers
+{k95("o3d12", "CR3-headline", "lam_V")} and {k95("o4d20", "CR3-headline", "lam_V")} QoIs with wider intervals, and passes the joint test for
+both models. Misspecification depends on the observable, and one could choose the scale by the QoI's physics, the virial scale
+for stress-like QoIs such as elastic constants, or report both. A single scale is also a compromise across configuration types
+(Figure 5), which a per-type or per-group scale in θ could relax. The per-atom Mondrian scales cannot be used for this directly:
+they rescale force outputs atom by atom and define no covariance in θ; a θ-space analogue would need a shape that depends on the
+environment group.</p>
+<p>Linearisation is adequate at the size of the distribution, but not everywhere at the calibrated size. The delta method agrees
+with committees run through the unmodified benchmark for almost every QoI at λ = 1, and implicit differentiation through each
+relaxation, including that of the lattice constant, makes it cheap: one set of rows per QoI. At λ<sub>F</sub> the phase energies of
+the structures furthest from diamond become strongly nonlinear, because their relaxations change character; for those, committees
+are the safer route, and their spread is then a property of the relaxation path rather than of a Gaussian.</p>
+<p>The clearest failure is the relaxed point defects, missed by every method. Its cause is in the data: every defect cell in
+GAP-18 is a hot molecular-dynamics snapshot, the model's defect–bulk error drifts with thermal amplitude, and the relaxed defect
+lies beyond the data along a direction that every snapshot shares. A delete-one jackknife cannot see such a bias, because deleting
+one snapshot does not move the fit along it, and a rank-one parameter correction built from the snapshots does not carry it to the
+relaxed geometry either. The bias can, however, be measured from the training labels alone, by extrapolating the defect–bulk
+residual to zero thermal amplitude, and added as a discrepancy term; this restores coverage to {dk95("o3d12")} (o3d12) and
+{dk95("o4d20")} (o4d20) without using any DFT QoI value. The vacancy needed the training cells of different sizes to be treated
+separately, a reminder that such extrapolations depend on how the training data were made. Relaxed or low-temperature defect
+configurations in the training set would remove the need for the term, and the same diagnostic, a residual trend that extrapolates
+away from zero, can flag where such data are missing.</p>
+<p>The study has limitations. The calibration assumes that the test split and the QoI structures are exchangeable with the
+training data, which the defects show is not always true. The hyperparameters are held fixed in the jackknife, so their own
+uncertainty is not propagated. The locality of the model, which cannot represent interactions beyond its cutoff, appears here only
+as part of the effective error. And twenty QoIs give coarse coverage estimates: counts from 17 to 20 are all consistent with a
+nominal 95 %.</p>""", "")
 
-sec("methods-detail", "5  Computational details", """
+sec("conclusions", "5  Conclusions", """
+<p>For linear ACE potentials, the delete-one-configuration (CR3) jackknife covariance, scaled once, gives calibrated uncertainty at
+two levels. Per atom, with scales fitted by Mondrian conformal prediction on groups of local environments, the force regions reach
+their target coverage on held-out silicon data. For derived properties, the same covariance with one scale fitted to held-out forces,
+propagated by implicit differentiation through each relaxation, covers most of 20 silicon QoIs against DFT, with intervals that
+shrink with the accuracy of the model, and outperforms the Bayesian posterior, POPS and the uncalibrated shape. Where it fails, for
+relaxed point defects, the cause is a bias shared by all training snapshots of a kind, which no delete-one method can see; it can be
+measured from the training labels and added as a discrepancy term, which restores coverage. The methods are implemented in ace-jax.</p>""", "")
+
+sec("methods-detail", "6  Computational details", """
 <ul>
 <li>Data: GAP-18 silicon, 2227 train / 248 test (seed 0, split hash c433c98d49bb). Models: ACE o4d20 (p = 5476) and o3d12 (p = 223),
 r<sub>cut</sub> 5 Å, least-squares E<sup>0</sup>, shared noise, smoothness prior, float64.</li>
