@@ -218,7 +218,7 @@ def model_compare(results, out, models, meth="CR3-headline", sc="lam_F"):
 
 def force_calibration(results, out, nbins=20):
     """Per-atom force uncertainty against the observed error on the test split (analysis/force_calibration.py), per model:
-    top, binned on predicted sigma (equal counts): RMS |error| against RMS sigma, Mondrian forces_std and the global
+    top, binned on predicted sigma (equal counts): RMS |error| against RMS sigma, Mondrian sigma_F and the global
     lam_F sigma, with the per-atom density behind; bottom, binned on |error|: RMS sigma against RMS |error| (binning on the
     observed error regresses towards the mean: the largest-error bins read as overconfident even when calibrated)."""
     ms = [m for m in ("o3d12", "o4d20") if (results / f"force_calibration_{m}.npz").exists()]
@@ -239,7 +239,7 @@ def force_calibration(results, out, nbins=20):
         _style(ax)
         ax.hexbin(sm, np.maximum(e, lo), gridsize=60, xscale="log", yscale="log", bins="log", cmap="Greys", mincnt=1,
                   linewidths=0, alpha=0.45, extent=(np.log10(lo), np.log10(hi), np.log10(lo), np.log10(hi)))
-        for sd, lab, mk, col in (((sm, "Mondrian forces_std (λ_g)", "o", CAT[0]),
+        for sd, lab, mk, col in (((sm, "Mondrian σ_F (λ_g)", "o", CAT[0]),
                                                  (sg, "global λ_F", "s", CAT[1]))):
             bx, by = binned(sd, e, sd)
             ax.plot(bx, by, marker=mk, color=col, lw=2, ms=6, mec=SURFACE, label=lab, zorder=3)
@@ -252,7 +252,7 @@ def force_calibration(results, out, nbins=20):
         ax.legend(fontsize=7, frameon=False, loc="upper left")
         ax = axes[1, j]
         _style(ax)
-        for sd, lab, mk, col in (((sm, "Mondrian forces_std (λ_g)", "o", CAT[0]),
+        for sd, lab, mk, col in (((sm, "Mondrian σ_F (λ_g)", "o", CAT[0]),
                                                  (sg, "global λ_F", "s", CAT[1]))):
             bx, by = binned(e, sd, e)
             ax.plot(bx, by, marker=mk, color=col, lw=2, ms=6, mec=SURFACE, label=lab, zorder=3)

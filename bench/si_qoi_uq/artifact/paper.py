@@ -137,7 +137,8 @@ heterogeneous across local environments (distortion, coordination) and correlate
   average; the name refers to the rectangles of Piet Mondrian's paintings. Because atoms in one configuration are correlated, the
   quantiles weight configurations, not atoms [Dunn, Wasserman and Ramdas 2023]. The quantiles come from a stratified hold-out of the training set, with a fitted transfer exponent carrying
   them to the full fit, and give coverage at the level of configurations.</li>
-  <li>It is served by ace-jax as forces_std, forces_cov and a conformal region per atom (Sections 3.1 and 7.7).</li>
+  <li>The open-source ace-jax package [ace-jax] provides this for every predicted force: a standard deviation, a 3×3 covariance
+  and a conformal region (Sections 3.1 and 7.7).</li>
   </ul></li>
 <li><b>Gap 2: derived properties.</b> A QoI depends on every atom and on relaxed geometries, so per-atom intervals cannot be
 combined into a QoI interval. A QoI's uncertainty has two parts [Simmons, Hudson, Swinburne and Kermode, in prep.]. The
@@ -225,7 +226,7 @@ type-II maximum likelihood in the prior-scaled system \(S=D^{{-1}}AD^{{-1}}\), \
 <p><b>QR evidence.</b> Near-interpolating fits leave \(\operatorname{{cond}}(S)\) beyond \(1/\epsilon_{{\text{{mach}}}}\). The evidence, its
 gradient and Hessian, and the posterior are therefore computed from the QR factor of
 \([\operatorname{{diag}}(e^{{a_{{k(j)}}/2}});\,R_qD^{{-1}}/\sigma_q]_q=Q_SR_S\) (so \(R_S^{{\mathsf T}}R_S=S\)), whose condition number is
-\(\sqrt{{\operatorname{{cond}}(S)}}\). The posterior stores \(R_S^{{\mathsf T}}\) as its Cholesky factor, so the CR3 jackknife and the served variances are unchanged. The \(a_k\) are bounded below at
+\(\sqrt{{\operatorname{{cond}}(S)}}\). The posterior stores \(R_S^{{\mathsf T}}\) as its Cholesky factor, so the CR3 jackknife and the per-atom force variances are unchanged. The \(a_k\) are bounded below at
 \(a_{{\text{{floor}}}}=\log(\lambda_{{\max}}/10^{{22}})\), with \(\lambda_{{\max}}\) the largest eigenvalue of the data part of \(S\)
 (\(D^{{-1}}\Psi^{{\mathsf T}}\Psi D^{{-1}}\)) at the starting noise scales, and an endpoint with every \(a_k\) on the floor and the gradient pointing below it
 is flagged as degenerate and refused.</p>
@@ -283,10 +284,10 @@ them. The groups depend on geometry only, never on labels or scores.</p>
 (the default) is</p>
 \[ s_i=\sqrt{e_i^{\mathsf T}\big(V_{\text{fit}}(x_i)+\epsilon_i I\big)^{-1}e_i},\qquad \epsilon_i=10^{-3}\,\tfrac13\operatorname{tr}V_{\text{fit}}(x_i), \]
 <p>and \(s/\lambda\sim\chi_3\) (the chi distribution with three degrees of freedom) under \(e\sim\mathcal N(0,\lambda^2V)\). The isotropic alternative is \(|e|/\sqrt{v/3}\).</p>
-<p><b>Transfer to the full training set.</b> The served posterior is fitted on all of \(T\), about 25 % more data than
+<p><b>Transfer to the full training set.</b> The final posterior is fitted on all of \(T\), about 25 % more data than
 \(P_{\text{fit}}\). A second hold-out fit \(P_{\text{fit2}}\) on a stratified subset of \(T_{\text{fit}}\) scores the same
 \(T_{\text{val}}\) atoms. With \(N\), \(N_{\text{fit}}\), \(N_{\text{fit2}}\) the numbers of
-configurations behind the served, first and second fits, and \(\lambda_1,\lambda_2\) the pooled RMS scores of \(P_{\text{fit}}\) and \(P_{\text{fit2}}\),
+configurations behind the final, first and second fits, and \(\lambda_1,\lambda_2\) the pooled RMS scores of \(P_{\text{fit}}\) and \(P_{\text{fit2}}\),
 \(\beta=\operatorname{clip}\big(\log(\lambda_1/\lambda_2)/\log(N_{\text{fit}}/N_{\text{fit2}}),0,\tfrac12\big)\) and every score is
 multiplied by \(f_{\text{tr}}=(N/N_{\text{fit}})^\beta\). \(\beta=0\) is the variance-dominated limit and \(\tfrac12\) the bias-dominated one.</p>
 <p><b>Scales.</b> Each calibration configuration carries total weight 1 in every group it populates (atom weight \(1/n_{c,g}\), with \(n_{c,g}\) the atoms of configuration \(c\) in group \(g\), and \(n_{\text{cfg},g}\)
@@ -296,9 +297,8 @@ The RMS scale and the conformal quantile of group \(g\) are</p>
    q_g=\inf\{s:\hat F_g(s)\ge1-\alpha\}, \]
 <p>where \(\hat F_g\) is the configuration-weighted score distribution with a test point at \(+\infty\) (the pooled-CDF
 construction of Dunn, Wasserman and Ramdas), and \(1-\alpha\) the target coverage. The default is \(\alpha=0.1\).</p>
-<p><b>Served quantities.</b> \(\texttt{forces\_std}=\lambda_g^{\text{rms}}\sqrt v\) and \(\texttt{forces\_cov}=(\lambda_g^{\text{rms}})^2V\)
-are the Gaussian reading, with \(g\) the atom's group. For a force error \(\Delta F\), the conformal region is \(\{\Delta F:\Delta F^{\mathsf T}(V+\epsilon I)^{-1}\Delta F\le q_g^2\}\), with
-\(\texttt{forces\_q}\) its largest semi-axis. Assuming exchangeability of calibration and target configurations within a group,
+<p><b>Per-atom outputs.</b> The force standard deviation \(\sigma_{F,i}=\lambda_g^{\text{rms}}\sqrt v\) and covariance
+\(C_{F,i}=(\lambda_g^{\text{rms}})^2V\) are the Gaussian reading, with \(g\) the atom's group. For a force error \(\Delta F\), the conformal region is \(\{\Delta F:\Delta F^{\mathsf T}(V+\epsilon I)^{-1}\Delta F\le q_g^2\}\), and its largest semi-axis gives a single size for it. Assuming exchangeability of calibration and target configurations within a group,
 the region covers a uniformly chosen atom of the group in a new configuration with probability \(\approx1-\alpha\); the
 finite-sample correction is set by the number of configurations, not atoms. The ratio
 \(\varrho_g=q_g/(\lambda_g^{\text{rms}}\chi_3^{-1}(1-\alpha))\), with \(\chi_3^{-1}\) the \(\chi_3\) quantile function, measures tails heavier than
@@ -308,7 +308,7 @@ but does not rescale σ.</p>
 <p><b>Why the propagation does not use these scales.</b> λ<sub>g</sub> and q<sub>g</sub> temper force <em>outputs</em> atom by
 atom. They do not define a covariance in θ, and a QoI depends on every atom and on relaxed geometries. Propagation therefore uses one
 global λ (Section 4). The groups also enter this study as a diagnostic breakdown of the test-split scores (Figure 5), and
-Section 7.7 tests the served per-atom forces themselves. Energies and virials are served with the unscaled posterior
+Section 7.7 tests these per-atom force uncertainties directly. Energy and virial uncertainties use the unscaled posterior
 variance.</p>
 <h3>3.2 Baselines</h3>
 <p><b>B1 (posterior + conformal):</b> \(\Sigma=A^{-1}\) (the epistemic posterior) scaled by one conformal quantile \(\hat q\) of
@@ -757,21 +757,21 @@ for m in ("o4d20", "o3d12"):
                     f"<td class=n>{int(z['n_cfg'][g])}</td><td class=n>{int(mk.sum())}</td>"
                     f"<td class=n>{float(_np.mean(z['score'][mk] <= z['q'][mk])):.3f}</td><td class=n>{rr(mk):.2f}</td></tr>")
 sec("results-forces", "7.7  Calibrated per-atom forces (Mondrian conformal)", f"""
-<p>Served per-atom force uncertainty against the observed error on the 248 test configurations, from the ARD fits of
+<p>Per-atom force uncertainty against the observed error on the 248 test configurations, from the ARD fits of
 PR #137 (the posterior files that hold the Mondrian groups and scales; models: {", ".join(fc_have) or "pending"}). Symmetry-zero
 atoms are dropped, as in the scale diagnostics.</p>
 <figure><img src="fig7_force_calibration.png" alt="Per-atom force uncertainty against observed error, binned on predicted sigma and on observed error, for each model"><figcaption>Figure 7.
-Top: binned on predicted σ (20 equal-count bins), RMS observed |ΔF| against RMS σ, for the served Mondrian
-<code>forces_std</code> and for the global λ<sub>F</sub> of the propagation, with the per-atom density behind; points below
+Top: binned on predicted σ (20 equal-count bins), RMS observed |ΔF| against RMS σ, for the Mondrian
+σ<sub>F,i</sub> and for the global λ<sub>F</sub> of the propagation, with the per-atom density behind; points below
 the diagonal are conservative. Bottom: binned on observed |ΔF|. Binning on the observed error regresses towards the mean, so
 the low-error bins read as under-confident and the high-error bins as over-confident even for a calibrated σ.</figcaption></figure>
 <div class="wrap"><table><caption>Table 11. Per Mondrian group: the fitted scales (λ<sub>g</sub>, q<sub>g</sub> at α = 0.1),
-calibration configurations, test atoms, test coverage of the anisotropic conformal region, and RMS |ΔF|/forces_std
+calibration configurations, test atoms, test coverage of the anisotropic conformal region, and RMS |ΔF|/σ<sub>F,i</sub>
 (1 is calibrated in the Gaussian reading).</caption>
 <thead><tr><th>model</th><th>group</th><th>λ<sub>g</sub></th><th>q<sub>g</sub></th><th>cal. configs</th><th>test atoms</th><th>coverage</th><th>RMS |ΔF|/σ</th></tr></thead>
 <tbody>{fc_rows}</tbody></table></div>
 <p class="note">The conformal regions hold their nominal 90 % on the test split overall and roughly per group. The Gaussian reading
-of <code>forces_std</code> is conservative (RMS ratio below 1), because λ<sub>g</sub> is the RMS of heavy-tailed scores. The extreme case is
+of σ<sub>F,i</sub> is conservative (RMS ratio below 1), because λ<sub>g</sub> is the RMS of heavy-tailed scores. The extreme case is
 o4d20's bulk-like group 0 (half the test atoms): λ<sub>0</sub> is 4–6× the other groups' and its σ about 3.6× too wide, while its quantile
 region still covers at the nominal rate. The RMS scale is dominated by a few extreme hold-out scores; the conformal quantile is
 robust to them. Here λ<sub>F</sub>
@@ -814,6 +814,7 @@ sec("refs", "References", """<p class="note">Checked against publisher or reposi
 <li>I. R. Best, T. J. Sullivan, J. R. Kermode, Uncertainty quantification in atomistic simulations of silicon using interatomic potentials, J. Chem. Phys. 161 (2024), doi:10.1063/5.0214590.</li>
 <li>F. Bigi, S. Chong, M. Ceriotti, F. Grasselli, A prediction rigidity formalism for low-cost uncertainties in trained neural networks, Mach. Learn.: Sci. Technol. 5, 045018 (2024).</li>
 <li>R. D. Cook, S. Weisberg, Residuals and Influence in Regression, Chapman and Hall (1982): predicted residuals and PRESS, Sec. 2.2; deletion of a subset of cases, \\(\\hat\\beta-\\hat\\beta_{(I)}=(X^{\\mathsf T}X)^{-1}X_I^{\\mathsf T}(I-V_I)^{-1}e_I\\), Sec. 3.6, eq. 3.6.3.</li>
+<li>ace-jax: atomic cluster expansion potentials in JAX, https://github.com/ACEsuit/ace-jax.</li>
 <li>R. Drautz, Atomic cluster expansion for accurate and transferable interatomic potentials, Phys. Rev. B 99, 014104 (2019).</li>
 <li>R. Dunn, L. Wasserman, A. Ramdas, Distribution-free prediction sets for two-layer hierarchical models, J. Am. Stat. Assoc. 118, 2491–2502 (2023).</li>
 <li>A. Grossfield, D. M. Zuckerman, Quantifying uncertainty and sampling quality in biomolecular simulations, in Annual Reports in Computational Chemistry, Vol. 5, Elsevier (2009).</li>
