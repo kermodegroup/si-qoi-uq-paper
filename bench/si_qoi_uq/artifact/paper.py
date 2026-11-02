@@ -492,7 +492,7 @@ relaxed defect's formation row point in different directions in θ, so coverage 
 <p><b>Estimator.</b> The intercept can be formed with each defect snapshot's nearest bulk snapshot as reference (paired; the form
 that is also the synthetic row above) or with a bulk thermal trend fitted over all bulk cells near the defect volume (regression).
 The headline uses regression for interstitials (data-only evidence, Table 7c) and, for the vacancy, regression per training-cell
-size (63 and 215 atoms) combined by inverse variance, because the two sizes disagree and one pooled trend is rejected (Section 3.9).</p>
+size (63 and 215 atoms) combined by inverse variance, because the two sizes disagree and one pooled trend is rejected (Section 3.8).</p>
 <p><b>Discrepancy term.</b> For the QoIs of defect class \(t\), the variance becomes
 \(\sigma_Q^2=\sigma_{Q,\text{method}}^2+r^{*2}_t+s^{*2}_t\), with \(\sigma_{Q,\text{method}}\) the σ of the UQ method without the term (interstitial class for the three interstitials; vacancy class for the
 vacancy). Every other QoI is unchanged. This leaves the pure parameter-space propagation for these QoIs and is reported as a
@@ -551,6 +551,24 @@ DEF_Q = (("vacancy_energy", "vacancy"), ("dumbbell_interstitial_energy", "dumbbe
          ("hexagonal_interstitial_energy", "hexagonal int."), ("tetrahedral_interstitial_energy", "tetrahedral int."))
 qrow = lambda m, k, meth="CR3-headline", sc="lam_F": next((r for r in rd("qoi_uq.csv") if r["model"] == m and r["qoi"] == k
                                                           and r["method"] == meth and r["scale"] == sc), None)
+_qrows = rd("qoi_uq.csv")
+_QN = {"vacancy_energy": "the vacancy", "dumbbell_interstitial_energy": "the dumbbell", "hexagonal_interstitial_energy": "the hexagonal",
+       "tetrahedral_interstitial_energy": "the tetrahedral interstitial", "surface_100 (J/m2)": "the (100) surface energy",
+       "gamma_us glide (J/m2)": "γ<sub>us</sub> glide", "gamma_us shuffle (J/m2)": "γ<sub>us</sub> shuffle",
+       "decohesion_max_stress": "the decohesion stress"}
+_qn = lambda k: _QN.get(k) or (k.replace("dE_", "the ").replace(" (meV/at)", " phase energy") if k.startswith("dE_") else k)
+def misses(m, meth="CR3-headline", sc="lam_F"):
+    return [_qn(r["qoi"])
+            for r in _qrows if r["model"] == m and r["method"] == meth and r["scale"] == sc and r["z"] not in ("", None)
+            and abs(float(r["z"])) > 1.96]
+def miss_txt(m):
+    ms = misses(m)
+    ints = ["the dumbbell", "the hexagonal", "the tetrahedral interstitial"]
+    if all(x in ms for x in ints):
+        ms = ["the three interstitial formation energies"] + [x for x in ms if x not in ints]
+    return ms[0] if len(ms) == 1 else ", ".join(ms[:-1]) + " and " + ms[-1]
+k95 = lambda m, meth, sc: (lambda r: f"{int(float(r['k95']))}/{int(float(r['n']))}" if r else "?")(get(m, meth, sc))
+sot = lambda m, meth, sc: (lambda r: f"{float(r['median_sigma_over_tol']):.2f}" if r else "?")(get(m, meth, sc))
 tight = (head["o3d12"]["median_sigma_over_tol"] / head["o4d20"]["median_sigma_over_tol"]) if all(head.get(m) for m in ("o3d12", "o4d20")) else float("nan")
 sec("results", "3.4  Coverage and sharpness", f"""
 <div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % CI]) and sharpness, for the four methods of Figures 1 and 1b.</caption>
@@ -561,6 +579,25 @@ with the energy, virial or pooled scale (Section 3.3), the full re-run at λ<sub
 and POPS with the 50 % leverage cut (Section 3.7).</caption>
 <thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th></tr></thead>
 <tbody>{sens_rows}</tbody></table></div>
+<p>With the headline CR3 × λ<sub>F</sub>, {k95("o3d12", "CR3-headline", "lam_F")} QoIs of o3d12 and {k95("o4d20", "CR3-headline", "lam_F")}
+of o4d20 lie inside their 95 % intervals (Table 3, Figure 1 top row, Figure 1b). Both counts are below the nominal 19, and o4d20's is
+below the 17 that a true 95 % coverage makes plausible (Section 3.1). The misses are not spread across the QoIs. For o3d12 they are
+{miss_txt("o3d12")}; for o4d20 they are {miss_txt("o4d20")}. The interstitial formation energies, missed by both
+models, are the subject of Section 3.8: they share a bias that a delete-one jackknife cannot see, not a scale that is too small.
+Elsewhere the 95 % intervals reach DFT, and the 68 % counts ({int(float(get("o3d12", "CR3-headline", "lam_F")["k68"]))} and
+{int(float(get("o4d20", "CR3-headline", "lam_F")["k68"]))} of 20, against a nominal 13.6) are close to nominal.</p>
+<p>The intervals follow the accuracy of the model. The median σ/tol is {sot("o4d20", "CR3-headline", "lam_F")} for o4d20 and
+{sot("o3d12", "CR3-headline", "lam_F")} for o3d12, {tight:.1f}× wider: o4d20's intervals are mostly inside the benchmark tolerance, and
+o3d12's are wider than it, as they should be for a model whose typical QoI error is about one tolerance (Figure 0). So one scale fitted
+to held-out forces gives similar coverage for both models while the intervals shrink with model quality.</p>
+<p>The baselines (Section 3.7) cover fewer QoIs at comparable or smaller widths. The sensitivity table (Table 3b) shows that the choice of
+scale matters at the margin. The virial scale λ<sub>V</sub>, larger than λ<sub>F</sub> by about a third, covers
+{k95("o3d12", "CR3-headline", "lam_V")} and {k95("o4d20", "CR3-headline", "lam_V")} at the price of wider intervals (median σ/tol
+{sot("o3d12", "CR3-headline", "lam_V")} and {sot("o4d20", "CR3-headline", "lam_V")}); λ<sub>E</sub> and λ<sub>pool</sub> give about the
+same as λ<sub>F</sub>. The full committee re-run at λ<sub>F</sub>, keeping only physical members, covers
+{k95("o3d12", "CR3-committee-lamF-physical", "lam_F")} and {k95("o4d20", "CR3-committee-lamF-physical", "lam_F")}, against
+{k95("o3d12", "CR3-headline", "lam_F")} and {k95("o4d20", "CR3-headline", "lam_F")} for the headline. The differences come mainly from the
+phase energies, which are strongly nonlinear in θ at λ<sub>F</sub> (Section 3.6).</p>
 <figure><img src="fig6_model_compare.png" alt="Per QoI, error over tolerance with 95 percent intervals for o4d20 and o3d12, DFT as crosses at zero; one row each for the headline and the three baselines"><figcaption>Figure 1. Model prediction minus DFT, in units of the benchmark tolerance, with the 95 % interval, for o4d20
 (circles) and o3d12 (squares); DFT is the cross at 0 and the shaded band is ± 1 tolerance. The axis is linear within ± 1 and
 logarithmic beyond, and is shared by all rows. Top row: the headline, CR3 × λ<sub>F</sub>; the larger model's intervals are
@@ -705,7 +742,7 @@ models' own harness values: paired / regression prediction, eV).</caption>
 from 2-atom bulk cells, so a partner's residual enters ×108 (0.35 eV RMS, the size of the bias), its standard error is larger, and
 it extrapolates worse to held-out cold snapshots (half the RMSE for regression, in both models; likewise for divacancies). The
 model-against-model test does not separate them (both inside the true spread), and neither estimator handles the vacancy in any test.
-<b>The headline therefore uses regression for interstitials;</b> the vacancy is treated in Section 3.9. The regression estimator also agrees
+<b>The headline therefore uses regression for interstitials;</b> the vacancy is treated in Section 3.8. The regression estimator also agrees
 better with the observed interstitial errors. That was seen before the data-only tests were run and is not part of the
 argument, but it means the choice was not made blind; the all-paired result is kept as a sensitivity.</p>
 <div class="wrap"><table><caption>Table 8. Defect QoIs, CR3 × λ<sub>F</sub>: error, σ without and with the discrepancy term
@@ -713,7 +750,7 @@ argument, but it means the choice was not made blind; the all-paired result is k
 <thead><tr><th>model</th><th>QoI</th><th>DFT − model</th><th>σ</th><th>σ with term</th><th>z</th></tr></thead>
 <tbody>{dz_rows}</tbody></table></div>""", "drafted", level=3)
 
-sec("results-vacancy", "3.9  The vacancy", f"""
+sec("results-vacancy", "The vacancy", f"""
 <p>The vacancy shows no thermal trend in either pooled estimator, and both fail the model-against-model test. The training
 vacancy cells come in two sizes, 63 and 215 atoms, and the sizes disagree.</p>
 <div class="wrap"><table><caption>Table 8b. Zero-temperature vacancy bias from the regression form, per training-cell size, the
@@ -732,9 +769,9 @@ neighbour distances {geo_txt}); the harness gives no DFT structure to compare.</
 model-against-model checks. The choice rests on those checks and on the cold cell, which use no DFT QoI value.</p>
 <figure><img src="fig8_model_compare_disc.png" alt="Per QoI, error over tolerance with 95 percent intervals for both models with the defect discrepancy term, the vacancy from the per-size estimator; intervals without the term as thin black bars, and the vacancy with the pooled-size estimator as dashed grey bars"><figcaption>Figure 8.
 As Figure 1, with the headline discrepancy term on the four defect QoIs (CR3 × λ<sub>F</sub>): the regression estimator for the
-interstitials (Section 3.8) and the per-size inverse-variance estimator for the vacancy (Section 3.9). Thin black bars: the same QoIs'
+interstitials (Section 3.8) and the per-size inverse-variance estimator for the vacancy (Section 3.8). Thin black bars: the same QoIs'
 95 % intervals without the term. Dashed grey bars: the vacancy with the pooled-size regression estimator, which hardly widens it.
-Only the four defect QoIs change.</figcaption></figure>""", "drafted", level=3)
+Only the four defect QoIs change.</figcaption></figure>""", "", level=4)
 
 import numpy as _np
 fc_rows = ""
