@@ -374,7 +374,8 @@ sec("method-prop", "2.8  Propagation to QoIs", r"""
 <p>The distribution propagated is \(\theta\sim\mathcal N(\hat\theta,\lambda^2LL^{\mathsf T})\); one sample gives energy, forces and
 stress consistently. Per-atom force ellipsoids are never combined.</p>
 <h4>2.8.1 The QoIs</h4>
-<p>The 21 QoIs and tolerances of the ace-jax silicon benchmark (py3 port of the silicon testing framework; CASTEP references):
+<p>The 21 QoIs are those of the silicon test suite of Bartók et al. [2018], with their DFT (CASTEP) reference values, run with
+the tolerances of the ace-jax silicon benchmark (a Python 3 port of that test framework):
 C<sub>11</sub>, C<sub>12</sub>, C<sub>44</sub>, B; eight phase energies relative to diamond (compressed hcp excluded as extrapolation);
 vacancy and three interstitial formation energies (216-atom cells); the relaxed (100) surface energy; the maximum unrelaxed
 decohesion stress; the glide and shuffle unstable stacking-fault energies; the phonon RMS against DFT. Every protocol starts
