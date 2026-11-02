@@ -111,61 +111,59 @@ shares is invisible to a jackknife, but it can be measured from the training lab
 coverage.</p>""", "draft")
 
 sec("intro", "1  Introduction", """
-<ul class="plan">
-<li><b>Motivation.</b> Uncertainty is needed for forces (on-the-fly error control in MD, active learning) and for the derived
-properties a potential is built to predict. Machine-learned potentials are misspecified: the labels are deterministic and the
-error is approximation error. The Bayesian posterior is then far too narrow: under misspecification it concentrates at the
-best-fitting parameters at a rate set by the amount of data, not by the size of the model error, and collapses to a point as
-N<sub>data</sub> → ∞ while the prediction error stays finite [Kleijn and van der Vaart 2012; Müller 2013; Swinburne and Perez 2024].</li>
-<li><b>Gap 1: per-atom force uncertainty.</b> Committees and ensembles are costly and need their own calibration; posterior
-variances are miscalibrated; marginal conformal prediction covers on average but not by environment, and errors are strongly
-heterogeneous across local environments (distortion, coordination) and correlated within a configuration.</li>
-<li><b>Contribution A, new in this paper:</b> calibrated per-atom forces for linear ACE.
-  <ul>
-  <li>The shape is a cluster-robust ("sandwich") covariance of the coefficients, with each training configuration as one cluster
-  of correlated rows. We use the variant proposed by Bell and McCaffrey [2002] and named CR3 by Pustejovsky and Tipton [2018] (CV3 in
-  MacKinnon, Nielsen and Webb [2023]). It is the cluster form of the heteroskedasticity-consistent HC3 estimator [MacKinnon and White
-  1985]. CR3 is the delete-one-cluster jackknife: it measures how far the fitted coefficients move
-  when each configuration is left out. It is computed exactly without refitting, from the PRESS (predicted residual error sum of
-  squares) residuals: the residuals each row would have if its cluster were left out of the fit, obtained from the ordinary residuals
-  by a leverage correction (for a single row, dividing by one minus its leverage; for a cluster, the matrix analogue) [Allen 1974; Cook and Weisberg 1982]. Its per-atom
-  3×3 block gives anisotropic force regions.</li>
-  <li>The scale is fitted by Mondrian conformal prediction [Vovk et al. 2003; Vovk, Gammerman and Shafer 2005]. Conformal
-  prediction turns the scores of held-out calibration points into a quantile that covers a new point with a guaranteed probability,
-  under exchangeability. The Mondrian variant splits the points into categories, here groups of local environments
-  (shell-distortion bands × coordination), and calibrates each category on its own, so coverage holds within each group and not only on
-  average; the name refers to the rectangles of Piet Mondrian's paintings. Because atoms in one configuration are correlated, the
-  quantiles weight configurations, not atoms [Dunn, Wasserman and Ramdas 2023]. The quantiles come from a stratified hold-out of the training set, with a fitted transfer exponent carrying
-  them to the full fit, and give coverage at the level of configurations.</li>
-  <li>The open-source ace-jax package [ace-jax] provides this for every predicted force: a standard deviation, a 3×3 covariance
-  and a conformal region (Sections 3.1 and 7.7).</li>
-  </ul></li>
-<li><b>Gap 2: derived properties.</b> A QoI depends on every atom and on relaxed geometries, so per-atom intervals cannot be
-combined into a QoI interval. A QoI's uncertainty has two parts [Simmons, Hudson, Swinburne and Kermode, in prep.]. The
+<p>Machine-learned interatomic potentials are used for forces, in molecular dynamics and in active learning where force errors
+must be controlled during a simulation, and for the derived properties that a potential is built to predict. Both uses need an
+uncertainty. The training labels are deterministic DFT energies, forces and stresses, so the error of a potential is approximation
+error: the model is misspecified. A Bayesian posterior is then far too narrow. Under misspecification it concentrates at the
+best-fitting parameters at a rate set by the amount of data, not by the size of the model error, and it collapses to a point as
+N<sub>data</sub> → ∞ while the prediction error stays finite [Kleijn and van der Vaart 2012; Müller 2013; Swinburne and Perez 2024].</p>
+<p>The most widely used alternatives for forces are committees and ensembles of models [Musil et al. 2019; Imbalzano et al. 2021;
+Kellner and Ceriotti 2024] and approximate posteriors on the last layer of a network [Bigi et al. 2024]. They need several fits, or a
+calibration of their own. Conformal prediction gives intervals with guaranteed coverage under exchangeability [Vovk, Gammerman and
+Shafer 2005; Tibshirani et al. 2019; Barber et al. 2021], and Best et al. [2024] combined it with ensembles of ACE potentials for
+silicon. A single conformal scale covers on average, however, while force errors vary strongly between local environments and are
+correlated within a configuration.</p>
+<p>In this paper we construct calibrated per-atom force uncertainties for linear atomic cluster expansion (ACE) potentials [Drautz
+2019] from two parts. The shape is a cluster-robust ("sandwich") covariance of the coefficients [Huber 1967; White 1982], with each
+training configuration as one cluster of correlated rows. We use the variant proposed by Bell and McCaffrey [2002] and named CR3 by
+Pustejovsky and Tipton [2018] (CV3 in MacKinnon, Nielsen and Webb [2023]), the cluster form of the heteroskedasticity-consistent HC3
+estimator [MacKinnon and White 1985]. CR3 is the delete-one-cluster jackknife: it measures how far the fitted coefficients move when
+each configuration is left out. It is computed exactly, without refitting, from the PRESS (predicted residual error sum of squares)
+residuals. These are the residuals each row would have if its cluster were left out of the fit, and they follow from the ordinary
+residuals by a leverage correction: for one row, division by one minus its leverage; for a cluster, the matrix analogue [Allen 1974;
+Cook and Weisberg 1982]. The per-atom 3×3 block of the covariance gives anisotropic force regions.</p>
+<p>The scale comes from Mondrian conformal prediction [Vovk et al. 2003; Vovk, Gammerman and Shafer 2005]. Conformal prediction
+turns the scores of held-out calibration points into a quantile that covers a new point with a guaranteed probability. The Mondrian
+variant splits the points into categories and calibrates each category on its own, so that coverage holds within each category and
+not only on average; the name refers to the rectangles of Piet Mondrian's paintings. Our categories are groups of local
+environments, defined by bands of shell distortion and by coordination. Because the atoms of one configuration are correlated, the
+quantiles weight configurations, not atoms [Dunn, Wasserman and Ramdas 2023]. They come from a stratified hold-out of the training
+set, and a fitted transfer exponent carries them to the fit on all the data. The open-source ace-jax package [ace-jax] provides
+these uncertainties for every predicted force: a standard deviation, a 3×3 covariance and a conformal region (Sections 3.1 and
+7.7).</p>
+<p>Per-atom intervals cannot be combined into an interval on a derived property, a quantity of interest (QoI), because a QoI depends
+on every atom and on relaxed geometries. A QoI's uncertainty has two parts [Simmons, Hudson, Swinburne and Kermode, in prep.]. The
 aleatoric part is the sampling error of the simulation that computes the QoI, assessed with statistical convergence tests
-[Grossfield and Zuckerman 2009; Lelièvre, Rousset and Stoltz 2010, Sec. 2.3]. The epistemic part comes from the uncertainty in
-the fit. It is most widely estimated with a committee of \\(n\\) potentials, an idea long established in statistics [Hoeting et
-al. 1999]. If member \\(i\\) predicts \\(D_i\\sim\\mathcal N(\\mu_i,\\sigma_i^2)\\), independently, the predictive variance
-\\(\\tfrac1n\\sum_i\\sigma_i^2+\\tfrac1{n-1}\\sum_i(\\mu_i-\\bar\\mu)^2\\) is the mean aleatoric variance plus the committee's
-spread of means, the epistemic part. The QoIs here come from relaxations and static calculations, so their aleatoric part is zero
-and their uncertainty is purely epistemic. For a linear model the consistent object is a distribution over coefficients θ: one draw gives
-energies, forces and stresses together, and any QoI follows.</li>
-<li><b>Contribution B:</b> propagation of the same CR3 distribution, with one scale fitted to held-out forces, to 21 silicon QoIs.
-It uses implicit differentiation through every relaxation, including the lattice constant, cross-checked by committees of the
-unmodified benchmark harness, and tests the intervals against DFT with binomial and joint tests and against two baselines: the
-posterior with one conformal scale, and POPS.</li>
-<li><b>Contribution C:</b> where calibrated parameter-space UQ fails, and why. A bias shared by all training snapshots of a kind
-(here, every defect cell is hot) is invisible to any delete-one jackknife. We diagnose it, measure it from training labels, and
-compare a discrepancy term, a coarser jackknife and reweighted fits (difference rows, IRLS). Along the way: a QR evidence for ARD,
-whose Cholesky form was pinned at its floor on these fits.</li>
-<li><b>Related work:</b> conformal prediction (Vovk et al. 2005; Tibshirani et al. 2019 covariate shift; Barber et al.
-2021 jackknife+; Dunn et al. 2023 hierarchical); cluster-robust and sandwich covariances (Huber 1967; White 1982; Müller 2013;
-MacKinnon et al. 2023); UQ for interatomic potentials (Musil et al. 2019 and Imbalzano et al. 2021 committees; Bigi et al. 2024
-prediction rigidities with a last-layer approximation; Kellner and Ceriotti 2024 shallow ensembles; Swinburne and Perez 2024 POPS;
-Best et al. 2024 silicon UQ with ACE ensembles and conformal prediction; Bartók et al. 2018 GAP-18).</li>
-<li><b>Outline.</b> Section 2: the linear ACE fit and ARD. Section 3: the CR3 shape and the per-atom calibration. Sections 4–6: global
-scale, propagation and validation. Section 7: results, defects and ablations. Section 8: discussion.</li>
-</ul>""", "outline")
+[Grossfield and Zuckerman 2009; Lelièvre, Rousset and Stoltz 2010, Sec. 2.3]. The epistemic part comes from the uncertainty in the
+fit. It is most widely estimated with a committee of \\(n\\) potentials, an idea long established in statistics [Hoeting et al.
+1999]. If member \\(i\\) predicts \\(D_i\\sim\\mathcal N(\\mu_i,\\sigma_i^2)\\), independently, the predictive variance
+\\(\\tfrac1n\\sum_i\\sigma_i^2+\\tfrac1{n-1}\\sum_i(\\mu_i-\\bar\\mu)^2\\) is the mean aleatoric variance plus the committee's spread of
+means, the epistemic part. The QoIs here come from relaxations and static calculations, so their aleatoric part is zero and their
+uncertainty is purely epistemic. For a linear model the consistent object is then a distribution over the coefficients θ: one draw
+gives energies, forces and stresses together, and every QoI follows from it.</p>
+<p>We propagate the same CR3 distribution, with one scale fitted to held-out forces, to 21 QoIs of silicon, for potentials fitted
+to the GAP-18 database [Bartók et al. 2018]. The propagation uses implicit differentiation through every relaxation, including that
+of the lattice constant, and is cross-checked by committees run through the unmodified benchmark protocol. We test the intervals
+against DFT, one QoI at a time and jointly, and compare them with two baselines: the posterior with one conformal scale, and
+pointwise optimal parameter sets (POPS) [Swinburne and Perez 2024].</p>
+<p>We also show where calibrated parameter-space uncertainty fails, and why. A bias that all training configurations of one kind
+share is invisible to any delete-one jackknife; in the GAP-18 database every defect cell is a hot molecular-dynamics snapshot. We
+diagnose this bias, measure it from the training labels alone, and compare three remedies: a discrepancy term, a coarser jackknife,
+and reweighted fits (defect–bulk difference rows, and iteratively reweighted least squares). Along the way we replace the Cholesky
+form of the evidence for automatic relevance determination (ARD), which was held at its lower bound on these fits, by a QR form.</p>
+<p>Section 2 describes the linear ACE fit and ARD, and Section 3 the CR3 shape and the per-atom calibration. Sections 4–6 give the
+global scale, the propagation and the validation statistics. Section 7 reports the results, the defect analysis and the ablations,
+and Section 8 discusses them.</p>""", "draft")
 
 sec("theory-model", "2  Linear ACE and its Bayesian fit", r"""
 <h3>2.1 Model and observations</h3>
