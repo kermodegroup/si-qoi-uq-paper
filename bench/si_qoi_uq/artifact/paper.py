@@ -99,25 +99,16 @@ _cv = {r["model"]: float(r["median_sigma_over_tol"]) for r in rd("coverage.csv")
 tight_ratio = _cv["o3d12"] / _cv["o4d20"] if {"o3d12", "o4d20"} <= set(_cv) else float("nan")
 
 sec("abstract", "Abstract", f"""
-<p>Machine-learned interatomic potentials are misspecified: the labels are deterministic, and their error is approximation error
-that a Bayesian posterior understates by a large factor. For linear atomic cluster expansion (ACE) potentials we build calibrated
-uncertainty in two steps, both from one misspecification-robust parameter covariance, the centred delete-one-configuration (CR3)
-jackknife sandwich. First, per-atom force uncertainties: the jackknife shape of each atom's force, scaled per Mondrian group of
-local environments (shell distortion × coordination) by configuration-weighted conformal quantiles fitted on a held-out part of the
-training set. On a held-out test split of the GAP-18 silicon database they reach their target coverage overall, and approximately within each
-group of environments. Second, because
-per-atom intervals cannot be combined into intervals on derived properties, the same parameter distribution, with one scale fitted
-to held-out forces, is propagated to 21 quantities of interest (QoIs) of silicon: elastic constants, phase energies, point defects,
-surface and stacking-fault energies, decohesion and phonons. Uncertainties come from implicit differentiation through each model's
-own relaxations and from committees of the full benchmark protocol, and are tested against DFT without tuning on any QoI.</p>
-<p class="result">We test this on a smaller and a larger linear ACE model. With one force-calibrated scale, the intervals cover most
-of the scored QoIs for both models, far more than the uncalibrated jackknife and more than the posterior with one conformal scale. The
-larger model's intervals are about {tight_ratio:.0f} times tighter at similar coverage. The misses are the relaxed point defects,
-which both models predict confidently wrong. Every training defect cell is a hot MD snapshot, and the model's defect–bulk energy
-error drifts with thermal amplitude. All clusters share this bias, so no delete-one jackknife can see it. The bias can be measured
-from the training labels alone by extrapolating to zero temperature. Added as a discrepancy term on the defect QoIs, it restores
-coverage at close to the nominal rate. Calibrated parameter-space uncertainty therefore transfers from forces to derived properties,
-except where the training data share a systematic gap with the target structures, and that gap can be detected from the data.</p>""", "draft")
+<p>Machine-learned interatomic potentials are misspecified, so Bayesian posterior variances understate their errors. For linear
+atomic cluster expansion (ACE) potentials we derive calibrated uncertainties from one misspecification-robust parameter
+covariance, the delete-one-configuration (CR3) jackknife. Scaled per group of local environments by conformal quantiles, it gives
+per-atom force uncertainties that reach their target coverage on held-out silicon data. With one scale fitted to held-out forces,
+the same parameter distribution is propagated to 21 properties of silicon, from elastic constants to defect and surface energies,
+by implicit differentiation through each relaxation and by committees, and is tested against DFT without tuning on any property.
+For a smaller and a larger model the intervals cover most properties, and the larger model's are about {tight_ratio:.0f} times
+tighter. The exceptions are relaxed point defects, whose training cells are all hot snapshots: a bias that every configuration
+shares is invisible to a jackknife, but it can be measured from the training labels, and as a discrepancy term it restores
+coverage.</p>""", "draft")
 
 sec("intro", "1  Introduction", """
 <ul class="plan">
@@ -770,6 +761,8 @@ training hold-out.</p>""", "partial")
 
 sec("discussion", "8  Discussion", """
 <ul class="plan">
+<li>Take-away (moved from the abstract): calibrated parameter-space uncertainty transfers from forces to derived properties, except
+where the training data share a systematic gap with the target structures, and that gap can be detected from the data.</li>
 <li>A force-calibrated parameter covariance transfers to most QoIs at the 95 % level; median σ/tolerance """ + "; ".join(
     f"{m} {head[m]['median_sigma_over_tol']:.2f}" for m in models if head[m]) + """ (the accurate model's intervals are
 inside the benchmark tolerance).</li>
