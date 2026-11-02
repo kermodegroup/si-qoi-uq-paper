@@ -158,11 +158,10 @@ against DFT, one QoI at a time and jointly, and compare them with two baselines:
 pointwise optimal parameter sets (POPS) [Swinburne and Perez 2024].</p>
 <p>We also show where calibrated parameter-space uncertainty fails, and why. A bias that all training configurations of one kind
 share is invisible to any delete-one jackknife; in the GAP-18 database every defect cell is a hot molecular-dynamics snapshot. We
-diagnose this bias, measure it from the training labels alone, and compare three remedies: a discrepancy term, a coarser jackknife,
-and reweighted fits (defect–bulk difference rows, and iteratively reweighted least squares).</p>
+diagnose this bias, measure it from the training labels alone, and compare two remedies that leave the fit unchanged: a
+discrepancy term and a coarser jackknife.</p>
 <p>Section 2 sets out the methodology: the linear ACE fit and ARD (2.1–2.3), the CR3 shape (2.4), the per-atom force calibration
-(2.5), the baselines (2.6), the propagation to QoIs (2.7), the discrepancy term for shared biases (2.8) and the reweighted fits
-(2.9). Section 3 gives the validation statistics and the results: the per-atom forces first, then the global scale that the
+(2.5), the baselines (2.6), the propagation to QoIs (2.7) and the discrepancy term for shared biases (2.8). Section 3 gives the validation statistics and the results: the per-atom forces first, then the global scale that the
 propagation uses, then the QoIs. Section 4 discusses them.</p>""", "draft")
 
 sec("theory-model", "2  Methodology", r"""
@@ -432,7 +431,7 @@ sec("method-disc", "2.8  Shared extrapolation bias: a discrepancy term for defec
 configuration does not move the fit along it. The defect formation energies expose such a bias. Every training interstitial,
 vacancy and divacancy cell is a hot MD snapshot, while the QoIs are relaxed defects.</p>
 <p><b>Measuring the bias from training labels.</b> Each training defect snapshot \(i\) is paired with the bulk snapshot
-nearest in volume and thermal amplitude, giving a difference row \(d_i=b_{\text{def},i}-(n_{\text{def}}/n_{\text{b}})\,b_{\text{bulk},i}\)
+nearest in volume and thermal amplitude, giving a defect–bulk contrast row \(d_i=b_{\text{def},i}-(n_{\text{def}}/n_{\text{b}})\,b_{\text{bulk},i}\)
 and target \(y_i=y_{\text{def},i}-(n_{\text{def}}/n_{\text{b}})\,y_{\text{bulk},i}\), with \(b\) the energy rows, \(y\) the energy labels
 and \(n_{\text{def}}\), \(n_{\text{b}}\) the atom counts of the two cells. Regressing the residual \(y_i-d_i\cdot\hat\theta\) on
 \(\eta_i=F_{\text{rms},i}^2\), the mean squared DFT force component of the defect cell (proportional to the thermal mean-square
@@ -458,33 +457,6 @@ size (63 and 215 atoms) combined by inverse variance, because the two sizes disa
 \(\sigma_Q^2=\sigma_{Q,\text{method}}^2+r^{*2}_t+s^{*2}_t\), with \(\sigma_{Q,\text{method}}\) the σ of the UQ method without the term (interstitial class for the three interstitials; vacancy class for the
 vacancy). Every other QoI is unchanged. This leaves the pure parameter-space propagation for these QoIs and is reported as a
 separate, labelled method.</p>""", "drafted", level=3)
-
-sec("method-reweight", "2.9  Changing the fit: defect–bulk difference rows and IRLS with automatic targets", r"""
-<p>These change θ̂, so they address accuracy rather than the UQ. They test whether the defect bias is a fitting
-compromise, which the weights can move, or a limit of the model. The prior (σ<sub>c</sub>) and shared noise stay at the
-benchmark's; each variant is a weighted least-squares solve by QR of \([\operatorname{diag}\sqrt\Lambda;\,\Omega_w\Phi]\), with \(\Omega_w\) the
-diagonal matrix of row weights (structural weight / noise scale, times the multipliers below).</p>
-<p><b>Difference rows.</b> The rows \(d_i\) of Section 2.8, with target \(y_i\), weighted at \(k\) times the defect cell's own
-energy-row weight (\(k\), the difference-row weight factor, is varied). <em>Augment</em> adds them to the design; <em>replace</em> also drops the defect cells' energy rows,
-keeping their force and virial rows. A difference row is a linear combination of existing rows: it adds no configuration,
-only weight on the defect–bulk contrast.</p>
-<p><b>IRLS with automatic targets.</b> Row groups \(\ell\) (not the Mondrian groups) are (config type, quantity) for energies per atom,
-force components and virials per atom, plus the difference rows as one group. Each group has a weight multiplier \(m_\ell\), an RMS
-error \(\epsilon_\ell\) and a reference scale \(s_\ell\); the multipliers are updated to equalise the normalised errors,</p>
-\[ e_\ell=\epsilon_\ell/s_\ell,\qquad m_\ell\leftarrow m_\ell\,(e_\ell/\bar e)^{\nu},\qquad m\leftarrow m/\bar m,\qquad m_\ell\in[10^{-2},10^{2}], \]
-<p>with \(\nu=0.5\) and \(\bar e,\bar m\) geometric means over groups. Types with fewer than 10 training configurations keep
-\(m_\ell=1\). Both \(\epsilon_\ell\) and the reference scales are 5-fold cross-validated over configurations within each type (by pair
-for the difference rows). With training-set errors, a boosted group of a few dozen energy rows is interpolated by 224
-parameters, its floor is near zero, and the balance cannot converge. Each (group, fold) is compressed once by QR, so a
-cross-validated evaluation costs five small solves. Two choices of \(s_\ell\):</p>
-<ul>
-<li><b>Regret:</b> the group's cross-validated floor, its \(\epsilon_\ell\) when the fit is weighted towards it alone (×100). Balanced means
-every group is equally far from the best this model can do for it. No QoI information enters.</li>
-<li><b>Tolerance-guided:</b> 0.1 eV per defect cell for the difference rows and 10 meV/atom for energies (the defect and phase
-QoI tolerances); forces and virials keep their regret floors. No DFT QoI value enters, but the weights are shaped by the
-thresholds that score the QoIs, so its QoI results are optimistic by construction.</li>
-</ul>
-<p>IRLS starts from the augmented fit at \(k=1\), since the difference-row group starts at \(m=1\).</p>""", "drafted", level=3)
 
 sec("method-valid", "3  Results", r"""
 <p class="note">Status: both models complete at the BLR fit, including both POPS committees; the ARD fits are summarised in Table 1. Every number below is read from
@@ -685,8 +657,7 @@ argument, but it means the choice was not made blind; the all-paired result is k
 (eV), and z.</caption>
 <thead><tr><th>model</th><th>QoI</th><th>DFT − model</th><th>σ</th><th>σ with term</th><th>z</th></tr></thead>
 <tbody>{dz_rows}</tbody></table></div>
-<p class="note">A delete-one-config-type jackknife, which stays in parameter space, is compared in Section 3.10. Changing the fit
-instead is reported in Section 3.11.</p>""", "drafted", level=3)
+<p>A delete-one-config-type jackknife, which stays in parameter space, is compared in Section 3.10.</p>""", "drafted", level=3)
 
 sec("results-vacancy", "3.9  The vacancy", f"""
 <p>The vacancy shows no thermal trend in either pooled estimator, and both fail the model-against-model test. The training
@@ -735,64 +706,6 @@ every defect QoI inside, without any discrepancy term, but at the price of inter
 within ±1σ against a nominal 68 %, so it over-covers. For o3d12 it does not reach the interstitials: there the hot-snapshot bias is
 shared across the interstitial, vacancy and divacancy types alike, so deleting one type still leaves it in the fit. It is a conservative,
 parameter-space alternative to the discrepancy term, not a calibrated fix.</p>""", "drafted", level=3)
-
-dr = json.load(open(RES / "diff_rows_o3d12.json")) if (RES / "diff_rows_o3d12.json").exists() else None
-ib = json.load(open(RES / "irls_balance_o3d12.json")) if (RES / "irls_balance_o3d12.json").exists() else None
-qv = {}
-COVER_ORDER = list(dict.fromkeys(r["qoi"] for r in rd("diff_rows_o3d12_qoi.csv")))
-for r in rd("diff_rows_o3d12_qoi.csv"):
-    qv.setdefault(("diff", r["variant"]), {})[r["qoi"]] = r["err_over_tol"]
-for r in rd("irls_balance_o3d12_qoi.csv"):
-    qv.setdefault(("irls", r["scheme"]), {})[r["qoi"]] = r["err_over_tol"]
-PH = [k for k in COVER_ORDER if k.startswith("dE_")]
-INT = ["dumbbell_interstitial_energy", "hexagonal_interstitial_energy", "tetrahedral_interstitial_energy"]
-
-
-def qsum(e):
-    v = [e[k] for k in COVER_ORDER if isinstance(e.get(k), float)]
-    worst = lambda ks: max((abs(e[k]) for k in ks if isinstance(e.get(k), float)), default=float("nan"))
-    rms = (sum(x * x for x in v) / len(v)) ** 0.5 if len(v) == len(COVER_ORDER) else float("nan")
-    return (f"<td class=n>{e.get('vacancy_energy', float('nan')):+.1f}</td><td class=n>{worst(INT):.1f}</td>"
-            f"<td class=n>{worst(PH):.1f}</td><td class=n>{rms:.1f}</td><td class=n>{sum(abs(x) <= 1 for x in v)}/{len(COVER_ORDER)}</td>")
-
-
-dr_rows = ""
-if dr:
-    for name, lab in (("base", "base (benchmark fit)"), ("augment_1", "augment, k = 1"), ("augment_3", "augment, k = 3"),
-                      ("augment_10", "augment, k = 10"), ("augment_30", "augment, k = 30"), ("replace_3", "replace, k = 3"),
-                      ("replace_10", "replace, k = 10")):
-        v = dr["variants"][name]
-        dr_rows += (f"<tr><td>{lab}</td><td class=n>{v['test']['E']:.1f}</td><td class=n>{v['test']['F']:.3f}</td>"
-                    f"<td class=n>{v['test']['V']:.0f}</td><td class=n>{v['train_diff_rms_eV']:.2f}</td>"
-                    f"<td class=n>{v['train_trend']['interstitial']['intercept_eV']:+.2f}</td>" + qsum(qv.get(("diff", name), {})) + "</tr>")
-ib_rows = ""
-if ib:
-    for name, lab in (("regret", "IRLS, regret (no QoI input)"), ("tolerance", "IRLS, tolerance-guided")):
-        v = ib["schemes"][name]
-        ib_rows += (f"<tr><td>{lab}</td><td class=n>{v['test']['all']['E']:.1f}</td><td class=n>{v['test']['all']['F']:.3f}</td>"
-                    f"<td class=n>{v['test']['all']['V']:.0f}</td><td class=n>{v['history'][-1]['spread']:.2f} ({len(v['history'])} it.)</td>"
-                    f"<td class=n>{v['n_capped']}</td>" + qsum(qv.get(("irls", name), {})) + "</tr>")
-sec("results-reweight", "3.11  Changing the fit: difference rows and IRLS (o3d12)", f"""
-<p>Every number below is a mean-model harness run (no UQ). QoI columns give error/tolerance: the vacancy, the worst of the
-three interstitials, the worst of the eight phase energies, the RMS over the 20 scored QoIs, and the number within tolerance.</p>
-<div class="wrap"><table><caption>Table 9. Defect–bulk difference rows. Test-split RMSE (E, V in meV/atom; F in eV/Å), training
-difference-row RMSE, and the zero-temperature intercept of the interstitial trend (paired-bulk reference, eV).</caption>
-<thead><tr><th>fit</th><th>E</th><th>F</th><th>V</th><th>diff RMSE</th><th>F→0 intercept</th><th>vacancy</th><th>worst int.</th><th>worst phase</th><th>RMS</th><th>within tol</th></tr></thead>
-<tbody>{dr_rows}</tbody></table></div>
-<p>Weighting the defect–bulk contrast moves the relaxed-defect QoIs strongly: at k = 30 the vacancy error falls 8× and the
-interstitials 4–6×, so the bias is largely a weighting compromise. On o3d12 general accuracy pays from k = 10, where the phase
-energies degrade, and k = 3 is the best compromise. Replacing the defect energy rows gives the same result as augmenting, since
-those rows carry little weight next to the difference rows.</p>
-<div class="wrap"><table><caption>Table 10. IRLS with automatic, cross-validated targets (starting from the k = 1 augmented
-fit). Spread is max/min of the normalised errors at the last iteration; capped counts multipliers at a bound.</caption>
-<thead><tr><th>fit</th><th>E</th><th>F</th><th>V</th><th>spread</th><th>capped</th><th>vacancy</th><th>worst int.</th><th>worst phase</th><th>RMS</th><th>within tol</th></tr></thead>
-<tbody>{ib_rows}</tbody></table></div>
-<p>Regret balancing, with no QoI input, brings every phase energy inside tolerance and gives the most QoIs within tolerance,
-but leaves the defects as they are. The tolerance-guided version improves the defects at the cost of the phases and the
-surface, and its QoI results are optimistic by construction. Neither converged fully within 60 iterations. Regret balancing
-cannot see the defect bias for the same reason the UQ cannot: on held-out hot snapshots the difference rows sit near their
-floor (cross-validated RMSE 0.46 eV), and the error that matters is the extrapolation to relaxed geometries. A first IRLS
-attempt with a fixed 0.05 eV difference-row target and no caps diverged, because the target is below the floor o3d12 can reach (about 0.14 eV).</p>""", "drafted", level=3)
 
 import numpy as _np
 fc_rows = ""
