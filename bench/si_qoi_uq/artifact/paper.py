@@ -101,7 +101,7 @@ tight_ratio = _cv["o3d12"] / _cv["o4d20"] if {"o3d12", "o4d20"} <= set(_cv) else
 sec("abstract", "Abstract", f"""
 <p>Machine-learned interatomic potentials are misspecified, so Bayesian posterior variances understate their errors. For linear
 atomic cluster expansion (ACE) potentials we derive calibrated uncertainties from one misspecification-robust parameter
-covariance, the delete-one-configuration (CR3) jackknife. Scaled per group of local environments by conformal quantiles, it gives
+covariance, the delete-one-configuration jackknife. Scaled per group of local environments by conformal quantiles, it gives
 per-atom force uncertainties that reach their target coverage on held-out silicon data. With one scale fitted to held-out forces,
 the same parameter distribution is propagated to 21 properties of silicon, from elastic constants to defect and surface energies,
 by implicit differentiation through each relaxation and by committees, and is tested against DFT without tuning on any property.
@@ -122,10 +122,18 @@ variances are miscalibrated; marginal conformal prediction covers on average but
 heterogeneous across local environments (distortion, coordination) and correlated within a configuration.</li>
 <li><b>Contribution A, new in this paper:</b> calibrated per-atom forces for linear ACE.
   <ul>
-  <li>The shape is the exact, leverage-corrected (PRESS) delete-one-cluster jackknife covariance (CR3), with the per-atom 3×3 block
-  giving anisotropic regions.</li>
-  <li>The scale is fitted per Mondrian group of local environments (shell-distortion bands × coordination) by configuration-weighted
-  conformal quantiles. The quantiles come from a stratified hold-out of the training set, with a fitted transfer exponent carrying
+  <li>The shape is a cluster-robust ("sandwich") covariance of the coefficients, with each training configuration as one cluster
+  of correlated rows. We use the variant known as CR3 in the econometrics literature: the third of the standard cluster-robust
+  estimators CR0–CR3, which extend the heteroskedasticity-consistent HC0–HC3 to clusters [MacKinnon and White 1985; Bell and McCaffrey
+  2002; MacKinnon, Nielsen and Webb 2023]. CR3 is the delete-one-cluster jackknife: it measures how far the fitted coefficients move
+  when each configuration is left out, computed exactly from leverage-corrected (PRESS) residuals without refitting. Its per-atom
+  3×3 block gives anisotropic force regions.</li>
+  <li>The scale is fitted by Mondrian conformal prediction [Vovk et al. 2003; Vovk, Gammerman and Shafer 2005]. Conformal
+  prediction turns the scores of held-out calibration points into a quantile that covers a new point with a guaranteed probability,
+  under exchangeability. The Mondrian variant splits the points into categories, here groups of local environments
+  (shell-distortion bands × coordination), and calibrates each category on its own, so coverage holds within each group and not only on
+  average; the name refers to the rectangles of Piet Mondrian's paintings. Because atoms in one configuration are correlated, the
+  quantiles weight configurations, not atoms [Dunn, Wasserman and Ramdas 2023]. The quantiles come from a stratified hold-out of the training set, with a fitted transfer exponent carrying
   them to the full fit, and give coverage at the level of configurations.</li>
   <li>It is served by ace-jax as forces_std, forces_cov and a conformal region per atom (Sections 3.1 and 7.7).</li>
   </ul></li>
@@ -793,6 +801,10 @@ sec("refs", "References (to verify)", """<ol class="refs">
 <li>B. J. K. Kleijn, A. W. van der Vaart, The Bernstein–von Mises theorem under misspecification, Electron. J. Stat. 6, 354 (2012).</li>
 <li>A. P. Bartók, J. Kermode, N. Bernstein, G. Csányi, Machine learning a general-purpose interatomic potential for silicon, Phys. Rev. X 8, 041048 (2018).</li>
 <li>J. G. MacKinnon, M. Ø. Nielsen, M. D. Webb, Cluster-robust inference: a guide to empirical practice, J. Econometrics 232, 272 (2023).</li>
+<li>J. G. MacKinnon, H. White, Some heteroskedasticity-consistent covariance matrix estimators with improved finite sample properties, J. Econometrics 29, 305 (1985).</li>
+<li>R. M. Bell, D. F. McCaffrey, Bias reduction in standard errors for linear regression with multi-stage samples, Survey Methodology 28, 169 (2002).</li>
+<li>V. Vovk, D. Lindsay, I. Nouretdinov, A. Gammerman, Mondrian confidence machine, technical report, Royal Holloway, University of London (2003).</li>
+<li>V. Vovk, A. Gammerman, G. Shafer, Algorithmic Learning in a Random World, Springer (2005).</li>
 <li>R. D. Cook, S. Weisberg, Residuals and Influence in Regression (1982).</li>
 <li>P. J. Huber (1967); H. White, Econometrica 50, 1 (1982); U. K. Müller, Econometrica 81, 1805 (2013).</li>
 <li>R. Dunn, L. Wasserman, A. Ramdas, Distribution-free prediction sets for two-layer hierarchical models, JASA (2023).</li>
