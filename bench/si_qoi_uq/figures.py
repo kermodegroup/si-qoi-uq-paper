@@ -202,6 +202,8 @@ def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=Fa
         for r in csv.DictReader(open(results / "discrepancy.csv")):
             if r["method"] == f"{meth}+disc" and r["scale"] == sc:
                 dsig[(r["model"], r["qoi"])] = (float(r["sigma"]), float(r["sigma_disc"]))
+        dpool = {(r["model"], r["qoi"]): float(r["sigma"]) for r in csv.DictReader(open(results / "discrepancy_regression.csv"))
+                 if r["method"] == f"{meth}+disc" and r["scale"] == sc} if (results / "discrepancy_regression.csv").exists() else {}
         dj = json.load(open(results / "discrepancy.json"))
         for m in models:
             k = dj.get(m, {}).get(f"{meth}+disc/{sc}")
@@ -223,6 +225,11 @@ def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=Fa
             sel = np.array([(m, k) in dsig and dsig[(m, k)][1] > 0 for k in COVER_KEYS])
             ax.errorbar((x + (j - 0.5) * 0.28)[sel], e[sel], yerr=h0[sel], fmt="none", ecolor=INK, elinewidth=1.2, capsize=2,
                         zorder=4, label="without the discrepancy term" if j == 0 else None)
+            if (m, "vacancy_energy") in dpool and "vacancy_energy" in r:       # the vacancy with the pooled-size estimator
+                kv = COVER_KEYS.index("vacancy_energy")
+                hv = Z95 * dpool[(m, "vacancy_energy")] / r["vacancy_energy"]["tol"]
+                ax.errorbar([x[kv] + (j - 0.5) * 0.28 + 0.09], [e[kv]], yerr=[hv], fmt="none", ecolor="#8c8a84", elinewidth=1.2,
+                            capsize=2, ls="--", zorder=4, label="vacancy, pooled-size estimator" if j == 0 else None)
         c = cov.get((m, meth, sc), {})
         lab = f"{m}: {c.get('k95', '?')}/{c.get('n', '?')} inside 95 %, median σ/tol {float(c.get('median_sigma_over_tol', 'nan')):.2f}"
         ax.errorbar(x + (j - 0.5) * 0.28, e, yerr=h, fmt=MARK[j], ms=6, color=CAT[j], ecolor=CAT[j], elinewidth=2,

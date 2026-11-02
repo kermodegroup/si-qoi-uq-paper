@@ -629,10 +629,6 @@ a bias that all interstitial clusters share. With per-atom energy weighting, 0.4
 (models with r*: {models_disc}).</caption>
 <thead><tr><th>model</th><th>method</th><th>95 % without</th><th>95 % with [CI]</th><th>68 %</th><th>median σ/tol</th></tr></thead>
 <tbody>{dcov_rows}</tbody></table></div>
-<figure><img src="fig8_model_compare_disc.png" alt="Per QoI, error over tolerance with 95 percent intervals for both models with the defect discrepancy term; the intervals without it shown as thin black bars on the four defect QoIs"><figcaption>Figure 8.
-As Figure 1, with the discrepancy term on the four defect QoIs (headline estimator, CR3 × λ<sub>F</sub>). Thin black bars: the
-same QoIs' 95 % intervals without the term. Only the vacancy and the three interstitials change; the term widens them enough to
-reach DFT, by much more for o3d12, whose defect bias is larger.</figcaption></figure>
 <div class="wrap"><table><caption>Table 7b. Sensitivity to the r* estimator, CR3 × λ<sub>F</sub> and λ<sub>V</sub>, 95 % (68 %) coverage of the
 20 QoIs. Headline: regression for the interstitial class, per-size regression for the vacancy. Paired: each defect snapshot against its nearest
 bulk snapshot (the form that is also a synthetic row). Regression: the bulk reference is a per-atom thermal trend fitted over all
@@ -675,7 +671,12 @@ per-size combination recovers 0.65 eV of the 0.77 eV model-to-model difference, 
 relaxing it ({cold_txt}) suggests that o3d12 over-relaxes. Both models relax the harness vacancy to a symmetric structure (vacancy
 neighbour distances {geo_txt}); the harness gives no DFT structure to compare.</p>
 <p class="note">Selection risk: the closeness of the 63-atom intercept to the vacancy QoI errors was seen before the heterogeneity and
-model-against-model checks. The choice rests on those checks and on the cold cell, which use no DFT QoI value.</p>""", "drafted", level=3)
+model-against-model checks. The choice rests on those checks and on the cold cell, which use no DFT QoI value.</p>
+<figure><img src="fig8_model_compare_disc.png" alt="Per QoI, error over tolerance with 95 percent intervals for both models with the defect discrepancy term, the vacancy from the per-size estimator; intervals without the term as thin black bars, and the vacancy with the pooled-size estimator as dashed grey bars"><figcaption>Figure 8.
+As Figure 1, with the headline discrepancy term on the four defect QoIs (CR3 × λ<sub>F</sub>): the regression estimator for the
+interstitials (Section 3.8) and the per-size inverse-variance estimator for the vacancy (Section 3.9). Thin black bars: the same QoIs'
+95 % intervals without the term. Dashed grey bars: the vacancy with the pooled-size regression estimator, which hardly widens it.
+Only the four defect QoIs change.</figcaption></figure>""", "drafted", level=3)
 
 tj = {m: json.load(open(RES / f"type_jackknife_{m}.json")) for m in ("o4d20", "o3d12") if (RES / f"type_jackknife_{m}.json").exists()}
 tjz = {}
