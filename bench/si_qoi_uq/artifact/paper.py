@@ -234,20 +234,27 @@ design (\(\Phi^w=Q_wR_w\), rows \(b\,w\)), accumulated by streamed updating QRs,
 """, "drafted from docs")
 
 ards = json.load(open(RES / "ard_summary.json")) if (RES / "ard_summary.json").exists() else {}
+ard_orders = sorted({n_.replace("a_", "").replace("body", "") for d_ in ards.values() for n_ in d_["h_names"]}, key=int)
 ard_rows = ""
 for m in ("o3d12", "o4d20"):
     if m not in ards:
         continue
     d_ = ards[m]
-    names = [n_.replace("a_", "").replace("body", "") for n_ in d_["h_names"]]
-    a_txt = ", ".join(f"a<sub>{nm}</sub> {h_:.1f}{' (floor)' if ab else ''}" for nm, h_, ab in zip(names, d_["h"], d_["at_bound"]))
+    ak = {n_.replace("a_", "").replace("body", ""): (h_, ab) for n_, h_, ab in zip(d_["h_names"], d_["h"], d_["at_bound"])}
+    a_cells = "".join(f"<td class=n>{ak[o][0]:.1f}{'*' if ak[o][1] else ''}</td>" if o in ak else "<td class=n>–</td>" for o in ard_orders)
     ta, tb = d_["test_rmse"]["ard"], d_["test_rmse"]["blr"]
     ca, cb = d_["coverage"]["ard"].get("CR3-headline/lam_F", {}), d_["coverage"]["blr"].get("CR3-headline/lam_F", {})
-    ard_rows += (f"<tr><td>{m}</td><td>{a_txt}</td><td class=n>{d_['a_floor']:.1f} / {d_['a_blr']:.1f}</td>"
-                 f"<td class=n>{ta['E_meV_atom']:.2f} / {tb['E_meV_atom']:.2f}</td><td class=n>{ta['F_eV_A']:.4f} / {tb['F_eV_A']:.4f}</td>"
-                 f"<td class=n>{ta['V_meV_atom']:.1f} / {tb['V_meV_atom']:.1f}</td>"
-                 f"<td class=n>{d_['lam_cr3']['ard']['F']:.2f} / {d_['lam_cr3']['blr']['F']:.2f}</td>"
-                 f"<td class=n>{int(ca.get('k95', 0))} ({int(ca.get('k68', 0))}) / {int(cb.get('k95', 0))} ({int(cb.get('k68', 0))})</td></tr>")
+    cv = lambda c: f"{int(c.get('k95', 0))} ({int(c.get('k68', 0))})"
+    ard_rows += (f"<tr><td>{m}</td>{a_cells}<td class=n>{d_['a_floor']:.1f}</td><td class=n>{d_['a_blr']:.1f}</td>"
+                 f"<td class=n>{ta['E_meV_atom']:.2f}</td><td class=n>{tb['E_meV_atom']:.2f}</td>"
+                 f"<td class=n>{ta['F_eV_A']:.4f}</td><td class=n>{tb['F_eV_A']:.4f}</td>"
+                 f"<td class=n>{ta['V_meV_atom']:.1f}</td><td class=n>{tb['V_meV_atom']:.1f}</td>"
+                 f"<td class=n>{d_['lam_cr3']['ard']['F']:.2f}</td><td class=n>{d_['lam_cr3']['blr']['F']:.2f}</td>"
+                 f"<td class=n>{cv(ca)}</td><td class=n>{cv(cb)}</td></tr>")
+ard_head = ("<tr><th rowspan=2>model</th>" + f"<th colspan={len(ard_orders)}>ARD log-precision a<sub>k</sub> (body order k)</th>"
+            "<th rowspan=2>ARD floor</th><th rowspan=2>BLR a</th><th colspan=2>E RMSE (meV/atom)</th><th colspan=2>F RMSE (eV/Å)</th>"
+            "<th colspan=2>V RMSE (meV/atom)</th><th colspan=2>test-split λ<sub>F</sub></th><th colspan=2>coverage, 95 % (68 %)</th></tr>"
+            "<tr>" + "".join(f"<th>{o}</th>" for o in ard_orders) + "<th>ARD</th><th>BLR</th>" * 5 + "</tr>")
 sec("theory-ard", "2.3  Automatic relevance determination", rf"""
 <p>ARD replaces the single \(\sigma_c\) by one log-precision per body order, \(\Lambda=\operatorname{{diag}}(\Gamma_j^2e^{{a_{{k(j)}}}})\), with \(k(j)\) the body order of basis function \(j\), fitted by
 type-II maximum likelihood in the prior-scaled system \(S=D^{{-1}}AD^{{-1}}\), \(D=\operatorname{{diag}}\Gamma\). The BLR fit is ARD at
@@ -260,10 +267,10 @@ from the QR factor of
 \(a_{{\text{{floor}}}}=\log(\lambda_{{\max}}/10^{{22}})\), with \(\lambda_{{\max}}\) the largest eigenvalue of the data part of \(S\)
 (\(D^{{-1}}\Psi^{{\mathsf T}}\Psi D^{{-1}}\)) at the starting noise scale, and an endpoint with every \(a_k\) on the floor and the gradient pointing below it
 is flagged as degenerate and refused.</p>
-<div class="wrap"><table><caption>Table 1. ARD against the benchmark BLR fits. ARD log-precisions per body order (endpoint); floor /
-BLR prior; test-split RMSE ARD / BLR (E, V per atom); test-split λ<sub>F</sub> ARD / BLR; propagated CR3 × λ<sub>F</sub> coverage, 95 % (68 %),
-ARD / BLR, over the 20 scored QoIs.</caption>
-<thead><tr><th>model</th><th>a<sub>k</sub></th><th>floor / BLR</th><th>E (meV/atom)</th><th>F (eV/Å)</th><th>V (meV/atom)</th><th>λ<sub>F</sub></th><th>coverage</th></tr></thead>
+<div class="wrap"><table><caption>Table 1. ARD against the benchmark BLR fits. ARD log-precision per body order at the endpoint
+(* on the floor), the floor, and the single log-precision of the BLR prior (−2 log σ<sub>c</sub>); test-split RMSE (E and V per atom);
+test-split λ<sub>F</sub>; and the propagated CR3 × λ<sub>F</sub> coverage of the 20 scored QoIs.</caption>
+<thead>{ard_head}</thead>
 <tbody>{ard_rows}</tbody></table></div>
 <p>Neither fit is degenerate. For o4d20 every \(a_k\) is interior, and for o3d12 only the two-body precision sits on
 the floor. ARD weakens the prior relative to the BLR's single \(\sigma_c\) on most body orders (on all of them for o3d12; for
