@@ -22,8 +22,9 @@ test-split calibration with Sigma_aug.
 
 --form regression (-> bias_term_<m>_regression.*) builds the synthetic row as the headline discrepancy estimator does
 (analysis/defect_trend.py, vacancy_check.py): the bulk reference is a per-atom thermal trend fitted over the bulk ('dia')
-cells within 0.6 A^3/atom of the defect cells' volume, d_i = b_def,i - n_i (B0 + B1 x_i), and for the vacancy the two
-training-cell sizes are taken separately and combined by inverse variance.  It is linear in the data like the paired row.
+cells within 0.6 A^3/atom of the defect cells' volume, d_i = b_def,i - n_i (B0 + B1 x_i), and for the vacancy only the
+215-atom training cells (the QoI's cell size; per-size intercepts and slopes is the best-evidence size model of
+analysis/vacancy_evidence.py).  It is linear in the data like the paired row.
 """
 import csv, json, sys, time
 
@@ -103,14 +104,7 @@ def main():
     if form == "regression":
         for t in DEFECT:
             mt = types == t
-            if t == "vacancy":                                       # per training-cell size, inverse variance
-                parts = [regression_row(mt & (nat == n_)) for n_ in sorted(set(nat[mt]))]
-                w = np.array([1 / p_[2] ** 2 for p_ in parts])
-                d_star = sum(wi * p_[0] for wi, p_ in zip(w, parts)) / w.sum()
-                r_star = float(sum(wi * p_[1] for wi, p_ in zip(w, parts)) / w.sum())
-                se, n_ = float(1 / np.sqrt(w.sum())), sum(p_[3] for p_ in parts)
-            else:
-                d_star, r_star, se, n_ = regression_row(mt)
+            d_star, r_star, se, n_ = regression_row(mt & (nat == 215) if t == "vacancy" else mt)   # vacancy: QoI cell size
             c = np.sqrt(1 + (se / r_star) ** 2) if r_star else 1.0
             syn[t] = {"n_snapshots": int(n_), "r_star_eV": r_star, "se_eV": se, "c": float(c),
                       "cr3_sigma_lamF_eV": float(sc["F"] * np.linalg.norm(L.T @ d_star))}

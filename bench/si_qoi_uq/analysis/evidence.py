@@ -8,8 +8,7 @@ QoIs is a log Bayes factor.  Tolerance units make the comparison independent of 
 (a floor on sigma of 1e-4..1e-2 tolerances) is the same for every method.
 
 "+disc" adds the headline discrepancy term of the defect QoIs (results/discrepancy.json: r*^2 + se^2 per defect class,
-from the training labels only) to the diagonal, as analysis/discrepancy.py does for the marginal intervals; "+disc(vac iv)"
-the same with the earlier inverse-variance (shared-intercept) vacancy term.
+from the training labels only) to the diagonal, as analysis/discrepancy.py does for the marginal intervals.
 
     python -m bench.si_qoi_uq.analysis.evidence       -> results/evidence.json, results/evidence.csv
 """
@@ -24,7 +23,7 @@ from .discrepancy import CLASS
 EPS = 1e-6                                     # the headline ridge; EVIDENCE_EPS are the sensitivities
 METHODS = ("CR3/lam_F", "CR3/lam_V", "CR3/lam_E", "CR3/lam_pool", "B1/q_b1", "B2lev5/lam_1", "B2lev50/lam_1", "B3/lam_1")
 REF = "CR3/lam_F"
-DISC = {"+disc": "", "+disc(vac iv)": "_vaciv"}     # the headline term; the vacancy from the shared-intercept combination
+DISC = {"+disc": ""}                                 # the headline term
 
 
 def main():

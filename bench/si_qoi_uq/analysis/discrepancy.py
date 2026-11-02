@@ -16,10 +16,9 @@ trend fitted over all bulk cells near the defect volume).  "headline" (the defau
 class (data-only evidence of analysis/estimator_check.py: the paired form amplifies a 2-atom partner's residual ~108x;
 smaller SE; better cold hold-out extrapolation) and, for the vacancy, the 215-atom (the QoI's cell size) zero-temperature
 intercept averaged over the size models of analysis/vacancy_evidence.py (decision 2026-11-02: the evidence disfavours a
-shared intercept across the 63- and 215-atom cells).  "vaciv" (the earlier headline: inverse-variance combination of the
-per-size intercepts, which assumes a shared intercept), "paired" and "regression" (pooled sizes) are sensitivities.
+shared intercept across the 63- and 215-atom cells).  "paired" and "regression" (pooled sizes) are sensitivities.
 
-    python -m bench.si_qoi_uq.analysis.discrepancy [--estimator paired|regression|vaciv] o3d12 [o4d20]
+    python -m bench.si_qoi_uq.analysis.discrepancy [--estimator paired|regression] o3d12 [o4d20]
         -> results/discrepancy[_paired|_regression].csv, .json
 """
 import csv, json, sys
@@ -47,15 +46,12 @@ def main():
     for m in models:
         paired = json.load(open(RESULTS / f"bias_term_{m}.json"))["synthetic_rows"]
         tr_ = json.load(open(RESULTS / "defect_trend.json"))[m]
-        iv = json.load(open(RESULTS / "vacancy_size_split.json"))[m]["inverse_variance"]
-        vac_ps = {"r_star_eV": iv[0], "se_eV": iv[1], "cr3_sigma_lamF_eV": None}
         ve = json.load(open(RESULTS / "vacancy_evidence.json"))[m]["s_a=1"]["bma"]
         vac_bma = {"r_star_eV": ve["r215_mean_eV"], "se_eV": ve["r215_sd_eV"], "cr3_sigma_lamF_eV": None}
         regr = {t: {"r_star_eV": v["defect_intercept_eV"], "se_eV": v["defect_intercept_se"], "cr3_sigma_lamF_eV": None}
                 for t, v in tr_.items()}
         syn = {"paired": paired, "regression": regr,
-               "headline": {"interstitial": regr["interstitial"], "vacancy": vac_bma},
-               "vaciv": {"interstitial": regr["interstitial"], "vacancy": vac_ps}}[est]
+               "headline": {"interstitial": regr["interstitial"], "vacancy": vac_bma}}[est]
         summ[m] = {"r_star": {t: {"r_star_eV": v["r_star_eV"], "se_eV": v["se_eV"],
                                   "cr3_sigma_lamF_eV": v["cr3_sigma_lamF_eV"]} for t, v in syn.items()}}
         for meth, sc in METHODS:

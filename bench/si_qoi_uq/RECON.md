@@ -345,3 +345,20 @@ fits/<m>/pops_sweep/, c* identical to the run's) screened cuts 1-25 %: dropping 
 members; o4d20 width 0.001-0.003 eV/atom at every cut (CR3 x lam_F 0.017); BLR-ridge boxes unphysical for o3d12 at every cut.
 Committees at the 5 % cut (`popslev5`, B2lev5; boxes linked from the sweep): 200/200 each, no failures.
 o3d12 15/20 at 95 % (RMS z 2.1); o4d20 7/20 (RMS z 10.3; sigma 0.04-0.66 x CR3 x lam_F).
+
+## Vacancy size models by evidence (2026-11-02; `analysis/vacancy_evidence.py`, `results/vacancy_evidence.json`)
+- Four linear-Gaussian models of the bulk-subtracted vacancy residuals (pooled; per-size intercepts; shared intercept with
+  per-size slopes; per-size intercepts and slopes), per-size noise integrated on a grid. Pooling is rejected and a shared
+  intercept disfavoured (log BF -10.1 o3d12, -5.4 o4d20 at s_a = 1 eV), so the bias depends on cell size.
+- **Decision (user, 2026-11-02):** the headline vacancy term is the model-averaged 215-atom intercept (+0.21 +- 0.14 eV
+  o3d12, -0.04 +- 0.05 o4d20). The inverse-variance per-size combination (which assumed a shared intercept) is withdrawn
+  entirely, not kept as a sensitivity; `results/vacancy_size_split.json` is deleted. CR3 x lam_F 95 % coverage unchanged.
+- `bias_term.py --form regression` builds the vacancy row from the 215-atom cells only (the best-evidence model).
+
+## Scale sharing by evidence (2026-11-02; `analysis/scale_evidence.py`, `results/scale_evidence.json`)
+- Replaces the fixed [0.8, 1.25] band on lam_V/lam_F. Units = test configurations; per-block mean z^2 ~ lam_o^2 chi^2_nu/nu
+  (Gamma), nu_o free per observable and integrated out; the five partitions of {E, F, V} compared by evidence.
+- Best in both models: V | E = F. log BF vs one scale 32 (o3d12), 24 (o4d20); vs three scales 4.2, 3.9. Posterior
+  lam_EF 5.0 / 5.2, lam_V 8.1 / 8.3. Config-weighted lam_E = lam_F: Table 2's smaller lam_E is the component weighting.
+- A joint Gaussian block likelihood under the full CR3 block covariance was tried first and is unusable for forces: the
+  joint scale follows the ridge on the near-singular block (o3d12 17347 / 1749 / 185 at 1e-8 / 1e-6 / 1e-4; marginal 5.8).

@@ -1,5 +1,4 @@
-"""Bayesian evidence for how the vacancy bias depends on training-cell size (replaces the heterogeneity z of
-results/vacancy_size_split.json).  DFT training labels only: no QoI value or tolerance enters.
+"""Bayesian evidence for how the vacancy bias depends on training-cell size.  DFT training labels only: no QoI value or tolerance enters.
 
 Data: the bulk-subtracted residual y_i = r_i - n_i e_bulk(x_i) of every training/test vacancy cell (the regression form of
 analysis/vacancy_check.py, per size: the bulk trend is fitted over dia cells within 0.6 A^3/atom of that size's volume),
@@ -7,8 +6,7 @@ against x_i = F_rms,i^2.  Sizes s in {63, 215} atoms.  Linear-Gaussian models y 
 
     pool    one intercept, one slope                      (the pooled estimators)
     int     per-size intercepts, one slope
-    slope   one intercept, per-size slopes                (the sizes share the relaxed-defect bias; what the
-                                                           inverse-variance combination of the intercepts assumes)
+    slope   one intercept, per-size slopes                (the sizes share the relaxed-defect bias)
     sep     per-size intercepts and slopes                (the per-size regression)
 
 Priors: intercepts N(0, s_a^2), slopes N(0, (s_a / x_max)^2) (a slope moves y by at most ~s_a over the data), s_a = 1 eV;

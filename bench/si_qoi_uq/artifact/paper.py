@@ -54,6 +54,15 @@ cov_rows = "".join(
 lam_rows = "".join(f"<tr><td>{m}</td>" + "".join(f"<td class=n>{f(lam[m].get(k))}</td>" for k in ("E", "F", "V", "pool"))
                    + f"<td class=n>{f(lam[m]['V'] / lam[m]['F'])}</td><td class=n>{f(lam[m]['E'] / lam[m]['F'])}</td></tr>"
                    for m in models)
+sev = json.load(open(RES / "scale_evidence.json")) if (RES / "scale_evidence.json").exists() else {}
+SEV_LAB = (("shared", "one scale"), ("E|FV", "E | F = V"), ("F|EV", "F | E = V"), ("V|EF", "V | E = F"), ("E|F|V", "E | F | V"))
+sev_rows = "".join(f"<tr><td>{lab}</td>" + "".join(f"<td class=n>{sev[m]['log_bf_vs_best'][k]:+.1f}</td>" for m in ("o3d12", "o4d20") if m in sev)
+                   + "</tr>" for k, lab in SEV_LAB) if sev else ""
+def sev_lam(m):
+    p = sev[m]["lam_posterior"][sev[m]["best"]]
+    return ", ".join(f"λ<sub>{'=' .join(g)}</sub> {v['mean']:.1f} [{v['ci95'][0]:.1f}, {v['ci95'][1]:.1f}]" for g, v in p.items())
+sev_bf = lambda m: f"{-sev[m]['log_bf_vs_best']['shared']:.0f}"
+sev_sep = lambda m: f"{-sev[m]['log_bf_vs_best']['E|F|V']:.1f}"
 zlist = lambda m: ", ".join(f"{float(r['z']):+.1f}" for r in _qrows if r["model"] == m and r["method"] == "CR3-headline"
                            and r["scale"] == "lam_F" and "interstitial" in r["qoi"])
 ev = {(r["model"], r["method"], r["kind"]): r for r in rd("evidence.csv")}
@@ -71,7 +80,6 @@ def lbf(m, meth, kind="committee"):
     r = ev.get((m, meth, kind))
     return float(r["log_bf_vs_headline"]) if r and r.get("log_bf_vs_headline") not in ("", None) else float("nan")
 lbf_txt = lambda m, meth, kind="committee": f"{lbf(m, meth, kind):+.1f}"
-lbf_disc_iv = lambda m: f"{lbf(m, 'CR3/lam_F+disc(vac iv)') - lbf(m, 'CR3/lam_F+disc'):+.1f}"   # earlier vacancy term vs headline term
 EV_ROWS = (("CR3/lam_F", "CR3 × λ<sub>F</sub> (headline)"), ("B1/q_b1", "B1: posterior × q̂"),
            ("B2lev5/lam_1", "B2: POPS (leverage cut 5 %)"), ("B3/lam_1", "B3: CR3, λ = 1"),
            ("CR3/lam_V", "CR3 × λ<sub>V</sub> (sensitivity)"), ("CR3/lam_F+disc", "CR3 × λ<sub>F</sub> + discrepancy term"),
@@ -443,12 +451,27 @@ Test-split scale λ = RMS z with the CR3 shape, per observable (energy, force, v
 <div class="wrap"><table><caption>Table 2. Test-split scales (CR3 shape).</caption>
 <thead><tr><th>model</th><th>λ<sub>E</sub></th><th>λ<sub>F</sub></th><th>λ<sub>V</sub></th><th>λ<sub>pool</sub></th><th>λ<sub>V</sub>/λ<sub>F</sub></th><th>λ<sub>E</sub>/λ<sub>F</sub></th></tr></thead>
 <tbody>""" + lam_rows + r"""</tbody></table></div>
-<p>The three scales differ: λ<sub>V</sub> is about a third larger than λ<sub>F</sub> (λ<sub>V</sub>/λ<sub>F</sub> = 1.33–1.38, outside
-[0.8, 1.25]), and λ<sub>E</sub> about a sixth smaller (0.82–0.84, just inside), so the degree of misspecification depends on the
-observable. With λ<sub>F</sub>, virials are therefore
-under-covered on the test split. The QoIs most like virials are the elastic constants, which are derivatives of the stress, and the
-phase energies, which come from energy–volume curves, so their intervals at λ<sub>F</sub> may be too narrow; Section 3.4 reports the
-coverage with λ<sub>V</sub> as a sensitivity.</p>""", "drafted", level=3)
+<p>Whether the observables need different scales is a model comparison. The test configurations are the independent
+units, as in CR3, because the force components of one configuration are correlated. For configuration c and observable o, let
+\(m_{co}\) be the mean of \(z^2\) over the block's components (1 energy, 3N forces, 6 virial components). We model
+\(m_{co}=\lambda_o^2X\) with \(X\sim\chi^2_{\nu_o}/\nu_o\), a Gamma distribution with mean \(\lambda_o^2\), as the RMS-z
+definition of λ requires. The effective number of degrees of freedom \(\nu_o\) absorbs the correlation within a block and the
+heavy tails. It is free for each observable in every model, log-uniform on [0.05, 1000], and integrated out. The models are
+the five ways to let E, F and V share scales, each scale log-uniform on [0.1, 1000]. A joint Gaussian likelihood of each block
+under λ² times the full CR3 block covariance was also tried and is not usable: for forces it is set by the regularisation of a
+nearly singular block, that is by the off-diagonal CR3 shape, not by the scale.</p>
+<div class="wrap"><table><caption>Table 2b. Test-split evidence for shared against per-observable scales: log Bayes factor of
+each way of sharing scales against the best (configurations as units, equal prior odds).</caption>
+<thead><tr><th>scales</th><th>o3d12</th><th>o4d20</th></tr></thead><tbody>""" + sev_rows + r"""</tbody></table></div>
+<p>""" + (f"""In both models the evidence favours one scale for energies and forces and a separate, larger one for virials:
+log Bayes factors of {sev_bf("o3d12")} (o3d12) and {sev_bf("o4d20")} (o4d20) against one scale for all, and
+{sev_sep("o3d12")} and {sev_sep("o4d20")} against three separate scales. The posterior scales are {sev_lam("o3d12")} for
+o3d12 and {sev_lam("o4d20")} for o4d20 (mean and 95 % credible interval). With each configuration weighted equally,
+λ<sub>E</sub> and λ<sub>F</sub> agree; the smaller λ<sub>E</sub> of Table 2 comes from the component-weighted RMS, in which
+the largest cells dominate λ<sub>F</sub>.""" if sev else "") + r""" The degree of misspecification therefore depends on the
+observable, and with λ<sub>F</sub> virials are under-covered on the test split. The QoIs most like virials are the elastic
+constants, which are derivatives of the stress, and the phase energies, which come from energy–volume curves, so their
+intervals at λ<sub>F</sub> may be too narrow; Section 3.4 reports the coverage with λ<sub>V</sub> as a sensitivity.</p>""", "drafted", level=3)
 
 sec("method-prop", "2.7  Propagation to QoIs", r"""
 <p>The distribution propagated is \(\theta\sim\mathcal N(\hat\theta,\lambda^2LL^{\mathsf T})\); one sample gives energy, forces and
@@ -854,12 +877,7 @@ form captures how the relaxed vacancy differs from the hot cells. The one near-r
 direct evidence without extrapolation: its bulk-subtracted residual is +0.61 eV (o3d12) and 0.00 eV (o4d20), and relaxing it
 ({cold_txt}) suggests that o3d12 over-relaxes. Both models relax the harness vacancy to a symmetric structure (vacancy neighbour
 distances {geo_txt}); the harness gives no DFT structure to compare.</p>
-<p>The vacancy term is small in both models, and the CR3 σ alone already covers the vacancy at 95 % (Table 8). An earlier
-estimator combined the two sizes' intercepts by inverse variance, which assumes the shared intercept the evidence disfavours.
-It gave +0.81 and +0.14 eV, close to the vacancy QoI errors, and was chosen after those errors had been seen. We replaced it
-with the evidence-based choice, which leaves the 95 % coverage unchanged. Against the headline term, the earlier estimator's joint
-log Bayes factor (Section 3.5, committee) is {lbf_disc_iv("o3d12")} (o3d12) and {lbf_disc_iv("o4d20")} (o4d20). These use the
-DFT values and are reported, not used to choose.</p>
+<p>The vacancy term is small in both models, and the CR3 σ alone already covers the vacancy at 95 % (Table 8).</p>
 <figure><img src="fig8_model_compare_disc.png" alt="Per QoI, error over tolerance with 95 percent intervals for both models with the defect discrepancy term; intervals without the term as thin black bars"><figcaption>Figure 8.
 As Figure 1, with the headline discrepancy term on the four defect QoIs (CR3 × λ<sub>F</sub>): the bulk-trend regression for the
 interstitials and the size-model average for the vacancy. Thin black bars: the same QoIs' 95 % intervals without the term.
