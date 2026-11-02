@@ -188,14 +188,19 @@ def scales_fig(results, out, models):
     _save(fig, out, "fig5_scale_diagnostics")
 
 
-def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=False):
+PANELS = (("CR3-headline", "lam_F", "CR3 × λ_F (headline)"), ("B1-headline", "q_b1", "B1: posterior × conformal q̂"),
+          ("B2lev5-committee", "lam_1", "B2: POPS (leverage cut 5 %)"), ("B3-headline", "lam_1", "B3: CR3, λ = 1"))
+
+
+def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=False, panels=PANELS):
     """Per QoI, (Q - Q_DFT) / tolerance for each model with its 95 % interval, DFT as a cross at 0: the bigger
     model's intervals are tighter while coverage stays similar.  Symmetric-log axis, linear within +-1 tolerance.
-    disc=True: the same with the defect discrepancy term (results/discrepancy.csv, headline estimator), the intervals
-    without it drawn as thin dark bars on the defect QoIs -> fig8_model_compare_disc."""
+    One row per method in `panels` (headline first, then the baselines), shared axes -> fig6_model_compare.
+    disc=True: the headline alone with the defect discrepancy term (results/discrepancy.csv, headline estimator), the
+    intervals without it drawn as thin dark bars on the defect QoIs -> fig8_model_compare_disc."""
     rows = _rows(results)
     cov = {(r["model"], r["method"], r["scale"]): r for r in csv.DictReader(open(results / "coverage.csv"))}
-    dsig = {}
+    dsig, dpool = {}, {}
     if disc:
         if not (results / "discrepancy.csv").exists():
             return
@@ -209,36 +214,47 @@ def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=Fa
             k = dj.get(m, {}).get(f"{meth}+disc/{sc}")
             if k:
                 cov[(m, meth, sc)] = {"k95": k["k95"], "n": k["n"], "median_sigma_over_tol": k["median_sigma_over_tol"]}
-    fig, ax = plt.subplots(figsize=(11, 4.6), facecolor=SURFACE)
-    _style(ax)
+        panels = ((meth, sc, None),)
+    panels = [p_ for p_ in panels if any(q["method"] == p_[0] and q["scale"] == p_[1] for q in rows)]
+    fig, axes = plt.subplots(len(panels), 1, figsize=(11, 4.6 if len(panels) == 1 else 3.3 * len(panels) + 1.3),
+                             sharex=True, sharey=True, squeeze=False, facecolor=SURFACE)
     x = np.arange(len(COVER_KEYS))
-    ax.axhspan(-1, 1, color="#ecebe6", zorder=0, label="± 1 tolerance")
-    ax.axhline(0, color=GRID, lw=0.8, zorder=1)
     order = [m for m in ("o4d20", "o3d12") if m in models]
-    for j, m in enumerate(order):
-        r = {q["qoi"]: q for q in rows if q["model"] == m and q["method"] == meth and q["scale"] == sc}
-        e = np.array([(r[k]["mean"] - r[k]["dft"]) / r[k]["tol"] if k in r else np.nan for k in COVER_KEYS])
-        h = np.array([Z95 * r[k]["sigma"] / r[k]["tol"] if k in r else np.nan for k in COVER_KEYS])
-        if disc:
-            h0 = h.copy()
-            h = np.array([Z95 * dsig[(m, k)][0] / r[k]["tol"] if (m, k) in dsig and k in r else hh for k, hh in zip(COVER_KEYS, h)])
-            sel = np.array([(m, k) in dsig and dsig[(m, k)][1] > 0 for k in COVER_KEYS])
-            ax.errorbar((x + (j - 0.5) * 0.28)[sel], e[sel], yerr=h0[sel], fmt="none", ecolor=INK, elinewidth=1.2, capsize=2,
-                        zorder=4, label="without the discrepancy term" if j == 0 else None)
-            if (m, "vacancy_energy") in dpool and "vacancy_energy" in r:       # the vacancy with the pooled-size estimator
-                kv = COVER_KEYS.index("vacancy_energy")
-                hv = Z95 * dpool[(m, "vacancy_energy")] / r["vacancy_energy"]["tol"]
-                ax.errorbar([x[kv] + (j - 0.5) * 0.28 + 0.09], [e[kv]], yerr=[hv], fmt="none", ecolor="#8c8a84", elinewidth=1.2,
-                            capsize=2, ls="--", zorder=4, label="vacancy, pooled-size estimator" if j == 0 else None)
-        c = cov.get((m, meth, sc), {})
-        lab = f"{m}: {c.get('k95', '?')}/{c.get('n', '?')} inside 95 %, median σ/tol {float(c.get('median_sigma_over_tol', 'nan')):.2f}"
-        ax.errorbar(x + (j - 0.5) * 0.28, e, yerr=h, fmt=MARK[j], ms=6, color=CAT[j], ecolor=CAT[j], elinewidth=2,
-                    capsize=3, mec=SURFACE, mew=0.8, label=lab, zorder=3)
-    ax.scatter(x, np.zeros(len(x)), marker="x", s=46, color=INK, linewidths=1.6, label="DFT (CASTEP)", zorder=4)
-    ax.set_yscale("symlog", linthresh=1.0)
-    ax.set_xticks(x, [short(k) for k in COVER_KEYS], rotation=60, ha="right")
-    ax.set_ylabel("(Q − Q_DFT) / tolerance  (symlog)", color=INK, fontsize=8)
-    ax.legend(fontsize=8, frameon=False, ncol=2, loc="lower left", bbox_to_anchor=(0, 1.0))
+    for ip, (meth_, sc_, title) in enumerate(panels):
+        ax = axes[ip, 0]
+        _style(ax)
+        ax.axhspan(-1, 1, color="#ecebe6", zorder=0, label="± 1 tolerance")
+        ax.axhline(0, color=GRID, lw=0.8, zorder=1)
+        for j, m in enumerate(order):
+            r = {q["qoi"]: q for q in rows if q["model"] == m and q["method"] == meth_ and q["scale"] == sc_}
+            e = np.array([(r[k]["mean"] - r[k]["dft"]) / r[k]["tol"] if k in r else np.nan for k in COVER_KEYS])
+            h = np.array([Z95 * r[k]["sigma"] / r[k]["tol"] if k in r else np.nan for k in COVER_KEYS])
+            if disc:
+                h0 = h.copy()
+                h = np.array([Z95 * dsig[(m, k)][0] / r[k]["tol"] if (m, k) in dsig and k in r else hh for k, hh in zip(COVER_KEYS, h)])
+                sel = np.array([(m, k) in dsig and dsig[(m, k)][1] > 0 for k in COVER_KEYS])
+                ax.errorbar((x + (j - 0.5) * 0.28)[sel], e[sel], yerr=h0[sel], fmt="none", ecolor=INK, elinewidth=1.2, capsize=2,
+                            zorder=4, label="without the discrepancy term" if j == 0 else None)
+                if (m, "vacancy_energy") in dpool and "vacancy_energy" in r:       # the vacancy with the pooled-size estimator
+                    kv = COVER_KEYS.index("vacancy_energy")
+                    hv = Z95 * dpool[(m, "vacancy_energy")] / r["vacancy_energy"]["tol"]
+                    ax.errorbar([x[kv] + (j - 0.5) * 0.28 + 0.09], [e[kv]], yerr=[hv], fmt="none", ecolor="#8c8a84", elinewidth=1.2,
+                                capsize=2, ls="--", zorder=4, label="vacancy, pooled-size estimator" if j == 0 else None)
+            c = cov.get((m, meth_, sc_), {})
+            lab = (f"{m}: {int(float(c.get('k95', 'nan')))}/{int(float(c.get('n', 'nan')))} inside 95 %, median σ/tol "
+                   f"{float(c.get('median_sigma_over_tol', 'nan')):.2f}") if c else m
+            ax.errorbar(x + (j - 0.5) * 0.28, e, yerr=h, fmt=MARK[j], ms=6, color=CAT[j], ecolor=CAT[j], elinewidth=2,
+                        capsize=3, mec=SURFACE, mew=0.8, label=lab, zorder=3)
+        ax.scatter(x, np.zeros(len(x)), marker="x", s=46, color=INK, linewidths=1.6, label="DFT (CASTEP)", zorder=4)
+        ax.set_yscale("symlog", linthresh=1.0)
+        ax.set_ylabel("(Q − Q_DFT) / tol", color=INK, fontsize=8)
+        if title:
+            ax.set_title(title, color=INK, fontsize=9, loc="left")
+        hs, ls_ = ax.get_legend_handles_labels()
+        keep = [i for i, l_ in enumerate(ls_) if ip == 0 or l_.startswith(tuple(order))]     # shared entries once, on top
+        ax.legend([hs[i] for i in keep], [ls_[i] for i in keep], fontsize=8, frameon=False, ncol=2 if ip == 0 else 1,
+                  loc="lower left" if ip == 0 else "upper right", bbox_to_anchor=(0, 1.08) if ip == 0 else None)
+    axes[-1, 0].set_xticks(x, [short(k) for k in COVER_KEYS], rotation=60, ha="right")
     fig.tight_layout()
     _save(fig, out, "fig8_model_compare_disc" if disc else "fig6_model_compare")
 

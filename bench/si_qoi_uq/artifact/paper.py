@@ -509,7 +509,12 @@ sec("results", "3.4  Coverage and sharpness", f"""
 <div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % CI]) and sharpness.</caption>
 <thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th></tr></thead>
 <tbody>{cov_rows}</tbody></table></div>
-<figure><img src="fig6_model_compare.png" alt="Per QoI, error over tolerance with 95 percent intervals for o4d20 and o3d12, DFT as crosses at zero"><figcaption>Figure 1. Model prediction minus DFT, in units of the benchmark tolerance, with the 95 % interval (CR3 × λ<sub>F</sub>) for o4d20 (circles) and o3d12 (squares); DFT is the cross at 0 and the shaded band is ± 1 tolerance. The axis is linear within ± 1 and logarithmic beyond. The larger model's intervals are {tight:.1f}× tighter in median σ/tol while its coverage stays comparable.</figcaption></figure>
+<figure><img src="fig6_model_compare.png" alt="Per QoI, error over tolerance with 95 percent intervals for o4d20 and o3d12, DFT as crosses at zero; one row each for the headline and the three baselines"><figcaption>Figure 1. Model prediction minus DFT, in units of the benchmark tolerance, with the 95 % interval, for o4d20
+(circles) and o3d12 (squares); DFT is the cross at 0 and the shaded band is ± 1 tolerance. The axis is linear within ± 1 and
+logarithmic beyond, and is shared by all rows. Top row: the headline, CR3 × λ<sub>F</sub>; the larger model's intervals are
+{tight:.1f}× tighter in median σ/tol while its coverage stays comparable. Below it the baselines of Section 2.6: B1, the posterior
+scaled by one conformal quantile; B2, POPS with the 5 % leverage cut; B3, CR3 without calibration (λ = 1). Each row's legend gives
+its 95 % coverage and median σ/tol.</figcaption></figure>
 <figure><img src="fig2_coverage.png" alt="Coverage per method with binomial intervals"><figcaption>Figure 1b. Coverage per method.</figcaption></figure>
 <h3>3.5 Joint test</h3>
 <div class="wrap"><table><caption>Table 4. Mahalanobis test (correlation-scaled, ε = 10<sup>−3</sup>).</caption>
