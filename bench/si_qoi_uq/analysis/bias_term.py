@@ -18,7 +18,12 @@ and the augmented covariance is Sigma_aug = lam^2 L L^T + sum_t c_t^2 delta_t de
 No QoI value or tolerance enters.  Checks: QoI coverage through the delta rows (RUNS/delta/<m>.npz), and the
 test-split calibration with Sigma_aug.
 
-    python -m bench.si_qoi_uq.analysis.bias_term o3d12|o4d20      (SIQ_RUNS: the BLR run root)
+    python -m bench.si_qoi_uq.analysis.bias_term o3d12|o4d20 [--form paired|regression]     (SIQ_RUNS: the BLR run root)
+
+--form regression (-> bias_term_<m>_regression.*) builds the synthetic row as the headline discrepancy estimator does
+(analysis/defect_trend.py, vacancy_check.py): the bulk reference is a per-atom thermal trend fitted over the bulk ('dia')
+cells within 0.6 A^3/atom of the defect cells' volume, d_i = b_def,i - n_i (B0 + B1 x_i), and for the vacancy the two
+training-cell sizes are taken separately and combined by inverse variance.  It is linear in the data like the paired row.
 """
 import csv, json, sys, time
 
@@ -38,7 +43,11 @@ def main():
     from ..linear import LinearACE
     from ..propagate import COVER_KEYS, KEYS, dft, harness_values, tol_abs
     from ..run import RESULTS
-    m = sys.argv[1]
+    args = sys.argv[1:]
+    form = "paired"
+    if "--form" in args:
+        i = args.index("--form"); form = args[i + 1]; del args[i:i + 2]
+    m = args[0]
     t0 = time.time()
     lin = LinearACE(RUNS / "fits" / m / "cr3" / "model.npz", RUNS / "fits" / m / "cr3" / "posterior.npz")
     th = lin.theta_hat
@@ -61,6 +70,28 @@ def main():
             gc += 1
     nat = np.array([len(c.numbers) for c in cs])
     types = np.array([c.config_type for c in cs], dtype=object)
+    xall = np.array([float(np.mean(c.forces ** 2)) for c in cs])
+    vol = np.array([abs(np.linalg.det(c.cell)) / len(c.numbers) for c in cs])
+
+    def regression_row(mask_def):
+        """(d*, r*, se, n) of the regression-form intercept over the defect cells in mask_def."""
+        v0 = vol[mask_def].mean()
+        mb = (types == "dia") & (np.abs(vol - v0) < 0.6)
+        Xb = np.stack([np.ones(mb.sum()), xall[mb]], 1)
+        Kb = np.linalg.solve(Xb.T @ Xb, Xb.T)                       # per-atom bulk trend: (2, n_bulk)
+        BE = Kb @ (E[mb] / nat[mb][:, None]); By = Kb @ (yE[mb] / nat[mb])
+        idx = np.flatnonzero(mask_def)
+        xd = xall[idx]
+        Dd_ = E[idx] - nat[idx][:, None] * (BE[0] + np.outer(xd, BE[1]))
+        yd_ = yE[idx] - nat[idx] * (By[0] + By[1] * xd)
+        X = np.stack([np.ones(len(idx)), xd], 1)
+        a_ = np.linalg.solve(X.T @ X, X.T)[0]
+        d_star = a_ @ Dd_
+        res_ = yd_ - Dd_ @ th
+        k_ = np.linalg.lstsq(X, res_, rcond=None)[0]
+        s2_ = np.sum((res_ - X @ k_) ** 2) / max(len(idx) - 2, 1)
+        return d_star, float(a_ @ yd_ - d_star @ th), float(np.sqrt(s2_ * np.linalg.inv(X.T @ X)[0, 0])), len(idx)
+
     pairs = pair(cs)
     di, bi = np.array([p[0] for p in pairs]), np.array([p[1] for p in pairs])
     ratio = nat[di] / nat[bi]
@@ -69,7 +100,24 @@ def main():
     x = np.array([float(np.mean(cs[i].forces ** 2)) for i in di])
     print(f"{len(pairs)} defect-bulk pairs ({time.time() - t0:.0f} s)", flush=True)
     syn, dstars = {}, {}
-    for t in DEFECT:
+    if form == "regression":
+        for t in DEFECT:
+            mt = types == t
+            if t == "vacancy":                                       # per training-cell size, inverse variance
+                parts = [regression_row(mt & (nat == n_)) for n_ in sorted(set(nat[mt]))]
+                w = np.array([1 / p_[2] ** 2 for p_ in parts])
+                d_star = sum(wi * p_[0] for wi, p_ in zip(w, parts)) / w.sum()
+                r_star = float(sum(wi * p_[1] for wi, p_ in zip(w, parts)) / w.sum())
+                se, n_ = float(1 / np.sqrt(w.sum())), sum(p_[3] for p_ in parts)
+            else:
+                d_star, r_star, se, n_ = regression_row(mt)
+            c = np.sqrt(1 + (se / r_star) ** 2) if r_star else 1.0
+            syn[t] = {"n_snapshots": int(n_), "r_star_eV": r_star, "se_eV": se, "c": float(c),
+                      "cr3_sigma_lamF_eV": float(sc["F"] * np.linalg.norm(L.T @ d_star))}
+            dstars[t] = (d_star, r_star, c)
+            print(f"{t:12s}: r* = {r_star:+.3f} ± {se:.3f} eV (regression form; CR3 x lam_F sigma of the row "
+                  f"{syn[t]['cr3_sigma_lamF_eV']:.3f} eV)", flush=True)
+    for t in (DEFECT if form == "paired" else ()):
         mt = types[di] == t
         X = np.stack([np.ones(mt.sum()), x[mt]], 1)
         a = np.linalg.solve(X.T @ X, X.T)[0]                          # intercept functional
@@ -145,7 +193,8 @@ def main():
                 out.append(dict(model=m, cov=name, scale=f"lam_{q}", qoi=k, err_over_tol=(Qhat[i] - ref[i]) / tol,
                                 sigma=sgm, sigma_over_tol=sgm / tol, sigma_bias=b_g, z=z, cov68=int(abs(z) <= 1),
                                 cov95=int(abs(z) <= 1.96)))
-    with open(RESULTS / f"bias_term_{m}.csv", "w", newline="") as fh:
+    sfx = "" if form == "paired" else f"_{form}"
+    with open(RESULTS / f"bias_term_{m}{sfx}.csv", "w", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=list(out[0]))
         w.writeheader()
         w.writerows(out)
@@ -156,7 +205,8 @@ def main():
             summ[f"{name}/{q}"] = {"n": len(rr), "k68": sum(r["cov68"] for r in rr), "k95": sum(r["cov95"] for r in rr),
                                    "median_sigma_over_tol": float(np.median([r["sigma_over_tol"] for r in rr])),
                                    "rms_z": float(np.sqrt(np.mean([r["z"] ** 2 for r in rr])))}
-    json.dump(summ, open(RESULTS / f"bias_term_{m}.json", "w"), indent=1, default=float)
+    summ["form"] = form
+    json.dump(summ, open(RESULTS / f"bias_term_{m}{sfx}.json", "w"), indent=1, default=float)
     print(json.dumps({k: v for k, v in summ.items() if k not in ("test_rms_z_by_type", "synthetic_rows")}, indent=1, default=float))
     print(json.dumps(by_type, indent=0, default=lambda v: round(v, 2)))
     for r in out:

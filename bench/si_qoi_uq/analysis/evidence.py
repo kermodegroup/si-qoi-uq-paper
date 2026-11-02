@@ -8,7 +8,8 @@ QoIs is a log Bayes factor.  Tolerance units make the comparison independent of 
 (a floor on sigma of 1e-4..1e-2 tolerances) is the same for every method.
 
 "+disc" adds the headline discrepancy term of the defect QoIs (results/discrepancy.json: r*^2 + se^2 per defect class,
-from the training labels only) to the diagonal, as analysis/discrepancy.py does for the marginal intervals.
+from the training labels only) to the diagonal, as analysis/discrepancy.py does for the marginal intervals; "+disc(vac iv)"
+the same with the earlier inverse-variance (shared-intercept) vacancy term.
 
     python -m bench.si_qoi_uq.analysis.evidence       -> results/evidence.json, results/evidence.csv
 """
@@ -23,14 +24,15 @@ from .discrepancy import CLASS
 EPS = 1e-6                                     # the headline ridge; EVIDENCE_EPS are the sensitivities
 METHODS = ("CR3/lam_F", "CR3/lam_V", "CR3/lam_E", "CR3/lam_pool", "B1/q_b1", "B2lev5/lam_1", "B2lev50/lam_1", "B3/lam_1")
 REF = "CR3/lam_F"
+DISC = {"+disc": "", "+disc(vac iv)": "_vaciv"}     # the headline term; the vacancy from the shared-intercept combination
 
 
 def main():
     joint = json.load(open(RESULTS / "joint_tests.json"))
-    disc = json.load(open(RESULTS / "discrepancy.json")) if (RESULTS / "discrepancy.json").exists() else {}
+    discs = {tag: json.load(open(RESULTS / f"discrepancy{suf}.json")) for tag, suf in DISC.items()
+             if (RESULTS / f"discrepancy{suf}.json").exists()}
     out, rows = {}, []
     for m, per in joint.items():
-        rs = disc.get(m, {}).get("r_star", {})
         out[m] = {}
         for name in METHODS:
             for kind, jt in per.get(name, {}).items():
@@ -38,7 +40,10 @@ def main():
                     continue
                 d, S, q = np.array(jt["d_tol"]), np.array(jt["S_tol"]), jt["qois"]
                 variants = {"": S}
-                if rs:
+                for dtag, disc in discs.items():
+                    rs = disc.get(m, {}).get("r_star", {})
+                    if not rs:
+                        continue
                     add = np.zeros(len(q))
                     for i, k in enumerate(q):
                         t = CLASS.get(k)
@@ -46,7 +51,7 @@ def main():
                             tol, kind_ = TOL[k]                            # point defects: absolute, in eV
                             assert kind_ != "rel", k
                             add[i] = (rs[t]["r_star_eV"] ** 2 + rs[t]["se_eV"] ** 2) / tol ** 2
-                    variants["+disc"] = S + np.diag(add)
+                    variants[dtag] = S + np.diag(add)
                 for tag, SS in variants.items():
                     lp = log_predictive(d, SS)
                     out[m][f"{name}{tag}/{kind}"] = {"qois": q, **lp}

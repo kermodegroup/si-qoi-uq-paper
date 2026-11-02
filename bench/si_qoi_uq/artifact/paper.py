@@ -71,6 +71,7 @@ def lbf(m, meth, kind="committee"):
     r = ev.get((m, meth, kind))
     return float(r["log_bf_vs_headline"]) if r and r.get("log_bf_vs_headline") not in ("", None) else float("nan")
 lbf_txt = lambda m, meth, kind="committee": f"{lbf(m, meth, kind):+.1f}"
+lbf_disc_iv = lambda m: f"{lbf(m, 'CR3/lam_F+disc(vac iv)') - lbf(m, 'CR3/lam_F+disc'):+.1f}"   # earlier vacancy term vs headline term
 EV_ROWS = (("CR3/lam_F", "CR3 × λ<sub>F</sub> (headline)"), ("B1/q_b1", "B1: posterior × q̂"),
            ("B2lev5/lam_1", "B2: POPS (leverage cut 5 %)"), ("B3/lam_1", "B3: CR3, λ = 1"),
            ("CR3/lam_V", "CR3 × λ<sub>V</sub> (sensitivity)"), ("CR3/lam_F+disc", "CR3 × λ<sub>F</sub> + discrepancy term"),
@@ -501,29 +502,63 @@ re-run at λ<sub>F</sub> tests that linearisation. In that re-run a member is re
 DFT value, if a test fails, if any relaxed interatomic distance falls below 2.0 Å (collapse), or if its diamond cell is
 Born-unstable. The headline σ is the delta-method σ where it agrees with the λ = 1 committee to 10 %, else the committee's.</p>""", "drafted", level=3)
 
+import csv as _csv
+_INT = ("dumbbell_interstitial_energy", "hexagonal_interstitial_energy", "tetrahedral_interstitial_energy")
+def _rank1():
+    """Regression-form synthetic row as a rank-one parameter correction (analysis/bias_term.py --form regression): range of
+    projected bias / r* over the interstitial QoIs (CR3 and posterior metrics, lam_F), and 95 % coverage with it."""
+    out = {}
+    for m in ("o3d12", "o4d20"):
+        p = RES / f"bias_term_{m}_regression.json"
+        if not p.exists():
+            return None
+        j = json.load(open(p)); rs = j["synthetic_rows"]["interstitial"]["r_star_eV"]
+        rows = [r for r in _csv.DictReader(open(RES / f"bias_term_{m}_regression.csv")) if r["scale"] == "lam_F"
+                and r["cov"] != "cr3" and r["qoi"] in _INT]
+        fr = [float(r["sigma_bias"]) / rs for r in rows]
+        out[m] = {"lo": min(fr), "hi": max(fr), "rs": rs, "sig": j["synthetic_rows"]["interstitial"]["cr3_sigma_lamF_eV"],
+                  "k95": sorted(j[f"cr3+bias_{c}/lam_F"]["k95"] for c in ("cr3", "post")), "k0": j["cr3/lam_F"]["k95"]}
+    return out
+rk1 = _rank1()
+rk1_txt = ("; ".join(f"{m}: {v['lo']:.1f}–{v['hi']:.1f} of r* = {v['rs']:.2f} eV" for m, v in rk1.items()) if rk1 else "(pending)")
+rk1_cov = (", ".join(f"{m} {v['k0']} → {v['k95'][0]}–{v['k95'][1]} of 20" for m, v in rk1.items()) if rk1 else "(pending)")
+rk1_sig = (" and ".join(f"{v['sig']:.2f} eV against r* = {v['rs']:.2f} eV ({m})" for m, v in rk1.items()) if rk1 else "(pending)")
+
 sec("method-disc", "Measuring the bias: a discrepancy term", r"""
 <p>A bias shared by every training configuration of a kind is invisible to any delete-one jackknife: deleting one
 configuration does not move the fit along it. The defect formation energies expose such a bias. Every training interstitial,
 vacancy and divacancy cell is a hot MD snapshot, while the QoIs are relaxed defects.</p>
-<p><b>Measuring the bias from training labels.</b> Each training defect snapshot \(i\) is paired with the bulk snapshot
-nearest in volume and thermal amplitude, giving a defect–bulk contrast row \(d_i=b_{\text{def},i}-(n_{\text{def}}/n_{\text{b}})\,b_{\text{bulk},i}\)
-and target \(y_i=y_{\text{def},i}-(n_{\text{def}}/n_{\text{b}})\,y_{\text{bulk},i}\), with \(b\) the energy rows, \(y\) the energy labels
-and \(n_{\text{def}}\), \(n_{\text{b}}\) the atom counts of the two cells. Regressing the residual \(y_i-d_i\cdot\hat\theta\) on
-\(\eta_i=F_{\text{rms},i}^2\), the mean squared DFT force component of the defect cell (proportional to the thermal mean-square
-displacement for a harmonic solid), and extrapolating to \(\eta\to0\) estimates the model's error for a relaxed defect. That intercept is
-linear in the data, so it is a synthetic observation:</p>
-\[ d^*_t=\sum_i a_i d_i,\qquad y^*_t=\sum_i a_i y_i,\qquad a=e_1^{\mathsf T}(X^{\mathsf T}X)^{-1}X^{\mathsf T},\quad X=[1,\,\eta_i], \]
-<p>with \(X\) the regression design (rows \([1,\eta_i]\)), \(e_1=(1,0)^{\mathsf T}\) selecting the intercept, residual
-\(r^*_t=y^*_t-d^*_t\cdot\hat\theta\) and standard error \(s^*_t\) from the regression scatter, per defect class
-\(t\in\{\text{interstitial},\text{vacancy},\text{divacancy}\}\). No QoI value or tolerance enters.</p>
-<p><b>Why not in parameter space.</b> The minimum-norm correction that removes \(r^*_t\), \(\delta_t=\Sigma d^*_t r^*_t/(d^{*\mathsf T}_t\Sigma d^*_t)\), with \(\Sigma\) the propagated covariance
-(the POPS construction applied to the synthetic row, in the CR3 or posterior metric), added as \(\Sigma\mathrel{+}=\delta_t\delta_t^{\mathsf T}\),
-projects only 0.1–0.2 eV of a 1 eV \(r^*\) onto the relaxed-defect QoI rows. The extrapolated hot-snapshot contrast and the
-relaxed defect's formation row point in different directions in θ, so coverage did not change.</p>
-<p><b>Estimator.</b> The intercept can be formed with each defect snapshot's nearest bulk snapshot as reference (paired; the form
-that is also the synthetic row above) or with a bulk thermal trend fitted over all bulk cells near the defect volume (regression).
-The headline uses regression for interstitials (data-only evidence, Table 7c) and, for the vacancy, regression per training-cell
-size (63 and 215 atoms) combined by inverse variance, because the two sizes disagree and one pooled trend is rejected (see The vacancy, below).</p>
+<p><b>Measuring the bias from training labels.</b> For each defect class
+\(t\in\{\text{interstitial},\text{vacancy},\text{divacancy}\}\), the bulk reference is a per-atom thermal trend
+\(e_{\text{b}}(\eta)=\beta_0+\beta_1\eta\), fitted by least squares to the residuals per atom of the diamond bulk cells within
+0.6 Å<sup>3</sup>/atom of the defect cells' mean volume, with \(\eta=F_{\text{rms}}^2\) the mean squared DFT force component of
+a cell (proportional to the thermal mean-square displacement for a harmonic solid). Each training defect cell \(i\), with
+\(n_i\) atoms, energy row \(b_i\) and energy label \(y_i\), then gives a bulk-subtracted residual
+\(u_i=y_i-b_i\cdot\hat\theta-n_i\,e_{\text{b}}(\eta_i)\). Regressing \(u_i\) on \(\eta_i\) and extrapolating to \(\eta\to0\)
+estimates the model's error for a relaxed defect. The intercept is linear in the labels and in \(\hat\theta\), so it is a
+synthetic observation:</p>
+\[ r^*_t=\sum_i a_i u_i=y^*_t-d^*_t\cdot\hat\theta,\qquad a=e_1^{\mathsf T}(X^{\mathsf T}X)^{-1}X^{\mathsf T},\quad X=[1,\,\eta_i], \]
+<p>with \(X\) the regression design (rows \([1,\eta_i]\)), \(e_1=(1,0)^{\mathsf T}\) selecting the intercept, \(d^*_t\) and
+\(y^*_t\) the same combination of the defect rows and labels with the bulk trend's rows and labels subtracted, and standard
+error \(s^*_t\) from the regression scatter. No QoI value or tolerance enters. An alternative reference, each defect cell's
+nearest bulk cell in volume and thermal amplitude, was rejected on training data alone: most partners are 2-atom cells, so a
+partner's residual enters about 108 times, and that form has the larger standard error and extrapolates worse to held-out cold
+snapshots.</p>
+<p><b>Training-cell size.</b> The training vacancy cells come in two sizes, 63 and 215 atoms, so the vacancy trend need not be
+shared. We compare four linear-Gaussian models of the vacancy residuals \(u_i\) by their evidence: one intercept and slope for
+both sizes; per-size intercepts with a shared slope; a shared intercept with per-size slopes; and per-size intercepts and
+slopes. The coefficients have Gaussian priors (intercepts N(0, s<sub>a</sub><sup>2</sup>) with s<sub>a</sub> = 1 eV, slopes
+scaled so that a slope moves \(u\) by about s<sub>a</sub> across the data) and are integrated analytically. Each size has its
+own noise level, log-uniform on [10<sup>−3</sup>, 10] eV and integrated on a grid. The QoI vacancy sits in a 216-site cell, so
+its bias is the 215-atom intercept, averaged over the four models with their posterior probabilities (equal prior odds). This
+uses training labels only, as for the interstitials.</p>
+<p><b>Why not in parameter space.</b> The interstitial synthetic row is far outside the jackknife's reach: its CR3 × λ<sub>F</sub> σ is
+""" + rk1_sig + r""". The minimum-norm correction that removes \(r^*_t\), \(\delta_t=\Sigma d^*_t r^*_t/(d^{*\mathsf T}_t\Sigma d^*_t)\), with \(\Sigma\) the
+propagated covariance (the POPS construction applied to the synthetic row, in the CR3 or posterior metric), added as
+\(\Sigma\mathrel{+}=\delta_t\delta_t^{\mathsf T}\), carries part of the bias to the relaxed defects, but unevenly: the projected σ on the three
+interstitial QoIs is """ + rk1_txt + r""" (both metrics). The hot-snapshot contrast and the relaxed defect's formation row point
+in different directions in θ, so the transfer depends on the QoI. Coverage at 95 % with λ<sub>F</sub> becomes """ + rk1_cov + r""",
+short of the observable-space term below.</p>
 <p><b>Discrepancy term.</b> For the QoIs of defect class \(t\), the variance becomes
 \(\sigma_Q^2=\sigma_{Q,\text{method}}^2+r^{*2}_t+s^{*2}_t\), with \(\sigma_{Q,\text{method}}\) the σ of the UQ method without the term (interstitial class for the three interstitials; vacancy class for the
 vacancy). Every other QoI is unchanged. This leaves the pure parameter-space propagation for these QoIs and is reported as a
@@ -585,9 +620,6 @@ pops_cov = "; ".join(f"{m}: {int(float(_pc[(m, f'B2lev{c}-committee')]['k95']))}
 dtrend = json.load(open(RES / "defect_trend.json")) if (RES / "defect_trend.json").exists() else {}
 disc = json.load(open(RES / "discrepancy.json")) if (RES / "discrepancy.json").exists() else {}
 disc_rows = rd("discrepancy.csv")
-disc_reg = json.load(open(RES / "discrepancy_regression.json")) if (RES / "discrepancy_regression.json").exists() else {}
-disc_pair = json.load(open(RES / "discrepancy_paired.json")) if (RES / "discrepancy_paired.json").exists() else {}
-btm = {m: json.load(open(RES / f"bias_term_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"bias_term_{m}.json").exists()}
 DEF_Q = (("vacancy_energy", "vacancy"), ("dumbbell_interstitial_energy", "dumbbell int."),
          ("hexagonal_interstitial_energy", "hexagonal int."), ("tetrahedral_interstitial_energy", "tetrahedral int."))
 qrow = lambda m, k, meth="CR3-headline", sc="lam_F": next((r for r in rd("qoi_uq.csv") if r["model"] == m and r["qoi"] == k
@@ -727,9 +759,6 @@ for m in ("o3d12", "o4d20"):
         trend_rows += (f"<tr><td>{m}</td><td class=n>{tr_['defect_intercept_eV']:+.2f} ± {tr_['defect_intercept_se']:.2f}</td>"
                        f"<td class=n>{qerrs}</td>"
                        f"<td class=n>{tr_['defect_mean_eV']:+.2f}</td></tr>")
-rstar_rows = "".join(
-    f"<tr><td>{m}</td><td>{t}</td><td class=n>{v['r_star_eV']:+.3f} ± {v['se_eV']:.3f}</td><td class=n>{v['cr3_sigma_lamF_eV']:.3f}</td>"
-    f"<td class=n>{v['n_snapshots']}</td></tr>" for m, b in btm.items() for t, v in b["synthetic_rows"].items())
 dcov_rows = ""
 for m in ("o4d20", "o3d12"):
     for meth, sc, lab in (("CR3-headline", "lam_F", "CR3 × λ<sub>F</sub>"), ("CR3-headline", "lam_V", "CR3 × λ<sub>V</sub>"),
@@ -744,47 +773,34 @@ dz_rows = "".join(
     f"<td class=n>{r['sigma_method']:.3f}</td><td class=n>{r['sigma']:.3f}</td><td class=n>{r['z_without']:+.2f} → {r['z']:+.2f}</td></tr>"
     for r in disc_rows if r["qoi"] in dict(DEF_Q) and r["method"] == "CR3-headline+disc" and r["scale"] == "lam_F")
 models_disc = ", ".join(sorted(k for k in disc if k != "estimator")) or "none yet"
-ec = json.load(open(RES / "estimator_check.json")) if (RES / "estimator_check.json").exists() else None
-ec_rows = ""
-if ec:
-    for ty in ("interstitial", "divacancy", "vacancy"):
-        c = ec["C_noise"][ty]
-        cells = "".join(f"<td class=n>{ec['B_cold_holdout'][m][ty]['rmse_paired_eV']:.2f} / {ec['B_cold_holdout'][m][ty]['rmse_regression_eV']:.2f}</td>"
-                        for m in ("o3d12", "o4d20"))
-        ses = " · ".join(f"{c[m]['se_paired']:.3f} / {c[m]['se_regression']:.3f}" for m in ("o3d12", "o4d20"))
-        a_ = ec["A_model_vs_model"].get(ty)
-        mvm = (f"{' / '.join(f'{q:.2f}' for q in a_['truth_Q_o4d20_minus_Q_o3d12_eV'])}: {a_['paired_eV'][0]:+.2f} / {a_['regression_eV'][0]:+.2f}"
-               if a_ else "–")
-        ec_rows += (f"<tr><td>{ty}</td><td class=n>{c['ratio_quantiles'][1]:.0f}</td><td class=n>{c['o4d20']['partner_term_rms_eV']:.2f}</td>"
-                    f"<td class=n>{ses}</td>{cells}<td class=n>{mvm}</td></tr>")
-vss = json.load(open(RES / "vacancy_size_split.json")) if (RES / "vacancy_size_split.json").exists() else {}
 vck = json.load(open(RES / "vacancy_check.json")) if (RES / "vacancy_check.json").exists() else {}
-EST_LAB = {"interstitial": "regression (pooled)", "vacancy": "regression per cell size, inverse variance"}
+EST_LAB = {"interstitial": "bulk-trend regression", "divacancy": "bulk-trend regression", "vacancy": "215-atom intercept, size-model average"}
 r7a_rows = "".join(f"<tr><td>{m}</td><td>{t}</td><td>{EST_LAB.get(t, '')}</td><td class=n>{v['r_star_eV']:+.3f} ± {v['se_eV']:.3f}</td></tr>"
                    for m in ("o3d12", "o4d20") for t, v in disc.get(m, {}).get("r_star", {}).items())
+vev = json.load(open(RES / "vacancy_evidence.json")) if (RES / "vacancy_evidence.json").exists() else {}
+VMOD = (("pool", "one intercept, one slope"), ("int", "per-size intercepts, one slope"),
+        ("slope", "one intercept, per-size slopes"), ("sep", "per-size intercepts and slopes"))
+VLAB = {"o3d12": "o3d12", "o4d20": "o4d20", "model_vs_model (o4d20 - o3d12)": "model vs model"}
 vac_rows = ""
-for m in ("o3d12", "o4d20", "model_vs_model (o4d20 - o3d12)"):
-    if m in vss:
-        d_ = vss[m]
-        lab = "model vs model (o4d20 − o3d12)" if m.startswith("model") else m
-        vac_rows += (f"<tr><td>{lab}</td><td class=n>{d_['per_size']['63'][0]:+.3f} ± {d_['per_size']['63'][1]:.3f}</td>"
-                     f"<td class=n>{d_['per_size']['215'][0]:+.3f} ± {d_['per_size']['215'][1]:.3f}</td><td class=n>{d_['heterogeneity_z']:.1f}</td>"
-                     f"<td class=n>{d_['inverse_variance'][0]:+.3f} ± {d_['inverse_variance'][1]:.3f}</td></tr>")
+for key, mlab in VMOD:
+    cells = ""
+    for m in VLAB:
+        h = vev.get(m, {}).get("s_a=1", {}).get(key)
+        cells += (f"<td class=n>{h['log_bf_vs_best']:+.1f}</td><td class=n>{h['r215_mean_eV']:+.2f} ± {h['r215_sd_eV']:.2f}</td>"
+                  if h else "<td>–</td><td>–</td>")
+    vac_rows += f"<tr><td>{mlab}</td>{cells}</tr>"
+if vev:
+    vac_rows += "<tr><td>average over models</td>" + "".join(
+        f"<td></td><td class=n>{vev[m]['s_a=1']['bma']['r215_mean_eV']:+.2f} ± {vev[m]['s_a=1']['bma']['r215_sd_eV']:.2f}</td>" for m in VLAB) + "</tr>"
+def vsens(m):
+    """log BF of the shared-intercept model against the best, and the model average, at the other prior scales."""
+    return "; ".join(f"s<sub>a</sub> = {sa:g} eV: {vev[m][f's_a={sa:g}']['slope']['log_bf_vs_best']:+.1f}, average "
+                     f"{vev[m][f's_a={sa:g}']['bma']['r215_mean_eV']:+.2f} eV" for sa in (0.3, 3.0))
 cold_txt, geo_txt = "", ""
 if vck:
     cc = {m: next(o for o in vck["relax_cold"][m] if o["size"] == 63 and o["x"] < 0.05) for m in ("o3d12", "o4d20")}
     cold_txt = ", ".join(f"{m}: relaxation gain {cc[m]['model_gain_eV']:.2f} eV against a DFT bound of {cc[m]['dft_gain_bound_eV']:.2f} eV" for m in cc)
     geo_txt = ", ".join(f"{m} {min(g['neighbour_pair_distances_A']):.2f}–{max(g['neighbour_pair_distances_A']):.2f} Å" for m, g in vck["geometry"].items())
-est_rows = ""
-for m in ("o4d20", "o3d12"):
-    for sc_, lab in (("lam_F", "λ<sub>F</sub>"), ("lam_V", "λ<sub>V</sub>")):
-        r0 = get(m, "CR3-headline", sc_)
-        h_, a_, b_ = (d.get(m, {}).get(f"CR3-headline+disc/{sc_}") for d in (disc, disc_pair, disc_reg))
-        if r0 and h_ and a_ and b_:
-            ra, rb = disc_pair[m]["r_star"]["interstitial"]["r_star_eV"], disc_reg[m]["r_star"]["interstitial"]["r_star_eV"]
-            est_rows += (f"<tr><td>{m}</td><td>{lab}</td><td class=n>{int(r0['k95'])} ({int(r0['k68'])})</td>"
-                         f"<td class=n>{h_['k95']} ({h_['k68']})</td><td class=n>{a_['k95']} ({a_['k68']})</td>"
-                         f"<td class=n>{b_['k95']} ({b_['k68']})</td><td class=n>{ra:+.2f} / {rb:+.2f}</td></tr>")
 sec("results-defects", "3.8  Defect formation energies: diagnosis and the discrepancy term", f"""
 <p>For both models the relaxed interstitial formation energies are the QoIs that are confidently wrong: all three are too
 low, and outside the 95 % interval. This holds for every method of Section 3.7, not only the headline, so the diagnosis below
@@ -802,62 +818,51 @@ a bias that all interstitial clusters share. With per-atom energy weighting, 0.4
 2–7 meV/atom in the fit.</p>""", "drafted", level=3)
 
 sec("results-defects2", "", f"""
-<div class="wrap"><table><caption>Table 6. Synthetic zero-temperature contrast rows (DFT training labels only): residual r*
-± standard error at the unchanged fit, against the CR3 × λ<sub>F</sub> σ of the same row.</caption>
-<thead><tr><th>model</th><th>defect class</th><th>r* (eV)</th><th>CR3 σ (eV)</th><th>snapshots</th></tr></thead>
-<tbody>{rstar_rows}</tbody></table></div>
 <div class="wrap"><table><caption>Table 7a. The r* ± se used in the headline discrepancy term (DFT training labels only).</caption>
 <thead><tr><th>model</th><th>class</th><th>estimator</th><th>r* (eV)</th></tr></thead><tbody>{r7a_rows}</tbody></table></div>
 <div class="wrap"><table><caption>Table 7. Coverage of the 20 scored QoIs with the discrepancy term on the four defect QoIs
 (models with r*: {models_disc}).</caption>
 <thead><tr><th>model</th><th>method</th><th>95 % without</th><th>95 % with [credible interval]</th><th>68 %</th><th>median σ/tol</th></tr></thead>
 <tbody>{dcov_rows}</tbody></table></div>
-<div class="wrap"><table><caption>Table 7b. Sensitivity to the r* estimator, CR3 × λ<sub>F</sub> and λ<sub>V</sub>, 95 % (68 %) coverage of the
-20 QoIs. Headline: regression for the interstitial class, per-size regression for the vacancy. Paired: each defect snapshot against its nearest
-bulk snapshot (the form that is also a synthetic row). Regression: the bulk reference is a per-atom thermal trend fitted over all
-bulk cells near the defect volume (Table 5).</caption>
-<thead><tr><th>model</th><th>scale</th><th>no term</th><th>headline</th><th>all paired</th><th>all regression</th><th>interstitial r* paired / regression (eV)</th></tr></thead>
-<tbody>{est_rows}</tbody></table></div>
-<div class="wrap"><table><caption>Table 7c. Evidence on the two estimators that uses no DFT QoI value. Columns: median
-n<sub>def</sub>/n<sub>b</sub> of the paired form, and the RMS of the amplified partner term (o4d20, eV); intercept standard error paired /
-regression (o3d12 · o4d20, eV); cold hold-out RMSE paired / regression (fit without the coldest 20 % of defect snapshots, predict
-them, DFT training labels; o3d12, o4d20, eV); model against model (o4d20 as truth for o3d12: the true QoI differences from the
-models' own harness values: paired / regression prediction, eV).</caption>
-<thead><tr><th>class</th><th>n<sub>def</sub>/n<sub>b</sub></th><th>partner term</th><th>SE</th><th>hold-out o3d12</th><th>hold-out o4d20</th><th>model vs model</th></tr></thead>
-<tbody>{ec_rows}</tbody></table></div>
-<p>For interstitials the data-only evidence favours the regression estimator. The paired form takes most partners
-from 2-atom bulk cells, so a partner's residual enters ×108 (0.35 eV RMS, the size of the bias), its standard error is larger, and
-it extrapolates worse to held-out cold snapshots (half the RMSE for regression, in both models; likewise for divacancies). The
-model-against-model test does not separate them (both inside the true spread), and neither estimator handles the vacancy in any test.
-The headline therefore uses regression for interstitials; the vacancy is treated below. The regression estimator also agrees
-better with the observed interstitial errors. That was seen before the data-only tests were run and is not part of the
-argument, but it means the choice was not made blind; the all-paired result is kept as a sensitivity.</p>
+<p>The interstitial estimator agrees well with the observed interstitial errors. That agreement was seen before the
+nearest-bulk reference was rejected on training data (above), so the choice was not made blind, although the
+reasons for it use no DFT QoI value.</p>
 <div class="wrap"><table><caption>Table 8. Defect QoIs, CR3 × λ<sub>F</sub>: error, σ without and with the discrepancy term
 (eV), and z.</caption>
 <thead><tr><th>model</th><th>QoI</th><th>DFT − model</th><th>σ</th><th>σ with term</th><th>z</th></tr></thead>
 <tbody>{dz_rows}</tbody></table></div>""", "", level=0)
 
 sec("results-vacancy", "The vacancy", f"""
-<p>The vacancy shows no thermal trend in either pooled estimator, and both fail the model-against-model test. The training
-vacancy cells come in two sizes, 63 and 215 atoms, and the sizes disagree.</p>
-<div class="wrap"><table><caption>Table 8b. Zero-temperature vacancy bias from the regression form, per training-cell size, the
-z-score of their difference, and their inverse-variance combination (eV). The last row applies the same estimator to the
-energy difference between the two models on the training cells; the true difference of the models' own relaxed vacancy QoIs is
-0.77 eV (no DFT value involved).</caption>
-<thead><tr><th></th><th>63-atom cells</th><th>215-atom cells</th><th>z (difference)</th><th>inverse variance</th></tr></thead>
+<p>The vacancy shows no thermal trend when its 63- and 215-atom training cells are pooled. Table 8b compares the size models of the
+method above by their evidence, from training labels only.</p>
+<div class="wrap"><table><caption>Table 8b. Vacancy size models: log Bayes factor against the best model, and the posterior
+zero-thermal-amplitude bias of a 215-atom cell (eV), for each model and averaged over the models (s<sub>a</sub> = 1 eV). The
+last pair of columns applies the same analysis to the energy difference of the two models on the training cells (o4d20 − o3d12);
+the true difference of the models' own relaxed vacancy QoIs is 0.77 eV (no DFT value involved).</caption>
+<thead><tr><th>model of the size dependence</th><th>o3d12 log BF</th><th>bias</th><th>o4d20 log BF</th><th>bias</th><th>model vs model log BF</th><th>bias</th></tr></thead>
 <tbody>{vac_rows}</tbody></table></div>
-<p>The sizes differ at z ≈ 4 in both models, so a single pooled trend, as both earlier estimators assumed, is rejected by the
-data. The 63-atom cells reach colder thermal amplitudes, and their intercept does not depend on the one near-relaxed cell. The
-per-size combination recovers 0.65 eV of the 0.77 eV model-to-model difference, where the pooled forms give about 0.2. That near-relaxed
-63-atom cell gives direct evidence with no extrapolation: its bulk-subtracted residual is +0.61 eV (o3d12) and 0.00 eV (o4d20), and
-relaxing it ({cold_txt}) suggests that o3d12 over-relaxes. Both models relax the harness vacancy to a symmetric structure (vacancy
-neighbour distances {geo_txt}); the harness gives no DFT structure to compare.</p>
-<p>One selection risk remains: the closeness of the 63-atom intercept to the vacancy QoI errors was seen before the heterogeneity and
-model-against-model checks. The choice rests on those checks and on the cold cell, which use no DFT QoI value.</p>
-<figure><img src="fig8_model_compare_disc.png" alt="Per QoI, error over tolerance with 95 percent intervals for both models with the defect discrepancy term, the vacancy from the per-size estimator; intervals without the term as thin black bars, and the vacancy with the pooled-size estimator as dashed grey bars"><figcaption>Figure 8.
-As Figure 1, with the headline discrepancy term on the four defect QoIs (CR3 × λ<sub>F</sub>): the regression estimator for the
-interstitials and the per-size inverse-variance estimator for the vacancy. Thin black bars: the same QoIs'
-95 % intervals without the term. Dashed grey bars: the vacancy with the pooled-size regression estimator, which hardly widens it.
+<p>The data reject one trend for both sizes outright, and disfavour a shared intercept: the zero-temperature bias depends on the
+cell size. The per-size models win, and the vacancy QoI, in a 216-site cell, takes the 215-atom intercept averaged over the
+models: {vev["o3d12"]["s_a=1"]["bma"]["r215_mean_eV"]:+.2f} ± {vev["o3d12"]["s_a=1"]["bma"]["r215_sd_eV"]:.2f} eV (o3d12) and
+{vev["o4d20"]["s_a=1"]["bma"]["r215_mean_eV"]:+.2f} ± {vev["o4d20"]["s_a=1"]["bma"]["r215_sd_eV"]:.2f} eV (o4d20). The 215-atom cells are all hot, so
+this extrapolation is weakly determined and depends on the prior. For the shared-intercept model, the log Bayes factor and the model average at the other prior
+scales are, for o3d12, {vsens("o3d12")}; for o4d20, {vsens("o4d20")}.</p>
+<p>One check disagrees. Applied to the difference between the two models, where the truth is known without DFT, the
+shared-intercept model predicts {vev["model_vs_model (o4d20 - o3d12)"]["s_a=1"]["slope"]["r215_mean_eV"]:.2f} of the true 0.77 eV and the model average only
+{vev["model_vs_model (o4d20 - o3d12)"]["s_a=1"]["bma"]["r215_mean_eV"]:.2f}. Both miss by several standard errors, so neither
+form captures how the relaxed vacancy differs from the hot cells. The one near-relaxed training cell (63 atoms) gives
+direct evidence without extrapolation: its bulk-subtracted residual is +0.61 eV (o3d12) and 0.00 eV (o4d20), and relaxing it
+({cold_txt}) suggests that o3d12 over-relaxes. Both models relax the harness vacancy to a symmetric structure (vacancy neighbour
+distances {geo_txt}); the harness gives no DFT structure to compare.</p>
+<p>The vacancy term is small in both models, and the CR3 σ alone already covers the vacancy at 95 % (Table 8). An earlier
+estimator combined the two sizes' intercepts by inverse variance, which assumes the shared intercept the evidence disfavours.
+It gave +0.81 and +0.14 eV, close to the vacancy QoI errors, and was chosen after those errors had been seen. We replaced it
+with the evidence-based choice, which leaves the 95 % coverage unchanged. Against the headline term, the earlier estimator's joint
+log Bayes factor (Section 3.5, committee) is {lbf_disc_iv("o3d12")} (o3d12) and {lbf_disc_iv("o4d20")} (o4d20). These use the
+DFT values and are reported, not used to choose.</p>
+<figure><img src="fig8_model_compare_disc.png" alt="Per QoI, error over tolerance with 95 percent intervals for both models with the defect discrepancy term; intervals without the term as thin black bars"><figcaption>Figure 8.
+As Figure 1, with the headline discrepancy term on the four defect QoIs (CR3 × λ<sub>F</sub>): the bulk-trend regression for the
+interstitials and the size-model average for the vacancy. Thin black bars: the same QoIs' 95 % intervals without the term.
 Only the four defect QoIs change.</figcaption></figure>""", "", level=4)
 
 import numpy as _np
@@ -973,11 +978,12 @@ are the safer route, and their spread is then a property of the relaxation path 
 <p>The clearest failure is the relaxed point defects, missed by every method. Its cause is in the data: every defect cell in
 GAP-18 is a hot molecular-dynamics snapshot, the model's defect–bulk error drifts with thermal amplitude, and the relaxed defect
 lies beyond the data along a direction that every snapshot shares. A delete-one jackknife cannot see such a bias, because deleting
-one snapshot does not move the fit along it, and a rank-one parameter correction built from the snapshots does not carry it to the
-relaxed geometry either. The bias can, however, be measured from the training labels alone, by extrapolating the defect–bulk
+one snapshot does not move the fit along it, and a rank-one parameter correction built from the snapshots carries it to the relaxed
+geometry only partly and unevenly. The bias can, however, be measured from the training labels alone, by extrapolating the defect–bulk
 residual to zero thermal amplitude, and added as a discrepancy term; this restores coverage to {dk95("o3d12")} (o3d12) and
-{dk95("o4d20")} (o4d20) without using any DFT QoI value. The vacancy needed the training cells of different sizes to be treated
-separately, a reminder that such extrapolations depend on how the training data were made. Relaxed or low-temperature defect
+{dk95("o4d20")} (o4d20) without using any DFT QoI value. For the vacancy, Bayesian comparison of models for the training cells'
+size dependence shows that the bias depends on the cell size; the 215-atom extrapolation it selects is weakly determined,
+a reminder that such extrapolations depend on how the training data were made. Relaxed or low-temperature defect
 configurations in the training set would remove the need for the term, and the same diagnostic, a residual trend that extrapolates
 away from zero, can flag where such data are missing.</p>
 <p>The study has limitations. The calibration assumes that the test split and the QoI structures are exchangeable with the
