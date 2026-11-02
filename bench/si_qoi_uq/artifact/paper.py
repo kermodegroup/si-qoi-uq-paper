@@ -116,7 +116,7 @@ sec("intro", "1  Introduction", """
 properties a potential is built to predict. Machine-learned potentials are misspecified: the labels are deterministic and the
 error is approximation error. The Bayesian posterior is then far too narrow: under misspecification it concentrates at the
 best-fitting parameters at a rate set by the amount of data, not by the size of the model error, and collapses to a point as
-N<sub>data</sub> → ∞ while the prediction error stays finite [Kleijn and van der Vaart 2012; Müller 2013; Swinburne and Perez 2025].</li>
+N<sub>data</sub> → ∞ while the prediction error stays finite [Kleijn and van der Vaart 2012; Müller 2013; Swinburne and Perez 2024].</li>
 <li><b>Gap 1: per-atom force uncertainty.</b> Committees and ensembles are costly and need their own calibration; posterior
 variances are miscalibrated; marginal conformal prediction covers on average but not by environment, and errors are strongly
 heterogeneous across local environments (distortion, coordination) and correlated within a configuration.</li>
@@ -160,7 +160,7 @@ whose Cholesky form was pinned at its floor on these fits.</li>
 <li><b>Related work:</b> conformal prediction (Vovk et al. 2005; Tibshirani et al. 2019 covariate shift; Barber et al.
 2021 jackknife+; Dunn et al. 2023 hierarchical); cluster-robust and sandwich covariances (Huber 1967; White 1982; Müller 2013;
 MacKinnon et al. 2023); UQ for interatomic potentials (Musil et al. 2019 and Imbalzano et al. 2021 committees; Bigi et al. 2024
-prediction rigidities with a last-layer approximation; Kellner and Ceriotti 2024 shallow ensembles; Swinburne and Perez 2025 POPS;
+prediction rigidities with a last-layer approximation; Kellner and Ceriotti 2024 shallow ensembles; Swinburne and Perez 2024 POPS;
 Best et al. 2024 silicon UQ with ACE ensembles and conformal prediction; Bartók et al. 2018 GAP-18).</li>
 <li><b>Outline.</b> Section 2: the linear ACE fit and ARD. Section 3: the CR3 shape and the per-atom calibration. Sections 4–6: global
 scale, propagation and validation. Section 7: results, defects and ablations. Section 8: discussion.</li>
@@ -805,32 +805,31 @@ r<sub>cut</sub> 5 Å, least-squares E<sup>0</sup>, shared noise, smoothness prio
 <li>Compute: lestrade (32 cores, RTX 4000 Ada), mnf148 (32 cores, 256 GB).</li>
 </ul>""", "drafted")
 
-sec("refs", "References", """<p class="note">Checked against publisher or repository records on 2026-11-02. [confirm] marks a detail no
-record showed; [text] marks a claim that needs the full text to check.</p>
+sec("refs", "References", """<p class="note">Checked against publisher or repository records, or the full text, on 2026-11-02.</p>
 <ol class="refs">
 <li>D. M. Allen, The relationship between variable selection and data augmentation and a method for prediction, Technometrics 16, 125–127 (1974). PRESS was introduced in Allen's 1971 technical report; this is its usual published citation.</li>
 <li>A. P. Bartók, J. Kermode, N. Bernstein, G. Csányi, Machine learning a general-purpose interatomic potential for silicon, Phys. Rev. X 8, 041048 (2018).</li>
 <li>R. F. Barber, E. J. Candès, A. Ramdas, R. J. Tibshirani, Predictive inference with the jackknife+, Ann. Stat. 49, 486–507 (2021).</li>
 <li>R. M. Bell, D. F. McCaffrey, Bias reduction in standard errors for linear regression with multi-stage samples, Survey Methodology 28(2), 169–181 (2002).</li>
-<li>I. R. Best, T. J. Sullivan, J. R. Kermode, Uncertainty quantification in atomistic simulations of silicon using interatomic potentials, J. Chem. Phys. 161, 064112 (2024), doi:10.1063/5.0214590. [confirm article number]</li>
+<li>I. R. Best, T. J. Sullivan, J. R. Kermode, Uncertainty quantification in atomistic simulations of silicon using interatomic potentials, J. Chem. Phys. 161 (2024), doi:10.1063/5.0214590.</li>
 <li>F. Bigi, S. Chong, M. Ceriotti, F. Grasselli, A prediction rigidity formalism for low-cost uncertainties in trained neural networks, Mach. Learn.: Sci. Technol. 5, 045018 (2024).</li>
-<li>R. D. Cook, S. Weisberg, Residuals and Influence in Regression, Chapman and Hall (1982). [text: subset (cluster) deletion section]</li>
+<li>R. D. Cook, S. Weisberg, Residuals and Influence in Regression, Chapman and Hall (1982): predicted residuals and PRESS, Sec. 2.2; deletion of a subset of cases, \\(\\hat\\beta-\\hat\\beta_{(I)}=(X^{\\mathsf T}X)^{-1}X_I^{\\mathsf T}(I-V_I)^{-1}e_I\\), Sec. 3.6, eq. 3.6.3.</li>
 <li>R. Drautz, Atomic cluster expansion for accurate and transferable interatomic potentials, Phys. Rev. B 99, 014104 (2019).</li>
 <li>R. Dunn, L. Wasserman, A. Ramdas, Distribution-free prediction sets for two-layer hierarchical models, J. Am. Stat. Assoc. 118, 2491–2502 (2023).</li>
-<li>A. Grossfield, D. M. Zuckerman, Quantifying uncertainty and sampling quality in biomolecular simulations, Annu. Rep. Comput. Chem. 5, 23–48 (2009), doi:10.1016/S1574-1400(09)00502-7. [confirm pages]</li>
+<li>A. Grossfield, D. M. Zuckerman, Quantifying uncertainty and sampling quality in biomolecular simulations, in Annual Reports in Computational Chemistry, Vol. 5, Elsevier (2009).</li>
 <li>J. A. Hoeting, D. Madigan, A. E. Raftery, C. T. Volinsky, Bayesian model averaging: a tutorial, Stat. Sci. 14, 382–417 (1999).</li>
 <li>P. J. Huber, The behavior of maximum likelihood estimates under nonstandard conditions, Proc. Fifth Berkeley Symp. Math. Stat. Probab. 1, 221–233 (1967).</li>
 <li>G. Imbalzano, Y. Zhuang, V. Kapil, K. Rossi, E. A. Engel, F. Grasselli, M. Ceriotti, Uncertainty estimation for molecular dynamics and sampling, J. Chem. Phys. 154, 074102 (2021).</li>
 <li>M. Kellner, M. Ceriotti, Uncertainty quantification by direct propagation of shallow ensembles, Mach. Learn.: Sci. Technol. 5, 035006 (2024).</li>
 <li>B. J. K. Kleijn, A. W. van der Vaart, The Bernstein–von Mises theorem under misspecification, Electron. J. Stat. 6, 354–381 (2012).</li>
-<li>T. Lelièvre, M. Rousset, G. Stoltz, Free Energy Computations: A Mathematical Perspective, Imperial College Press (2010). [text: Section 2.3]</li>
+<li>T. Lelièvre, M. Rousset, G. Stoltz, Free Energy Computations: A Mathematical Perspective, Imperial College Press (2010).</li>
 <li>J. G. MacKinnon, M. Ø. Nielsen, M. D. Webb, Cluster-robust inference: a guide to empirical practice, J. Econometrics 232, 272–299 (2023).</li>
 <li>J. G. MacKinnon, H. White, Some heteroskedasticity-consistent covariance matrix estimators with improved finite sample properties, J. Econometrics 29, 305–325 (1985).</li>
 <li>U. K. Müller, Risk of Bayesian inference in misspecified models, and the sandwich covariance matrix, Econometrica 81, 1805–1849 (2013).</li>
 <li>F. Musil, M. J. Willatt, M. A. Langovoy, M. Ceriotti, Fast and accurate uncertainty estimation in chemical machine learning, J. Chem. Theory Comput. 15, 906–915 (2019).</li>
 <li>J. E. Pustejovsky, E. Tipton, Small-sample methods for cluster-robust variance estimation and hypothesis testing in fixed effects models, J. Bus. Econ. Stat. 36, 672–683 (2018).</li>
 <li>G. Simmons, T. Hudson, T. D. Swinburne, J. R. Kermode, review of uncertainty quantification for machine-learned interatomic potentials, in preparation.</li>
-<li>T. D. Swinburne, D. Perez, Parameter uncertainties for imperfect surrogate models in the low-noise regime, Mach. Learn.: Sci. Technol. 6(1) (2025), doi:10.1088/2632-2153/ad9fce. [confirm article number]</li>
+<li>T. D. Swinburne, D. Perez, Parameter uncertainties for imperfect surrogate models in the low-noise regime, Mach. Learn.: Sci. Technol. 6, 015008 (2024).</li>
 <li>R. J. Tibshirani, R. F. Barber, E. J. Candès, A. Ramdas, Conformal prediction under covariate shift, Adv. Neural Inf. Process. Syst. 32, 2530–2540 (2019).</li>
 <li>V. Vovk, A. Gammerman, G. Shafer, Algorithmic Learning in a Random World, Springer (2005).</li>
 <li>V. Vovk, D. Lindsay, I. Nouretdinov, A. Gammerman, Mondrian confidence machine, On-line Compression Modelling project (old series), Working Paper 4, Royal Holloway, University of London (2003).</li>
