@@ -4,7 +4,7 @@ Not part of the pipeline.
 
     python bench/si_qoi_uq/artifact/paper.py   -> bench/si_qoi_uq/artifact/paper/index.html (+ figures)
 """
-import csv, html, json, pathlib, shutil
+import csv, json, pathlib, shutil
 
 HERE = pathlib.Path(__file__).parent
 RES, FIG = HERE.parent / "results", HERE.parent / "figures"
@@ -34,12 +34,18 @@ get = lambda m, meth, sc: next((r for r in cov if r["model"] == m and r["method"
 lam = {m: {r["kind"]: r["rms_z"] for r in sd if r["model"] == m and r["factor"] == "cr3" and r["breakdown"] == "all"}
        for m in models}
 
-TAB = [("CR3-headline", "lam_F", "CR3 × λ<sub>F</sub> (headline)"), ("CR3-headline", "lam_V", "CR3 × λ<sub>V</sub>"),
-       ("CR3-headline", "lam_E", "CR3 × λ<sub>E</sub>"), ("CR3-headline", "lam_pool", "CR3 × λ<sub>pool</sub>"),
-       ("CR3-committee-lamF-physical", "lam_F", "CR3 at λ<sub>F</sub>, full re-run, physical members"),
-       ("B3-headline", "lam_1", "B3: CR3, λ = 1"), ("B1-headline", "q_b1", "B1: posterior × q̂"),
-       ("B2lev50-committee", "lam_1", "B2 variant: POPS, leverage pct 50"),
-       ("B2lev5-committee", "lam_1", "B2 variant: POPS, leverage pct 5")]
+# the four methods of Figures 1 and 1b (figures.PANELS), with the same labels; variants in the sensitivity table
+TAB = [("CR3-headline", "lam_F", "CR3 × λ<sub>F</sub> (headline)"), ("B1-headline", "q_b1", "B1: posterior × q̂"),
+       ("B2lev5-committee", "lam_1", "B2: POPS (leverage cut 5 %)"), ("B3-headline", "lam_1", "B3: CR3, λ = 1")]
+TAB_SENS = [("CR3-headline", "lam_V", "CR3 × λ<sub>V</sub>"), ("CR3-headline", "lam_E", "CR3 × λ<sub>E</sub>"),
+            ("CR3-headline", "lam_pool", "CR3 × λ<sub>pool</sub>"),
+            ("CR3-committee-lamF-physical", "lam_F", "CR3 at λ<sub>F</sub>, full re-run, physical members"),
+            ("B2lev50-committee", "lam_1", "POPS, leverage cut 50 %")]
+_cov_row = lambda m, lab, r: (
+    f"<tr><td>{m}</td><td>{lab}</td><td class=n>{int(r['n'])}</td><td class=n>{int(r['k68'])} [{f(r['ci68_lo'])}, {f(r['ci68_hi'])}]</td>"
+    f"<td class=n>{int(r['k95'])} [{f(r['ci95_lo'])}, {f(r['ci95_hi'])}]</td><td class=n>{f(r['rms_z'])}</td>"
+    f"<td class=n>{f(r['median_sigma_over_tol'])}</td></tr>")
+sens_rows = "".join(_cov_row(m, lab, r) for m in models for meth, sc, lab in TAB_SENS for r in [get(m, meth, sc)] if r)
 cov_rows = "".join(
     f"<tr><td>{m}</td><td>{lab}</td><td class=n>{int(r['n'])}</td><td class=n>{int(r['k68'])} [{f(r['ci68_lo'])}, {f(r['ci68_hi'])}]</td>"
     f"<td class=n>{int(r['k95'])} [{f(r['ci95_lo'])}, {f(r['ci95_hi'])}]</td><td class=n>{f(r['rms_z'])}</td>"
@@ -49,12 +55,15 @@ lam_rows = "".join(f"<tr><td>{m}</td>" + "".join(f"<td class=n>{f(lam[m].get(k))
                    + f"<td class=n>{f(lam[m]['V'] / lam[m]['F'])}</td><td class=n>{f(lam[m]['E'] / lam[m]['F'])}</td></tr>"
                    for m in models)
 jrows = ""
+pfmt = lambda p_: f"{p_:.2g}" if p_ > 0 else "&lt; 1e-300"
 for m in models:
-    for name in ("CR3/lam_F", "CR3/lam_V", "B1/q_b1"):
+    for name, jlab in (("CR3/lam_F", "CR3 × λ<sub>F</sub> (headline)"), ("B1/q_b1", "B1: posterior × q̂"),
+                       ("B2lev5/lam_1", "B2: POPS (leverage cut 5 %)"), ("B3/lam_1", "B3: CR3, λ = 1"),
+                       ("CR3/lam_V", "CR3 × λ<sub>V</sub> (sensitivity)")):
         for kind, jt in joint.get(m, {}).get(name, {}).items():
             e = jt["scaled"]["eps_0.001"]
-            jrows += (f"<tr><td>{m}</td><td>{html.escape(name)}</td><td>{kind}</td><td class=n>{jt['scaled']['df']}</td>"
-                      f"<td class=n>{f(e['mahalanobis'], 1)}</td><td class=n>{f(e['chi2_95'], 1)}</td><td class=n>{e['p_value']:.2g}</td></tr>")
+            jrows += (f"<tr><td>{m}</td><td>{jlab}</td><td>{kind}</td><td class=n>{jt['scaled']['df']}</td>"
+                      f"<td class=n>{f(e['mahalanobis'], 1)}</td><td class=n>{f(e['chi2_95'], 1)}</td><td class=n>{pfmt(e['p_value'])}</td></tr>")
 nflag = {m: sum(1 for r in dvc if r["model"] == m and r.get("flagged") in ("True", True) and "JAX" not in r["qoi"]) for m in models}
 ncmp = {m: sum(1 for r in dvc if r["model"] == m and r.get("flagged") in ("True", "False", True, False) and "JAX" not in r["qoi"]) for m in models}
 head = {m: get(m, "CR3-headline", "lam_F") for m in models}
@@ -164,6 +173,27 @@ leaves the fit unchanged.</p>
 (2.5), the baselines (2.6), the propagation to QoIs (2.7) and the discrepancy term for shared biases (2.8). Section 3 gives the validation statistics and the results: the per-atom forces first, then the global scale that the
 propagation uses, then the QoIs. Section 4 discusses them.</p>""", "draft")
 
+_par = {p_["size"]: p_ for p_ in json.load(open(RES / "ace_pareto.json"))} if (RES / "ace_pareto.json").exists() else {}
+if {"o3d12", "o4d20", "o4d12", "o4d14"} <= set(_par):
+    _a, _b = _par["o3d12"], _par["o4d20"]
+    pareto_par = f"""<p><b>The two models.</b> We study two members of the linear ACE ladder of the ace-jax silicon accuracy–cost benchmark,
+fitted to the GAP-18 database [Bartók et al. 2018] (Figure 0). A model oNdM has correlation order N and total polynomial degree M.
+o4d20 ({_b['n_params']} coefficients) is the only size of the ladder that meets both of the benchmark's targets, a test force RMSE
+no larger than GAP-18's 0.0825 eV/Å on this split (o4d20: {_b['rmse_F']:.4f} eV/Å) and a QoI error, the geometric mean of
+|error|/tolerance over the silicon QoIs, below 0.5 (o4d20: {_b['qoi']:.2f}). o3d12 ({_a['n_params']} coefficients) is {_b['cost_cpu'] / _a['cost_cpu']:.0f}× cheaper on a CPU node, with
+about twice the force error ({_a['rmse_F']:.3f} eV/Å) and a typical QoI error of one tolerance ({_a['qoi']:.2f}). The pair spans
+the useful range of the ladder: an accurate model whose intervals should be narrow, and a cheap one whose intervals must be wide to
+be honest. The two panels of Figure 0 also rank the sizes differently: o4d12 has a larger force error than o4d14 but a smaller QoI
+error ({_par['o4d12']['qoi']:.2f} against {_par['o4d14']['qoi']:.2f}). Force accuracy alone does not predict QoI accuracy, which is why the
+uncertainty is propagated to the QoIs themselves.</p>
+<figure><img src="fig0_ace_pareto.png" alt="Test force RMSE and QoI error against CPU cost for the linear ACE ladder, o3d12 and o4d20 circled"><figcaption>Figure 0.
+The linear ACE ladder of the ace-jax silicon accuracy–cost benchmark: test force RMSE (left) and QoI error (right; the geometric
+mean over the silicon QoIs of |error|/tolerance against CASTEP) against cost on a Sulis CPU node (ace-jax C++ kernel in LAMMPS,
+float64). Dashed: the benchmark's targets, GAP-18's force RMSE on this split and a QoI error of 0.5. Circled: the two models
+studied here.</figcaption></figure>"""
+else:
+    pareto_par = ""
+
 sec("theory-model", "2  Methodology", r"""
 <h3>2.1 Linear ACE: model and observations</h3>
 <p>Each atom \(i\), at position \(r_i\) with species \(Z_i\) and environment \(x_i\) (its neighbours within the cutoff), has a site descriptor \(\phi(x_i)\in\mathbb{R}^p\): the atomic cluster expansion (ACE) product basis [Drautz 2019], in
@@ -182,6 +212,7 @@ balance between energies, forces and virials, and \(\sigma\) sets the overall no
 \(\psi=b\,w/\sigma\) and \(\tilde y=y\,w/\sigma\), with \(y\) the DFT label minus the \(E^0\) baseline. Stacked over all configurations, the observable rows \(b\) form the design matrix \(\Phi\), and the
 \(\psi\) its whitened form \(\Psi\). With least-squares \(E^0\), one column per species carries the atom count on the
 energy rows (a fixed, wide prior).</p>
+""" + pareto_par + r"""
 <h3>2.2 Prior, posterior and evidence</h3>
 <p>The prior is \(\theta\sim\mathcal N(0,\Lambda^{-1})\) with the smoothness prior \(\Lambda=\operatorname{diag}(\Gamma_j^2)/\sigma_c^2\): \(\sigma_c\) is the prior scale of the coefficients
 and \(\Gamma_j=\sum_t\big[(l_t/w_l)^4+(n_t/w_n)^4\big]\), summed over the one-particle factors \(t\) of basis function \(j\) with radial
@@ -506,9 +537,14 @@ qrow = lambda m, k, meth="CR3-headline", sc="lam_F": next((r for r in rd("qoi_uq
                                                           and r["method"] == meth and r["scale"] == sc), None)
 tight = (head["o3d12"]["median_sigma_over_tol"] / head["o4d20"]["median_sigma_over_tol"]) if all(head.get(m) for m in ("o3d12", "o4d20")) else float("nan")
 sec("results", "3.4  Coverage and sharpness", f"""
-<div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % CI]) and sharpness.</caption>
+<div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % CI]) and sharpness, for the four methods of Figures 1 and 1b.</caption>
 <thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th></tr></thead>
 <tbody>{cov_rows}</tbody></table></div>
+<div class="wrap"><table><caption>Table 3b. Sensitivity of the coverage to the scale and to the committee variant: the CR3 shape
+with the energy, virial or pooled scale (Section 3.3), the full re-run at λ<sub>F</sub> keeping physical members only (Section 3.6),
+and POPS with the 50 % leverage cut (Section 3.7).</caption>
+<thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th></tr></thead>
+<tbody>{sens_rows}</tbody></table></div>
 <figure><img src="fig6_model_compare.png" alt="Per QoI, error over tolerance with 95 percent intervals for o4d20 and o3d12, DFT as crosses at zero; one row each for the headline and the three baselines"><figcaption>Figure 1. Model prediction minus DFT, in units of the benchmark tolerance, with the 95 % interval, for o4d20
 (circles) and o3d12 (squares); DFT is the cross at 0 and the shaded band is ± 1 tolerance. The axis is linear within ± 1 and
 logarithmic beyond, and is shared by all rows. Top row: the headline, CR3 × λ<sub>F</sub>; the larger model's intervals are
@@ -518,8 +554,9 @@ its 95 % coverage and median σ/tol.</figcaption></figure>
 <figure><img src="fig2_coverage.png" alt="Coverage per method with binomial intervals"><figcaption>Figure 1b. Fraction of the 20 scored QoIs inside the 68 % and 95 % intervals for the four methods of Figure 1
 (headline, B1, B2 with the 5 % leverage cut, B3), with 95 % Clopper–Pearson intervals; dashed lines are the nominal levels.</figcaption></figure>
 <h3>3.5 Joint test</h3>
-<div class="wrap"><table><caption>Table 4. Mahalanobis test (correlation-scaled, ε = 10<sup>−3</sup>).</caption>
-<thead><tr><th>model</th><th>method</th><th>S from</th><th>df</th><th>d²</th><th>χ²<sub>95</sub></th><th>p</th></tr></thead>
+<div class="wrap"><table><caption>Table 4. Mahalanobis test (correlation-scaled, ε = 10<sup>−3</sup>) for the four methods of Figure 1, and CR3 × λ<sub>V</sub>
+as a sensitivity. "Covariance from": the delta method or the committee.</caption>
+<thead><tr><th>model</th><th>method</th><th>covariance from</th><th>df</th><th>d²</th><th>χ²<sub>95</sub></th><th>p</th></tr></thead>
 <tbody>{jrows}</tbody></table></div>
 <p class="note">[Interpret: per-QoI coverage near nominal while the joint test rejects for λ<sub>F</sub> → errors correlated
 beyond S; λ<sub>V</sub> passes.]</p>
@@ -556,7 +593,7 @@ rstar_rows = "".join(
 dcov_rows = ""
 for m in ("o4d20", "o3d12"):
     for meth, sc, lab in (("CR3-headline", "lam_F", "CR3 × λ<sub>F</sub>"), ("CR3-headline", "lam_V", "CR3 × λ<sub>V</sub>"),
-                          ("B1-headline", "q_b1", "B1")):
+                          ("B1-headline", "q_b1", "B1: posterior × q̂")):
         r0, r1 = get(m, meth, sc), disc.get(m, {}).get(f"{meth}+disc/{sc}")
         if r0 and r1:
             dcov_rows += (f"<tr><td>{m}</td><td>{lab}</td><td class=n>{int(r0['k95'])}/{int(r0['n'])}</td>"

@@ -159,7 +159,8 @@ def elastic(out, models, extras):
             ax.set_xlabel(f"{short(a)} (GPa)", color=INK, fontsize=8)
             ax.set_ylabel(f"{short(b)} (GPa)", color=INK, fontsize=8)
             ax.set_title(f"{m}: {short(a)}–{short(b)}", color=INK, fontsize=10, loc="left")
-            ax.legend(fontsize=7, frameon=False)
+            if r == len(models) - 1 and c == 0:            # one legend, lower left, where it hides no ellipse
+                ax.legend(fontsize=7, frameon=False)
     fig.tight_layout()
     _save(fig, out, "fig4_elastic_ellipses")
 
@@ -306,7 +307,46 @@ def force_calibration(results, out, nbins=20):
     _save(fig, out, "fig7_force_calibration")
 
 
+def ace_pareto(results, out, picked=("o3d12", "o4d20"), f_target=0.0825, q_target=0.5):
+    """Linear ACE ladder of the accuracy-cost benchmark (results/ace_pareto.json): test force RMSE and QoI error
+    against CPU cost, the models studied here highlighted.  Targets: the benchmark's (force RMSE <= GAP-18's
+    0.0825 eV/A on this split, QoI error <= 0.5)."""
+    pth = results / "ace_pareto.json"
+    if not pth.exists():
+        return
+    P = json.load(open(pth))
+    fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.0), facecolor=SURFACE)
+    for ax, key, lab, tgt in ((axes[0], "rmse_F", "test force RMSE (eV/Å)", f_target),
+                              (axes[1], "qoi", "QoI error (geometric mean of |error| / tolerance)", q_target)):
+        _style(ax)
+        pts = [p_ for p_ in P if p_.get(key) is not None and p_.get("cost_cpu")]
+        x = np.array([p_["cost_cpu"] for p_ in pts]); y = np.array([p_[key] for p_ in pts])
+        ax.plot(x, y, "-", color=CAT[0], lw=2, zorder=2)
+        ax.scatter(x, y, s=36, color=CAT[0], edgecolor=SURFACE, linewidth=1.2, zorder=3, label="linear ACE ladder")
+        for p_, xi, yi in zip(pts, x, y):
+            hot = p_["size"] in picked
+            if hot:
+                ax.scatter([xi], [yi], s=150, facecolor="none", edgecolor=CAT[1], linewidth=2.2, zorder=4,
+                           label="studied here" if p_["size"] == picked[0] else None)
+            ax.annotate(p_["size"], (xi, yi), xytext=(6, 5), textcoords="offset points", fontsize=8,
+                        color=INK, fontweight="bold" if hot else "normal")
+        ax.axhline(tgt, color=MUTED, lw=1, ls="--", zorder=1, label="benchmark target")
+        ax.set_xscale("log"); ax.set_yscale("log")
+        from matplotlib.ticker import FuncFormatter, NullFormatter
+        plain = FuncFormatter(lambda v, _: f"{v:g}")
+        for axis in (ax.xaxis, ax.yaxis):
+            axis.set_major_formatter(plain); axis.set_minor_formatter(NullFormatter())
+        ax.set_yticks([t for t in ((0.08, 0.1, 0.15, 0.2, 0.25) if key == "rmse_F" else (0.4, 0.5, 0.7, 1, 2, 3))])
+        ax.set_xticks([0.1, 0.2, 0.5, 1, 2, 5])
+        ax.set_xlabel("cost, Sulis CPU node (µs per atom-step, ace-jax kernel in LAMMPS)", color=INK, fontsize=8)
+        ax.set_ylabel(lab, color=INK, fontsize=8)
+    axes[0].legend(fontsize=8, frameon=False, loc="upper right")
+    fig.tight_layout()
+    _save(fig, out, "fig0_ace_pareto")
+
+
 def all_figures(results, out, runs, models, extras):
+    ace_pareto(results, out)
     strip(results, out, models)
     coverage_bars(results, out, models)
     m3 = "o4d20" if "o4d20" in extras else models[0]
