@@ -499,7 +499,10 @@ size (63 and 215 atoms) combined by inverse variance, because the two sizes disa
 <p><b>Discrepancy term.</b> For the QoIs of defect class \(t\), the variance becomes
 \(\sigma_Q^2=\sigma_{Q,\text{method}}^2+r^{*2}_t+s^{*2}_t\), with \(\sigma_{Q,\text{method}}\) the σ of the UQ method without the term (interstitial class for the three interstitials; vacancy class for the
 vacancy). Every other QoI is unchanged. This leaves the pure parameter-space propagation for these QoIs and is reported as a
-separate, labelled method.</p>""", "drafted", level=3)
+separate, labelled method.</p>
+<p>Nothing in this analysis is specific to the CR3 propagation. The bias r*<sub>t</sub> and its standard error come from the
+training labels and the fitted mean alone, so the same term can be added to the σ<sub>Q</sub> of any method that shares that mean,
+the baselines included.</p>""", "drafted", level=3)
 
 sec("method-valid", "3  Results", r"""
 <p class="note">Status: both models complete at the BLR fit, including both POPS committees; the ARD fits are summarised in Table 1. Every number below is read from
@@ -555,6 +558,8 @@ DEF_Q = (("vacancy_energy", "vacancy"), ("dumbbell_interstitial_energy", "dumbbe
 qrow = lambda m, k, meth="CR3-headline", sc="lam_F": next((r for r in rd("qoi_uq.csv") if r["model"] == m and r["qoi"] == k
                                                           and r["method"] == meth and r["scale"] == sc), None)
 _qrows = rd("qoi_uq.csv")
+b1disc = " and ".join(f"{d_['k95']}/{d_['n']} ({m})" for m in models
+                      for d_ in [disc.get(m, {}).get("B1-headline+disc/q_b1")] if d_) if disc else "?"
 _QN = {"vacancy_energy": "the vacancy", "dumbbell_interstitial_energy": "the dumbbell", "hexagonal_interstitial_energy": "the hexagonal",
        "tetrahedral_interstitial_energy": "the tetrahedral interstitial", "surface_100 (J/m2)": "the (100) surface energy",
        "gamma_us glide (J/m2)": "γ<sub>us</sub> glide", "gamma_us shuffle (J/m2)": "γ<sub>us</sub> shuffle",
@@ -720,7 +725,9 @@ for m in ("o4d20", "o3d12"):
                          f"<td class=n>{b_['k95']} ({b_['k68']})</td><td class=n>{ra:+.2f} / {rb:+.2f}</td></tr>")
 sec("results-defects", "3.8  Defect formation energies: diagnosis and the discrepancy term", f"""
 <p>For both models the relaxed interstitial formation energies are the QoIs that are confidently wrong: all three are too
-low, and outside the 95 % interval. They are low for every ACE and PACE model in the benchmark too, and the tetrahedral one
+low, and outside the 95 % interval. This holds for every method of Section 3.7, not only the headline, so the diagnosis below
+is about the fit, not the UQ method; the discrepancy term it leads to (Section 2.8) applies to any of them. Table 7 shows it for
+the posterior baseline B1 as well as for CR3: with the term B1 covers {b1disc}. They are low for every ACE and PACE model in the benchmark too, and the tetrahedral one
 for GAP-18.</p>
 <div class="wrap"><table><caption>Table 5. The training residual trend predicts the QoI error. Interstitial cells,
 residual (DFT − model) minus a temperature-matched bulk reference, extrapolated to F<sub>rms</sub> → 0 (eV), against the QoI
