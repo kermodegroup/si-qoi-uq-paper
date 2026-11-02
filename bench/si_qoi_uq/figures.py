@@ -16,6 +16,8 @@ from .propagate import COVER_KEYS, KEYS  # noqa: E402
 SURFACE, INK, MUTED, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e4e3df"
 CAT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#6250d6", "#008300"]
 MARK = ["o", "s", "D", "^", "v", "P", "X"]
+PANELS = (("CR3-headline", "lam_F", "CR3 × λ_F (headline)"), ("B1-headline", "q_b1", "B1: posterior × conformal q̂"),
+          ("B2lev5-committee", "lam_1", "B2: POPS (leverage cut 5 %)"), ("B3-headline", "lam_1", "B3: CR3, λ = 1"))
 SHORT = {"diamond_bulk_modulus": "B", "diamond_c11": "C11", "diamond_c12": "C12", "diamond_c44": "C44",
          "vacancy_energy": "vacancy", "dumbbell_interstitial_energy": "dumbbell", "hexagonal_interstitial_energy":
          "hex. int.", "tetrahedral_interstitial_energy": "tet. int.", "surface_100 (J/m2)": "(100) surf.",
@@ -82,10 +84,9 @@ def strip(results, out, models):
 
 def coverage_bars(results, out, models):
     cov = [r for r in csv.DictReader(open(results / "coverage.csv"))]
-    sel = [("CR3-headline", "lam_F", "CR3 λ_F"), ("CR3-headline", "lam_V", "CR3 λ_V"),
-           ("CR3-headline", "lam_pool", "CR3 λ_pool"), ("B3-headline", "lam_1", "B3 (λ=1)"),
-           ("B1-headline", "q_b1", "B1"), ("B2-committee", "lam_1", "B2 POPS"),
-           ("B2blr-committee", "lam_1", "B2 POPS blr")]
+    short_lab = {"CR3-headline": "CR3 × λ_F\n(headline)", "B1-headline": "B1: posterior\n× q̂", "B2lev5-committee": "B2: POPS\n(5 % cut)",
+                 "B3-headline": "B3: CR3,\nλ = 1"}
+    sel = [(meth, sc, short_lab.get(meth, lab)) for meth, sc, lab in PANELS]        # the same methods as fig6's rows
     fig, axes = plt.subplots(1, len(models), figsize=(5.5 * len(models), 3.6), squeeze=False, facecolor=SURFACE)
     for ax, m in zip(axes[0], models):
         _style(ax)
@@ -101,7 +102,7 @@ def coverage_bars(results, out, models):
                        label=f"{lev}% interval" if i == 0 else None)
                 ax.errorbar(xi, f, yerr=[[f - lo], [hi - f]], color=INK, lw=1, capsize=2)
             ax.axhline(nom, color=CAT[j], lw=1, ls="--")
-        ax.set_xticks(range(len(sel)), [s[2] for s in sel], rotation=30, ha="right")
+        ax.set_xticks(range(len(sel)), [s[2] for s in sel], fontsize=8)
         ax.set_ylim(0, 1.05)
         ax.set_ylabel("fraction of QoIs covered (95% Clopper–Pearson)", color=INK, fontsize=8)
         ax.set_title(f"{m}: coverage of DFT, n = {n}", color=INK, fontsize=10, loc="left")
@@ -186,10 +187,6 @@ def scales_fig(results, out, models):
         ax.legend(fontsize=7, frameon=False, ncol=3)
     fig.tight_layout()
     _save(fig, out, "fig5_scale_diagnostics")
-
-
-PANELS = (("CR3-headline", "lam_F", "CR3 × λ_F (headline)"), ("B1-headline", "q_b1", "B1: posterior × conformal q̂"),
-          ("B2lev5-committee", "lam_1", "B2: POPS (leverage cut 5 %)"), ("B3-headline", "lam_1", "B3: CR3, λ = 1"))
 
 
 def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=False, panels=PANELS):

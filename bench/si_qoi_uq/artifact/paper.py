@@ -515,7 +515,8 @@ logarithmic beyond, and is shared by all rows. Top row: the headline, CR3 × λ<
 {tight:.1f}× tighter in median σ/tol while its coverage stays comparable. Below it the baselines of Section 2.6: B1, the posterior
 scaled by one conformal quantile; B2, POPS with the 5 % leverage cut; B3, CR3 without calibration (λ = 1). Each row's legend gives
 its 95 % coverage and median σ/tol.</figcaption></figure>
-<figure><img src="fig2_coverage.png" alt="Coverage per method with binomial intervals"><figcaption>Figure 1b. Coverage per method.</figcaption></figure>
+<figure><img src="fig2_coverage.png" alt="Coverage per method with binomial intervals"><figcaption>Figure 1b. Fraction of the 20 scored QoIs inside the 68 % and 95 % intervals for the four methods of Figure 1
+(headline, B1, B2 with the 5 % leverage cut, B3), with 95 % Clopper–Pearson intervals; dashed lines are the nominal levels.</figcaption></figure>
 <h3>3.5 Joint test</h3>
 <div class="wrap"><table><caption>Table 4. Mahalanobis test (correlation-scaled, ε = 10<sup>−3</sup>).</caption>
 <thead><tr><th>model</th><th>method</th><th>S from</th><th>df</th><th>d²</th><th>χ²<sub>95</sub></th><th>p</th></tr></thead>
