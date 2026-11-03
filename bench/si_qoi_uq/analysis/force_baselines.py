@@ -42,7 +42,8 @@ def main():
     rows = chunked_rows_fn(lin.model, GPConfig(r0=2.4, rcut=lin.rc, n_B=lin.n_B, n_pair=lin.n_pair, NZ=lin.NZ,
                                                C=int(ds.y_E.shape[1]), e0_cols=lin.e0_cols))
     th = np.asarray(lin.theta_hat)
-    E, G, V = [], [], {k: [] for k in facs}
+    E, G, T, V = [], [], [], {k: [] for k in facs}
+    gc = 0
     for i in range(ds.n_batches):
         bt = jax.tree.map(lambda a, i=i: a[i], ds)
         F = np.asarray(rows(bt).F)
@@ -50,6 +51,10 @@ def main():
         a = np.flatnonzero(nm & (wF > 0))
         E.append(np.asarray(bt.y_F)[a] - F[a] @ th)
         G.append(np.asarray(ard.groups_of(bt))[a])
+        live = np.flatnonzero(np.asarray(bt.cfg_mask))
+        idx = {c: gc + j for j, c in enumerate(live)}
+        T += [cfgs[idx[int(c)]].config_type for c in np.asarray(bt.node_cfg)[a]]
+        gc += len(live)
         Fa = jnp.asarray(F[a])                                         # (n, 3, p)
         for k, L in facs.items():
             M = Fa[..., :L.shape[0]] @ L                               # POPS has no E0 column (zero on force rows)
@@ -58,7 +63,7 @@ def main():
     v = {k: np.concatenate(x) for k, x in V.items()}
     sd = np.sqrt(np.maximum(v["cr3"], 0))
     keep = sd > SYM_ZERO * np.median(sd)
-    out = dict(err_norm=np.linalg.norm(E, axis=1)[keep], group=G[keep],
+    out = dict(err_norm=np.linalg.norm(E, axis=1)[keep], group=G[keep], config_type=np.array(T, dtype=object)[keep],
                sd_headline=lamF * sd[keep], sd_B1=qb1 * np.sqrt(np.maximum(v["post"], 0))[keep],
                sd_B2=np.sqrt(np.maximum(v["pops"], 0))[keep], sd_B3=sd[keep], lam_F=lamF, q_b1=qb1, n_dropped=int((~keep).sum()))
     np.savez(RESULTS / f"force_baselines_{m}.npz", **out)

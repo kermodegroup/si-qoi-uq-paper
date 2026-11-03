@@ -18,7 +18,9 @@ The finite-sample guarantee of split conformal holds for B's exchangeable config
 repeated over SEEDS; reported: coverage (mean and range over seeds), configuration-bootstrap 90 % interval for seed 0,
 and the median region size q exp(f/2) against the Mondrian q_g, in the same score units.
 
-    OOD_RUNS=... OOD_DATA=... python -m bench.si_qoi_uq.ood.learned_scale o3d12|o4d20  -> results/learned_scale_<m>.json
+    OOD_RUNS=... OOD_DATA=... python -m bench.si_qoi_uq.ood.learned_scale <tag> [--fit DIR --desc DIR --train XYZ
+        --set name=file.xyz ...]   -> results/learned_scale_<tag>.json, results/learned_scale_<tag>_atoms.npz
+    (default: the OOD refit OOD_RUNS/fits/<tag> on OOD_DATA's test.xyz and ood.xyz)
 """
 import argparse, json, os, pathlib, sys
 
@@ -30,6 +32,7 @@ RUNS = pathlib.Path(os.environ.get("OOD_RUNS", "/storage/eng/essswb/projects/si-
 DATA = pathlib.Path(os.environ.get("OOD_DATA", "/storage/eng/essswb/projects/si-qoi-uq-paper/data/ood_holdout"))
 SEEDS = range(5)
 RIDGE = 10.0 ** np.arange(-4, 4.1, 0.5)
+CHI3_INV = 2.500278                                        # chi_3 quantile at 0.9 (scipy.stats.chi(3).ppf(0.9))
 
 
 def scored_atoms(lin, post, calc, xyz):
@@ -73,7 +76,7 @@ def scored_atoms(lin, post, calc, xyz):
     reg = V + post.eps * (v / 3)[:, None, None] * np.eye(3)
     s = np.sqrt(np.einsum("na,nab,nb->n", E, np.linalg.inv(reg), E))
     T = np.array([cfgs[c].config_type for c in C], dtype=object)
-    return dict(s=s, g=G, X=X.astype(float), Z=Z.astype(int), c=C, t=T)
+    return dict(s=s, e=np.linalg.norm(E, axis=1), v=v, g=G, X=X.astype(float), Z=Z.astype(int), c=C, t=T)
 
 
 def features(ref, X, Z):
@@ -139,12 +142,20 @@ def main():
     from novelty_groups import quantiles
     from ..linear import LinearACE
     from ..run import RESULTS
-    m = sys.argv[1]
-    d = RUNS / "fits" / m
-    work = RUNS / "descriptors" / m
+    ap = argparse.ArgumentParser()
+    ap.add_argument("tag")
+    ap.add_argument("--fit", help="aj fit --uq ard output dir (default: OOD_RUNS/fits/<tag>)")
+    ap.add_argument("--desc", help="descriptor dir (support_rebuild build output; built if missing)")
+    ap.add_argument("--train", default=str(DATA / "train.xyz"))
+    ap.add_argument("--set", action="append", default=[], help="name=file.xyz (default: id_test, ood of OOD_DATA)")
+    a = ap.parse_args()
+    m = a.tag
+    d = pathlib.Path(a.fit) if a.fit else RUNS / "fits" / m
+    work = pathlib.Path(a.desc) if a.desc else RUNS / "descriptors" / m
+    sets_spec = dict(x.split("=", 1) for x in a.set) or {"id_test": str(DATA / "test.xyz"), "ood": str(DATA / "ood.xyz")}
     if not (work / "support_normalised.npz").exists():
         sr.build(argparse.Namespace(model=str(d / "model.npz"), posterior=str(d / "posterior.npz"),
-                                    ard_json=str(d / "ard.json"), train=str(DATA / "train.xyz"), out=str(work),
+                                    ard_json=str(d / "ard.json"), train=a.train, out=str(work),
                                     features="normalised", pca_atoms=10000))
     post = ARDPosterior.load(d / "posterior.npz")
     lin = LinearACE(d / "model.npz", d / "posterior.npz")
@@ -156,8 +167,10 @@ def main():
     cal = post.cal
     s_c, cfg_c = np.asarray(cal["scores"], float), np.asarray(cal["cfg"])
     Phi_c = features(ref, D["X_cal"].astype(float), D["Z_cal"].astype(int))
+    if len(Phi_c) != len(s_c):
+        raise ValueError(f"{len(Phi_c)} calibration descriptor rows for {len(s_c)} scores")
     ok = s_c > 0
-    sets = {"id_test": scored_atoms(lin, post, calc, DATA / "test.xyz"), "ood": scored_atoms(lin, post, calc, DATA / "ood.xyz")}
+    sets = {n: scored_atoms(lin, post, calc, pathlib.Path(p)) for n, p in sets_spec.items()}
     for S in sets.values():
         S["Phi"] = features(ref, S["X"], S["Z"])
     q1 = float(np.quantile(s_c, 1 - alpha, method="higher"))   # one atom-weighted quantile (the pooled Mondrian weights)
@@ -171,14 +184,16 @@ def main():
         b, lam = fit_scale(Phi_c[inA & ok], np.log(s_c[inA & ok] ** 2), cfg_c[inA & ok], rng)
         uB = s_c[~inA] / np.exp(Phi_c[~inA] @ b / 2)
         q = float(np.quantile(uB, 1 - alpha, method="higher"))  # atom-weighted, as Mondrian's per-group weights pool
-        q_cfg = float(quantiles(uB, np.zeros(int((~inA).sum()), int), cfg_c[~inA], 1, alpha, 1, [np.inf])[0][0])
-        rec = {"seed": seed, "ridge": lam, "q": q, "q_cfgw": q_cfg}
+        kappa = q / CHI3_INV                                   # Gaussian reading from the quantile: an RMS of u is not
+                                                                # robust (stored hold-out scores include symmetry-zero atoms)
+        rec = {"seed": seed, "ridge": lam, "q": q, "kappa": kappa}
         for name, S in sets.items():
-            rad = q * np.exp(S["Phi"] @ b / 2)
-            rec[name] = {"cov": S["s"] <= rad, "radius": rad}
+            sc_ = np.exp(S["Phi"] @ b / 2)
+            rec[name] = {"cov": S["s"] <= q * sc_, "radius": q * sc_, "sigma": kappa * sc_ * np.sqrt(S["v"])}
         per_seed.append(rec)
-    res = {"model": m, "alpha": alpha, "n_features": int(Phi_c.shape[1]), "ridge": [r["ridge"] for r in per_seed],
-           "q_one": q1, "q_one_cfgw": q1_cfg, "q_learned": [r["q"] for r in per_seed], "sets": {}}
+    res = {"model": m, "fit": str(d), "alpha": alpha, "n_features": int(Phi_c.shape[1]),
+           "ridge": [r["ridge"] for r in per_seed], "q_one": q1, "q_one_cfgw": q1_cfg,
+           "q_learned": [r["q"] for r in per_seed], "kappa": [r["kappa"] for r in per_seed], "sets": {}}
     rng = np.random.default_rng(0)
     for name, S in sets.items():
         base = {"mondrian": S["s"] <= q_g[S["g"]], "one_group": S["s"] <= q1, "one_group_cfgq": S["s"] <= q1_cfg}
@@ -200,20 +215,19 @@ def main():
             o["learned_ci90"] = boot_ci(cols["learned"][0][mask], S["c"][mask], rng)
             o["median_radius"] = {"mondrian": float(np.median(q_g[S["g"]][mask])), "one_group": q1,
                                   "learned": float(np.mean([np.median(r[name]["radius"][mask]) for r in per_seed]))}
+            o["rms_e_over_sigma_learned"] = float(np.mean([np.sqrt(np.mean((S["e"][mask] / r[name]["sigma"][mask]) ** 2))
+                                                           for r in per_seed]))
             return o
-        out = {"all": summ(np.ones(len(S["s"]), bool)),
-               "per_group": {int(g): summ(S["g"] == g) for g in np.unique(S["g"])}}
-        if name == "ood":
-            out["per_type"] = {t: summ(S["t"] == t) for t in np.unique(S["t"])}
-        res["sets"][name] = out
+        res["sets"][name] = {"all": summ(np.ones(len(S["s"]), bool)),
+                             "per_group": {int(g): summ(S["g"] == g) for g in np.unique(S["g"])},
+                             "per_type": {t: summ(S["t"] == t) for t in np.unique(S["t"])}}
     json.dump(res, open(RESULTS / f"learned_scale_{m}.json", "w"), indent=1)
-    np.savez(RUNS / "descriptors" / m / "learned_atoms.npz", **{f"{n}_{k}": S[k] for n, S in sets.items()
-                                                               for k in ("s", "g", "c", "t", "Phi")},
-             **{f"{n}_radius_seed{r['seed']}": r[n]["radius"] for n in sets for r in per_seed}, q_g=q_g, q_one=q1)
+    np.savez(RESULTS / f"learned_scale_{m}_atoms.npz",
+             **{f"{n}_{k}": S[k] for n, S in sets.items() for k in ("s", "e", "v", "g", "c", "t")},
+             **{f"{n}_radius_seed{r['seed']}": r[n]["radius"] for n in sets for r in per_seed},
+             **{f"{n}_sigma_seed{r['seed']}": r[n]["sigma"] for n in sets for r in per_seed}, q_g=q_g, q_one=q1, alpha=alpha)
     for name, o in res["sets"].items():
         print(m, name, {k: (round(v, 3) if isinstance(v, float) else v) for k, v in o["all"].items()})
-        for t, v in o.get("per_type", {}).items():
-            print("   ", t, {k: round(v[k], 3) for k in ("mondrian", "one_group", "learned")})
 
 
 if __name__ == "__main__":
