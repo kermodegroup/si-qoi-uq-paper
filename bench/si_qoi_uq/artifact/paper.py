@@ -85,7 +85,7 @@ _lso = {m: json.load(open(RES / f"learned_scale_ood_{m}.json")) for m in ("o3d12
 _lsm = {m: json.load(open(RES / f"learned_scale_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"learned_scale_{m}.json").exists()}
 _evn = json.load(open(RES / "evenness.json")) if (RES / "evenness.json").exists() else {}
 OOD_COLS = (("all", "all held out"), ("crack_110_1-10", "crack (110)"), ("crack_111_1-10", "crack (111)"), ("screw_disloc", "screw dislocation"))
-OOD_METH = (("learned", "learned scale"), ("one_group", "one hold-out quantile"), ("global", "global scale (ID test)"))
+OOD_METH = (("one_group", "one hold-out quantile"), ("learned", "learned scale"), ("global", "global scale (ID test)"))
 def _ood_get(m, k, c="all", ci=False):
     """Coverage (or its 90 % configuration-bootstrap interval) on the held-out set: learned_scale_ood_<m>.json for the
     conformal methods, ood_mondrian_<m>.json for the global scale."""
@@ -196,8 +196,9 @@ tight_ratio = _cv["o3d12"] / _cv["o4d20"] if {"o3d12", "o4d20"} <= set(_cv) else
 sec("abstract", "Abstract", f"""
 <p>Machine-learned interatomic potentials are misspecified, so Bayesian posterior variances understate their errors. For linear
 atomic cluster expansion (ACE) potentials we derive calibrated uncertainties from one misspecification-robust parameter
-covariance, the delete-one-configuration jackknife. With a conformal scale whose size is learned from the site descriptor, it
-gives per-atom force uncertainties close to their target coverage on held-out silicon data, including cracks left out of the fit. With one scale fitted to held-out forces,
+covariance, the delete-one-configuration jackknife. Scaled by one conformal quantile from a held-out part of the training
+set, it gives per-atom force uncertainties close to their target coverage on held-out silicon data, including cracks left out
+of the fit. With one scale fitted to held-out forces,
 the same parameter distribution is propagated to 21 properties of silicon, from elastic constants to defect and surface energies,
 by implicit differentiation through each relaxation and by committees, and is tested against DFT without tuning on any property.
 For a smaller and a larger model the intervals cover most properties, and the larger model's are about {tight_ratio:.0f} times
@@ -228,13 +229,13 @@ residuals. These are the residuals each row would have if its cluster were left 
 residuals by a leverage correction: for one row, division by one minus its leverage; for a cluster, the matrix analogue [Allen 1974;
 Cook and Weisberg 1982]. The per-atom 3×3 block of the covariance gives anisotropic force regions.</p>
 <p>The scale comes from split conformal prediction [Vovk, Gammerman and Shafer 2005], which turns the scores of held-out
-calibration points into a quantile that covers a new point with a guaranteed probability. One quantile for all atoms would treat
-every environment alike. Instead the scores are first normalised by a regression of their logarithm on the principal components of
-the site descriptor, so that the region widens where the jackknife shape underestimates the error (normalised conformal prediction
-[Papadopoulos et al. 2008; Lei et al. 2018]). No categories of environment are chosen by hand. The scores come from a stratified
-hold-out of the training set, and a fitted transfer exponent carries them to the fit on all the data. The open-source ace-jax
-package [ace-jax] provides the shape, the hold-out scores and the transfer; Sections 2.5 and 3.2 describe and test the
-scale.</p>
+calibration points into a quantile that covers a new point with a guaranteed probability. One quantile serves every atom: the
+jackknife shape already carries the dependence of the error on the environment. A scale learned from the site descriptor
+(normalised conformal prediction [Papadopoulos et al. 2008; Lei et al. 2018]) makes the coverage more even across environments
+represented in the training data, but transfers less well to environments left out of it, so we report it as a refinement,
+not as the method. The scores come from a stratified hold-out of the training set, and a fitted transfer exponent carries them to
+the fit on all the data. The open-source ace-jax package [ace-jax] provides the shape, the hold-out scores and the transfer;
+Sections 2.5 and 3.2 describe and test the scale.</p>
 <p>Per-atom intervals cannot be combined into an interval on a derived property, a quantity of interest (QoI), because a QoI depends
 on every atom and on relaxed geometries. A QoI's uncertainty has two parts [Simmons, Hudson, Swinburne and Kermode, in prep.]. The
 aleatoric part is the sampling error of the simulation that computes the QoI, assessed with statistical convergence tests
@@ -426,12 +427,12 @@ homoscedastic special case. It is stored as a factor
 calibrated on held-out data (Section 3.3). The CR3 covariance measures how much a
 prediction depends on which configurations were in the fit: large where the fit leans on configurations it reproduces
 poorly. It is a parameter variance used as a proxy for approximation error, which is why it needs a scale.</p>
-<h3>2.5 Calibrated per-atom forces: a learned conformal scale</h3>
+<h3>2.5 Calibrated per-atom forces: the CR3 shape and one conformal quantile</h3>
 <p>This section describes the per-atom force uncertainty introduced in this work (Contribution A). Every predicted force gets
-a calibrated uncertainty: a shape times a scale that depends on the environment. The shape is the per-atom 3×3 block of the CR3
+a calibrated uncertainty: a shape times one scale. The shape is the per-atom 3×3 block of the CR3
 covariance, \(V(x)_{\alpha\beta}=u_\alpha^{\mathsf T}RR^{\mathsf T}u_\beta\) with \(u_\alpha=D^{-1}B_{F,i\alpha}^{\mathsf T}\) built
-from the atom's three force rows (\(\alpha\in\{x,y,z\}\)), and \(v=\operatorname{tr}V\). The scale is learned from the site
-descriptor on held-out training configurations.</p>
+from the atom's three force rows (\(\alpha\in\{x,y,z\}\)), and \(v=\operatorname{tr}V\). The scale is one conformal quantile
+of scores on held-out training configurations.</p>
 <p><b>Hold-out.</b> Training configurations are split 80/20 into \(T_{\text{fit}}\) and \(T_{\text{val}}\), stratified so that
 rare, strongly distorted or off-coordinated environments appear in both parts (the ace-jax default). The posterior
 \(P_{\text{fit}}\) on \(T_{\text{fit}}\), with its own CR3 shape \(V_{\text{fit}}\), predicts \(T_{\text{val}}\), so both the force
@@ -444,23 +445,24 @@ error \(e_i=F_i^{\text{DFT}}-F_i^{\text{fit}}\in\mathbb R^3\) and the shape are 
 configurations behind the final, first and second fits, and \(\lambda_1,\lambda_2\) the RMS scores of \(P_{\text{fit}}\) and \(P_{\text{fit2}}\),
 \(\beta=\operatorname{clip}\big(\log(\lambda_1/\lambda_2)/\log(N_{\text{fit}}/N_{\text{fit2}}),0,\tfrac12\big)\) and every score is
 multiplied by \(f_{\text{tr}}=(N/N_{\text{fit}})^\beta\). \(\beta=0\) is the variance-dominated limit and \(\tfrac12\) the bias-dominated one.</p>
-<p><b>What the scale must learn.</b> The CR3 shape is a quadratic form in the atom's force rows, so it already grows with the
-distance of the environment from the training descriptors. A scale should therefore not model novelty itself, but the
-ratio of the error to the shape, which is the score \(s\). We regress it on the descriptor.</p>
-<p><b>The learned scale.</b> Let \(\phi_i\) be atom \(i\)'s whitened principal components of the normalised site descriptor, from
-a PCA of training atoms only. On one half of the \(T_{\text{val}}\) configurations, a ridge regression
-\(f(\phi)=\beta_0+\beta^{\mathsf T}\phi+\gamma^{\mathsf T}\phi^{2}\) of \(\log s_i^2\) is fitted, with each configuration
-weighted once and the ridge chosen by five-fold cross-validation over configurations. On the other half, the normalised scores
-\(u_i=s_i\,e^{-f(\phi_i)/2}\) give one conformal quantile \(q\) at level \(1-\alpha\) (default \(\alpha=0.1\)) and one RMS scale
-\(\kappa^2=\overline{u^2}/3\) (normalised conformal prediction [Papadopoulos et al. 2008; Lei et al. 2018]). The quantile is
-atom-weighted: a quantile that counts each configuration once in total is dominated by the many small, well-predicted cells and
-under-covers (Section 3.2). The split is repeated over five seeds.</p>
+<p><b>The scale.</b> The conformal quantile \(q\) is the \(\lceil(n+1)(1-\alpha)\rceil/n\) empirical quantile of the \(n\) scores
+\(s_i\) of the \(T_{\text{val}}\) atoms, at level \(1-\alpha\) (default \(\alpha=0.1\)). It is atom-weighted: a quantile that counts
+each configuration once in total is dominated by the many small, well-predicted cells and under-covers (Section 3.2).</p>
 <p><b>Per-atom outputs.</b> The conformal region for a force error \(\Delta F\) is
-\(\{\Delta F:\Delta F^{\mathsf T}(V+\epsilon I)^{-1}\Delta F\le q^2e^{f(\phi)}\}\): the CR3 ellipsoid, with a size that varies
-continuously with the environment. Under exchangeability of the calibration and target configurations it covers a new atom with
-probability \(\approx1-\alpha\). The Gaussian reading is the force standard deviation \(\sigma_{F,i}=\kappa\,e^{f(\phi_i)/2}\sqrt v\)
-and covariance \(\sigma_{F,i}^2V/v\).</p>
-<p><b>Why the propagation does not use this scale.</b> The learned scale tempers force <em>outputs</em> atom by
+\(\{\Delta F:\Delta F^{\mathsf T}(V+\epsilon I)^{-1}\Delta F\le q^2\}\), the CR3 ellipsoid scaled to the quantile. Under
+exchangeability of the calibration and target configurations it covers a new atom with probability \(\approx1-\alpha\). The
+Gaussian reading is the force standard deviation \(\sigma_{F,i}=(q/\chi_3^{-1}(1-\alpha))\sqrt v\), with \(\chi_3^{-1}\) the
+\(\chi_3\) quantile function, and covariance \(\sigma_{F,i}^2V/v\).</p>
+<p><b>A learned scale, as a refinement.</b> The CR3 shape is a quadratic form in the atom's force rows, so it already grows with
+the distance of the environment from the training descriptors. A scale that depends on the environment should therefore model the
+ratio of the error to the shape, the score \(s\), not novelty itself. We test one learned from the site descriptor (normalised
+conformal prediction [Papadopoulos et al. 2008; Lei et al. 2018]). Let \(\phi_i\) be atom \(i\)'s whitened principal components
+of the normalised site descriptor, from a PCA of training atoms only. On one half of the \(T_{\text{val}}\) configurations a ridge
+regression \(f(\phi)=\beta_0+\beta^{\mathsf T}\phi+\gamma^{\mathsf T}\phi^{2}\) of \(\log s_i^2\) is fitted (each configuration
+weighted once, the ridge by five-fold cross-validation over configurations) and clipped to the range it takes on the
+calibration atoms. On the other half the normalised scores \(s_i\,e^{-f(\phi_i)/2}\) give one quantile \(q_f\), and the region is
+\(s\le q_f\,e^{f(\phi)/2}\). The split is repeated over five seeds.</p>
+<p><b>Why the propagation does not use this scale.</b> The conformal quantile tempers force <em>outputs</em> atom by
 atom. It does not define a covariance in θ, and a QoI depends on every atom and on relaxed geometries. Propagation therefore uses one
 global λ (Section 3.3). Section 3.2 tests the per-atom force uncertainties directly. Energy and virial uncertainties use the unscaled posterior
 variance.</p>
@@ -964,32 +966,29 @@ Only the four defect QoIs change.</figcaption></figure>""", "", level=4)
 
 sec("results-forces", "3.2  Calibrated per-atom forces", f"""
 <p>Figure 2 and Table 2 test the per-atom force uncertainty of Section 2.5 on the 248 test configurations, with the ARD fits;
-atoms whose force rows vanish by site symmetry are dropped by the rule of Section 3.3. At a nominal 90 %, the learned scale
-covers {lm("o3d12", "learned")} of the test atoms for o3d12 and {lm("o4d20", "learned")} for o4d20 (ranges over the five hold-out
-splits {lm_seeds("o3d12")} and {lm_seeds("o4d20")}), and one hold-out quantile for all atoms covers {lm("o3d12", "one_group")}
-and {lm("o4d20", "one_group")}. o4d20 is at nominal; o3d12 is slightly below it, which points to the transfer from the hold-out
-fit to the full fit as the remaining approximation for the smaller model. The median region sizes are similar
-({lm_rad("o3d12", "learned")} and {lm_rad("o3d12", "one_group")} for o3d12, {lm_rad("o4d20", "learned")} and
-{lm_rad("o4d20", "one_group")} for o4d20, in units of the score).</p>
-<p>The two differ in how the coverage is spread over environments. With one quantile, the point-defect cells are under-covered
-and the liquid and surface cells over-covered in both models (Figure 2, bottom); the amorphous cells are under-covered for o3d12
-and over-covered for o4d20. The learned scale moves most types towards nominal (for o3d12 the amorphous cells are the
-exception), and the RMS deviation of the per-type coverage from 0.90 falls from {evdev("o3d12", "test", "one_group")} to {evdev("o3d12", "test", "learned")}
-for o3d12 and from {evdev("o4d20", "test", "one_group")} to {evdev("o4d20", "test", "learned")} for o4d20 (Table 2). It does so from
-the descriptor alone, with no categories chosen by hand. The division of labour is clear: the CR3 shape carries most of the
-dependence of the error on the environment, so one quantile already reaches the nominal level overall, and the learned scale
-corrects how that coverage is spread across environments.</p>
+atoms whose force rows vanish by site symmetry are dropped by the rule of Section 3.3. At a nominal 90 %, the CR3 shape with one
+hold-out quantile covers {lm("o3d12", "one_group")} of the test atoms for o3d12 and {lm("o4d20", "one_group")} for o4d20. o4d20 is at
+nominal; o3d12 is slightly below it, which points to the transfer from the hold-out fit to the full fit as the remaining
+approximation for the smaller model. The shape carries most of the dependence of the error on the environment: one quantile
+reaches the nominal level overall with no environment-dependent scale.</p>
+<p>The coverage is not even across environments, though. The point-defect cells are under-covered and the liquid and surface
+cells over-covered in both models (Figure 2, bottom); the amorphous cells are under-covered for o3d12 and over-covered for o4d20.
+The learned scale of Section 2.5 corrects much of this in distribution: it covers {lm("o3d12", "learned")} and {lm("o4d20", "learned")}
+overall (ranges over the five hold-out splits {lm_seeds("o3d12")} and {lm_seeds("o4d20")}), with similar median region sizes
+({lm_rad("o3d12", "learned")} against {lm_rad("o3d12", "one_group")} for o3d12, {lm_rad("o4d20", "learned")} against
+{lm_rad("o4d20", "one_group")} for o4d20, in units of the score), and the RMS deviation of the per-type coverage from 0.90 falls
+from {evdev("o3d12", "test", "one_group")} to {evdev("o3d12", "test", "learned")} for o3d12 and from {evdev("o4d20", "test", "one_group")} to
+{evdev("o4d20", "test", "learned")} for o4d20 (Table 2; for o3d12 the amorphous cells are the exception). Out of distribution it is
+less robust, as the next test shows.</p>
 <p>How the quantile weights the calibration atoms matters more than either scale. A quantile that counts each calibration
 configuration once in total is about 12 % smaller and covers only {lm("o3d12", "one_group_cfgq")} and
 {lm("o4d20", "one_group_cfgq")}, because the many small, well-predicted cells then dominate it; the quantiles here are
-atom-weighted. In the Gaussian reading, set from the 90 % quantile, the median of |ΔF|/σ<sub>F,i</sub> is
-{lm_med("o3d12")} (o3d12) and {lm_med("o4d20")} (o4d20), so σ<sub>F,i</sub> is conservative for typical atoms, while its RMS,
-{lm_rms("o3d12")} and {lm_rms("o4d20")}, is set by a heavy tail of large errors. The CR3
+atom-weighted. The CR3
 shape with the propagation's global λ<sub>F</sub> covers {fb("o3d12", "headline")} and {fb("o4d20", "headline")}, but
 λ<sub>F</sub> is fitted on these test configurations, so that is in sample and not a validation.</p>
 <figure><img src="fig7_force_calibration.png" alt="Per-atom force uncertainty against observed error for the learned scale, one hold-out quantile and the baselines, and test coverage per configuration type, for each model"><figcaption>Figure 2.
 Top: binned on predicted σ (20 equal-count bins), RMS observed |ΔF| against RMS σ, for the CR3 shape with one hold-out
-quantile and with the learned scale (ARD fit; σ<sub>F,i</sub> from the 90 % quantile), and for the per-atom σ of the
+quantile (the method) and with the learned scale (ARD fit; σ<sub>F,i</sub> from the 90 % quantile), and for the per-atom σ of the
 propagation's methods on the BLR fit: CR3 × λ<sub>F</sub> (the headline), B1 (posterior × q̂), B2 (POPS, 5 % leverage cut; the
 box's uniform variance) and B3 (CR3, λ = 1); the per-atom density behind. Points below the diagonal are conservative.
 Bottom: test coverage of the 90 % region, overall and per GAP-18 configuration type with at least 300 test atoms. Conformal
@@ -1004,14 +1003,19 @@ deviation of the per-type coverage from nominal.</caption>
 with GAP-18's cracks ((111) and (110) cleavage, 1-10 front) and screw dislocations removed from training, from the
 calibration hold-out and from the test file, and scored the {ood_n("o3d12")} that were removed (Table 2c). The design follows
 the big-cell check of an alloy model in the ace-jax development tests (unpublished). The global scale is fitted on the
-in-distribution test split, so it is out of sample here, like the conformal ones. Over all held-out atoms the learned scale
-covers {ood_v("o3d12", "learned")} (o3d12) and {ood_v("o4d20", "learned")} (o4d20), one quantile {ood_v("o3d12", "one_group")}
-and {ood_v("o4d20", "one_group")}, and the global scale {ood_v("o3d12", "global")} and {ood_v("o4d20", "global")}. The cracks are
-covered ((111) {ood_v("o3d12", "learned", "crack_111_1-10")} and (110) {ood_v("o3d12", "learned", "crack_110_1-10")} for o3d12;
-{ood_v("o4d20", "learned", "crack_111_1-10")} and {ood_v("o4d20", "learned", "crack_110_1-10")} for o4d20). The screw
-dislocations are under-covered ({ood_v("o3d12", "learned", "screw_disloc")} for o3d12, {ood_v("o4d20", "learned", "screw_disloc")}
-for o4d20). Their atoms are four-fold and only mildly distorted, and their errors are larger relative to the CR3 shape than
-those of training atoms with similar descriptors, so neither scale is warned.</p>
+in-distribution test split, so it is out of sample here, like the conformal ones. Over all held-out atoms one quantile covers
+{ood_v("o3d12", "one_group")} (o3d12) and {ood_v("o4d20", "one_group")} (o4d20), and the global scale {ood_v("o3d12", "global")} and
+{ood_v("o4d20", "global")}. The cracks are covered ((111) {ood_v("o3d12", "one_group", "crack_111_1-10")} and (110)
+{ood_v("o3d12", "one_group", "crack_110_1-10")} for o3d12; {ood_v("o4d20", "one_group", "crack_111_1-10")} and
+{ood_v("o4d20", "one_group", "crack_110_1-10")} for o4d20), and the screw dislocations come close for o4d20
+({ood_v("o4d20", "one_group", "screw_disloc")}); for o3d12 they are under-covered ({ood_v("o3d12", "one_group", "screw_disloc")}).</p>
+<p>The learned scale transfers less well. It covers {ood_v("o3d12", "learned")} (o3d12) and {ood_v("o4d20", "learned")} (o4d20) of
+the held-out atoms, and for o4d20 it under-covers the (111) crack ({ood_v("o4d20", "learned", "crack_111_1-10")}) and the screw
+dislocations ({ood_v("o4d20", "learned", "screw_disloc")}) that one quantile covers. It narrows the regions of environments whose
+training counterparts the model reproduces well, mostly near-bulk ones; atoms at dislocation cores and on crack flanks resemble
+those in descriptor space but carry larger errors, so the learned scale narrows exactly where it should not. One quantile cannot
+do that, which is why it is the method here: the learned scale is the better choice only when the target environments are
+represented in the training data.</p>
 <div class="wrap"><table><caption>Table 2c. Out-of-distribution per-atom force coverage at nominal 90 %: ARD refits without
 cracks and screw dislocations, scored on them (90 % intervals from a bootstrap over configurations). "ID test": the same
 refit's coverage on the in-distribution test split.</caption>
@@ -1029,8 +1033,8 @@ properties that the fit never saw. For both models most QoIs fall inside their 9
 for o3d12, {k95("o4d20", "CR3-headline", "lam_F")} for o4d20), and the intervals scale with the model: the median σ/tol is
 {sot("o4d20", "CR3-headline", "lam_F")} for the accurate o4d20, whose intervals are mostly inside the benchmark tolerance, and
 {sot("o3d12", "CR3-headline", "lam_F")} for o3d12. The scale is fitted once, on forces of held-out configurations, and never on a QoI.
-The same CR3 shape serves per-atom forces, with a scale learned from the descriptor (Section 3.2), and relaxed QoIs, with one
-global scale. The second use is what a distribution over θ buys: one draw gives energies, forces, stresses and every QoI together,
+The same CR3 shape serves per-atom forces, with one conformal quantile (Section 3.2), and relaxed QoIs, with one global
+scale. The second use is what a distribution over θ buys: one draw gives energies, forces, stresses and every QoI together,
 consistently.</p>
 <p>The baselines show which ingredient matters. The CR3 shape without a scale (B3) is far too narrow, so calibration is essential,
 as expected for a parameter variance that shrinks with the amount of data. The Bayesian posterior with a calibrated scale (B1)
@@ -1041,7 +1045,7 @@ which measures how far the fit moves when each configuration is left out, is the
 <p>The scale is not unique. The virial scale is about a third larger than the force scale, and using it covers
 {k95("o3d12", "CR3-headline", "lam_V")} and {k95("o4d20", "CR3-headline", "lam_V")} QoIs with wider intervals; its joint evidence is about equal to the force scale's for o4d20 and higher for o3d12. Misspecification depends on the observable, and one could choose the scale by the QoI's physics, the virial scale
 for stress-like QoIs such as elastic constants, or report both. A single scale is also a compromise across configuration types
-(Figure 5), which a per-type scale in θ could relax. The learned per-atom scale cannot be used for this directly: it rescales
+(Figure 5), which a per-type scale in θ could relax. A learned per-atom scale cannot be used for this directly: it rescales
 force outputs atom by atom and defines no covariance in θ; a θ-space analogue would need a shape that depends on the
 environment.</p>
 <p>Linearisation is adequate at the size of the distribution, but not everywhere at the calibrated size. The delta method agrees
@@ -1068,9 +1072,9 @@ as part of the effective error. And twenty QoIs give coarse coverage estimates: 
 
 sec("conclusions", "5  Conclusions", """
 <p>For linear ACE potentials, the delete-one-configuration (CR3) jackknife covariance, scaled once, gives calibrated uncertainty at
-two levels. Per atom, with a conformal scale learned from the site descriptor and no hand-chosen categories of environment, the
-force regions come close to their target coverage on held-out silicon data and on cracks left out of the fit; screw
-dislocations left out of the fit are under-covered by every scale we tried. For derived properties, the same covariance with one scale fitted to held-out forces,
+two levels. Per atom, with one conformal quantile from a held-out part of the training set, the force regions come close to
+their target coverage on held-out silicon data and on cracks left out of the fit; a scale learned from the site descriptor evens
+the coverage across environments seen in training but transfers less well to those left out. For derived properties, the same covariance with one scale fitted to held-out forces,
 propagated by implicit differentiation through each relaxation, covers most of 20 silicon QoIs against DFT, with intervals that
 shrink with the accuracy of the model, and outperforms the Bayesian posterior, POPS and the uncalibrated shape. Where it fails, for
 relaxed point defects, the cause is a bias shared by all training snapshots of a kind, which no delete-one method can see; it can be
