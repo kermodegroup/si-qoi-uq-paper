@@ -378,19 +378,19 @@ whole configurations, so that the correlated energy, force and virial rows of on
 covariance that is calibrated by one scale on held-out data (Section 3.3); POPS has no calibration step. Like any sampling variance,
 the CR3 covariance shrinks as data are added, which is why the scale is needed: CR3 supplies the shape, and the held-out data the
 size.</p>
-<figure><img src="fig9_cr3_schematic.png" alt="Schematic of the CR3 construction on the regression demo's Lennard-Jones example: a degree-9 polynomial fit with the CR3 and posterior bands; the leave-one-point-out changes of the fit in the leading principal curves of the CR3 covariance; and a six-step flow of the computation"><figcaption>Figure 9.
+<figure><img src="fig9_cr3_schematic.png" alt="Schematic of the CR3 construction on the regression demo's Lennard-Jones example: a degree-5 polynomial fit with the CR3 and posterior bands; the leave-one-point-out changes of the fit in the leading principal curves of the CR3 covariance; and a six-step flow of the computation"><figcaption>Figure 9.
 The CR3 construction on the Lennard-Jones example of the interactive regression demo [kermodegroup demos; scene
-lj-cr3], computed exactly. (a) A degree-9 polynomial, fitted by Bayesian ridge regression with evidence-optimised
-hyperparameters to nearly noiseless samples (noise standard deviation 0.011, as for DFT labels) of a clipped
-Lennard-Jones curve on its physical domain (r = x/5 + 1.5 > 0), cannot follow the repulsive wall: the error is approximation
-error, not noise. The posterior band \(\sigma^2A^{-1}\) (orange) is narrow everywhere. The CR3 band (blue), scaled by λ from 88
-held-out calibration points, is wide where the fit is wrong: at the wall and near the right-hand end. (b) Each dot is the change of the
-fitted curve when one training point is left out, \(-A^{-1}\tilde g_k\), in the two leading principal curves of the CR3
-covariance of the prediction; the closed form reproduces the refit to the precision the basis allows. The points near the wall
-(x ≈ 0) and at the right-hand end move the fit most. The CR3 covariance is the sum of these shifts' outer products over the 352
-training points, so its ellipse is about √352 times the spread of single dots; the posterior ellipse is smaller. (c) The computation for the real models, with the
-reading of each quantity: one fit, then per configuration its leverage, its leave-out residuals and its pull, and finally the
-spread of the pulls.</figcaption></figure>
+lj-cr3], computed exactly. (a) A degree-5 polynomial, fitted by Bayesian ridge regression with evidence-optimised
+hyperparameters to 197 nearly noiseless samples (noise standard deviation 0.011, as for DFT labels) of the smooth part of a
+Lennard-Jones curve, cannot follow the steep repulsive side and the well: the error is approximation error, not noise. The
+posterior band \(\sigma^2A^{-1}\) (orange) is barely visible. The CR3 band (blue), scaled by λ from 50 held-out calibration
+points, is wide where the fit is wrong: on the steep side near x = 0 and at the right-hand end. (b) Each dot is the change of
+the fitted curve when one training point is left out, \(-A^{-1}\tilde g_k\), in the two leading principal curves of the CR3
+covariance of the prediction; the closed form reproduces the refit to the precision the basis allows. The points on the steep
+side and in the well (x &lt; 1) move the fit most. The CR3 covariance is the sum of these shifts' outer products over the 197
+training points, so its ellipse is about √197 times the spread of single dots; the posterior ellipse is smaller. (c) The
+computation for the real models, with the reading of each quantity: one fit, then per configuration its leverage, its
+leave-out residuals and its pull, and finally the spread of the pulls.</figcaption></figure>
 <p><b>CR3.</b> For a cluster \(k=1,\dots,n_{\text{cl}}\) of rows (here: one whole configuration with its energy, force and virial rows) with
 whitened rows \(\Psi_k\) (the cluster's rows \(\psi^{\mathsf T}\) stacked), whitened targets \(\tilde y_k\) and residuals \(\rho_k=\tilde y_k-\Psi_k\hat\theta\), the cluster hat block and the leverage-corrected (PRESS)
 score are</p>
