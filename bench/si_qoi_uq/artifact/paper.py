@@ -377,6 +377,15 @@ whole configurations, so that the correlated energy, force and virial rows of on
 covariance that is calibrated by one scale on held-out data (Section 3.3); POPS has no calibration step. Like any sampling variance,
 the CR3 covariance shrinks as data are added, which is why the scale is needed: CR3 supplies the shape, and the held-out data the
 size.</p>
+<figure><img src="fig9_cr3_schematic.png" alt="Schematic of the CR3 construction: a misspecified straight-line fit with leave-one-configuration-out refits and the CR3 and posterior bands; the same in parameter space with deletion shifts and covariance ellipses; and a six-step flow of the computation"><figcaption>Figure 9.
+The CR3 construction on a toy problem, computed exactly. (a) A straight line is fitted to a curved truth sampled as five
+configurations of six points each (colours), so the model is misspecified. Thin lines: the fit with one configuration left out.
+The posterior band \(\sigma^2A^{-1}\) (orange) is narrow because the residual scatter within the data is small; the CR3 band
+(blue) is as wide as the fit's dependence on which configurations it saw, and is largest where the line misses the curve. Both
+bands are shown before the scale λ is applied. (b) The same in parameter space: each arrow is the exact shift of the coefficients
+when one configuration is left out, and the closed form \(A^{-1}\tilde g_k\) reproduces the refit to machine precision. The CR3
+covariance is the spread of these shifts. (c) The computation for the real models, with the reading of each quantity: one fit,
+then per configuration its leverage, its leave-out residuals and its pull, and finally the spread of the pulls.</figcaption></figure>
 <p><b>CR3.</b> For a cluster \(k=1,\dots,n_{\text{cl}}\) of rows (here: one whole configuration with its energy, force and virial rows) with
 whitened rows \(\Psi_k\) (the cluster's rows \(\psi^{\mathsf T}\) stacked), whitened targets \(\tilde y_k\) and residuals \(\rho_k=\tilde y_k-\Psi_k\hat\theta\), the cluster hat block and the leverage-corrected (PRESS)
 score are</p>
@@ -395,15 +404,7 @@ matrix; computing \(W_k\) costs one triangular solve per cluster.</li>
 evaluated with its leave-cluster-out (PRESS) residuals \((I-H_{kk})^{-1}\rho_k\) instead of its ordinary residuals. It is the pull of
 configuration \(k\) on the coefficients as an unseen configuration would exert it.</li>
 </ul>
-<figure><img src="fig9_cr3_schematic.png" alt="Schematic of the CR3 construction: a misspecified straight-line fit with leave-one-configuration-out refits and the CR3 and posterior bands; the same in parameter space with deletion shifts and covariance ellipses; and a six-step flow of the computation"><figcaption>Figure 9.
-The CR3 construction on a toy problem, computed exactly. (a) A straight line is fitted to a curved truth sampled as five
-configurations of six points each (colours), so the model is misspecified. Thin lines: the fit with one configuration left out.
-The posterior band \(\sigma^2A^{-1}\) (orange) is narrow because the residual scatter within the data is small; the CR3 band
-(blue) is as wide as the fit's dependence on which configurations it saw, and is largest where the line misses the curve. Both
-bands are shown before the scale λ is applied. (b) The same in parameter space: each arrow is the exact shift of the coefficients
-when one configuration is left out, and the closed form \(A^{-1}\tilde g_k\) reproduces the refit to machine precision. The CR3
-covariance is the spread of these shifts. (c) The computation for the real models, with the reading of each quantity: one fit,
-then per configuration its leverage, its leave-out residuals and its pull, and finally the spread of the pulls.</figcaption></figure>
+
 <p>With the hyperparameters fixed, deleting cluster \(k\) moves the mean by exactly \(\hat\theta-\hat\theta_{(-k)}=A^{-1}\tilde g_k\)
 (the cluster DFBETA [Cook and Weisberg 1982, Sec. 3.6]). The spread of these shifts over clusters is the CR3 covariance. The
 centred meat and the
