@@ -76,10 +76,19 @@ def ci_txt(k, n):
     post = beta(k + 0.5, n - k + 0.5)
     return f"[{post.ppf(0.025):.2f}, {post.ppf(0.975):.2f}], with P(coverage ≥ 0.95) = {post.sf(0.95):.2f}"
 EV_EPS = "1e-06"
+import numpy as np
+def sci(x, d=0):
+    """x as a × 10^b in HTML (d decimals on a)."""
+    e = int(np.floor(np.log10(abs(x))))
+    a = x / 10 ** e
+    return (f"10<sup>{e}</sup>" if round(a, d) == 1 else f"{a:.{d}f} × 10<sup>{e}</sup>").replace("-", "−")
+
+
 def lbf(m, meth, kind="committee"):
     r = ev.get((m, meth, kind))
     return float(r["log_bf_vs_headline"]) if r and r.get("log_bf_vs_headline") not in ("", None) else float("nan")
 lbf_txt = lambda m, meth, kind="committee": f"{lbf(m, meth, kind):+.1f}"
+lbf2_txt = lambda m, a, b, kind="committee": f"{lbf(m, a, kind) - lbf(m, b, kind):+.1f}"   # log BF of method a against b
 _ood = {m: json.load(open(RES / f"ood_mondrian_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"ood_mondrian_{m}.json").exists()}
 _lso = {m: json.load(open(RES / f"learned_scale_ood_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"learned_scale_ood_{m}.json").exists()}
 _lsm = {m: json.load(open(RES / f"learned_scale_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"learned_scale_{m}.json").exists()}
@@ -764,7 +773,7 @@ def _phase_names(m, lo):
 
 
 pops = pw.get(("o3d12", "pops"))
-pops_sd = f(pops['sd_E_meV_per_atom'] if pops else None, 0)
+pops_sd = sci(pops["sd_E_meV_per_atom"]) if pops else "?"
 b3txt = " and ".join(f"{int(float(b3[m]['k95']))}/{int(float(b3[m]['n']))} ({m})" for m in models if b3[m])
 b1txt = " and ".join(f"{int(float(b1[m]['k95']))}/{int(float(b1[m]['n']))} ({m})" for m in models if b1[m])
 pops_w = "; ".join(f"{m}: 5 % cut {pw[(m, 'popslev5')]['sd_E_meV_per_atom']:.3g}, 50 % cut {pw[(m, 'popslev50')]['sd_E_meV_per_atom']:.3g}, "
@@ -793,12 +802,6 @@ def _pr_txt():
             "unphysical box of the every-row default is a property of POPS on this design, not of the port. [Draft note: a "
             "box-by-box comparison of the port with the package at B2's settings does not yet agree and is being checked.]")
 pr_txt = _pr_txt()
-import numpy as np
-def sci(x, d=0):
-    """x as a × 10^b in HTML (d decimals on a)."""
-    e = int(np.floor(np.log10(abs(x))))
-    a = x / 10 ** e
-    return (f"10<sup>{e}</sup>" if round(a, d) == 1 else f"{a:.{d}f} × 10<sup>{e}</sup>").replace("-", "−")
 _pc_old = json.load(open(RES / "pops_compare_o3d12_oct31box.json")) if (RES / "pops_compare_o3d12_oct31box.json").exists() else None
 _pcs = {m: json.load(open(RES / f"pops_compare_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"pops_compare_{m}.json").exists()}
 _box = {m: np.load(f"/storage/eng/essswb/projects/ace-jax/runs/si_qoi_uq_blr/fits/{m}/pops/pops_box_lev50.npz") for m in ("o3d12", "o4d20")}
@@ -844,7 +847,7 @@ k95 = lambda m, meth, sc: (lambda r: f"{int(float(r['k95']))}/{int(float(r['n'])
 sot = lambda m, meth, sc: (lambda r: f"{float(r['median_sigma_over_tol']):.2f}" if r else "?")(get(m, meth, sc))
 tight = (head["o3d12"]["median_sigma_over_tol"] / head["o4d20"]["median_sigma_over_tol"]) if all(head.get(m) for m in ("o3d12", "o4d20")) else float("nan")
 sec("results", "3.4  Coverage and sharpness", f"""
-<div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % credible interval of the coverage probability]) and sharpness, for the four methods of Figures 1 and 1b. {B2_NOTE}</caption>
+<div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % credible interval of the coverage probability]) and sharpness, for the four methods of Figures 1 and 1b.</caption>
 <thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th><th>CRPS/tol</th></tr></thead>
 <tbody>{cov_rows}</tbody></table></div>
 <div class="wrap"><table><caption>Table 3b. Sensitivity of the coverage to the scale and to the committee variant: the CR3 shape
@@ -870,7 +873,9 @@ calibration and sharpness in one score, ranks the headline first among the four 
 {crps("o3d12", "B3-headline", "lam_1")} / {crps("o4d20", "B3-headline", "lam_1")} for B3 (o3d12 / o4d20; Table 3). The margins are small
 because the mean is dominated by the QoIs with the largest errors, which no width can fix: for o3d12 the three interstitials
 are 12–17 tolerances off, so its CRPS/tol is near 3 for every method.</p>
-<p>The baselines (Section 3.7) cover fewer QoIs at comparable or smaller widths. The sensitivity table (Table 3b) shows that the choice of
+<p>Of the baselines (Section 3.7), B1 and B3 cover fewer QoIs. POPS (B2) covers {k95("o3d12", "B2lev50-committee", "lam_1")} (o3d12)
+and {k95("o4d20", "B2lev50-committee", "lam_1")} (o4d20), at widths close to the headline's (median σ/tol
+{sot("o3d12", "B2lev50-committee", "lam_1")} and {sot("o4d20", "B2lev50-committee", "lam_1")}). The sensitivity table (Table 3b) shows that the choice of
 scale matters at the margin. The virial scale λ<sub>V</sub>, larger than λ<sub>F</sub> by about a third, covers
 {k95("o3d12", "CR3-headline", "lam_V")} (o3d12) and {k95("o4d20", "CR3-headline", "lam_V")} (o4d20) at the price of wider intervals
 (median σ/tol {sot("o3d12", "CR3-headline", "lam_V")} for o3d12 and {sot("o4d20", "CR3-headline", "lam_V")} for o4d20); λ<sub>E</sub> and λ<sub>pool</sub> give about the
@@ -883,7 +888,7 @@ phase energies, which are strongly nonlinear in θ at λ<sub>F</sub> (Section 3.
 logarithmic beyond, and is shared by all rows. Top row: the headline, CR3 × λ<sub>F</sub>; the larger model's intervals are
 {tight:.1f}× tighter in median σ/tol while its coverage stays comparable. Below it the baselines of Section 2.6: B1, the posterior
 scaled by one conformal quantile; B2, POPS with the 50 % leverage cut (the reference package's default); B3, CR3 without calibration (λ = 1). Each row's legend gives
-its 95 % coverage and median σ/tol. {B2_NOTE}</figcaption></figure>
+its 95 % coverage and median σ/tol.</figcaption></figure>
 <figure><img src="fig2_coverage.png" alt="Coverage per method with binomial intervals"><figcaption>Figure 1b. Fraction of the 20 scored QoIs inside the 68 % and 95 % intervals for the four methods of Figure 1
 (headline, B1, B2 with the 50 % leverage cut, B3), with 95 % credible intervals from the Jeffreys-prior Beta posterior; dashed lines are the nominal levels.</figcaption></figure>
 <h3>3.5 Joint evidence</h3>
@@ -896,14 +901,20 @@ covariance source. d² and log det are the two parts of the evidence: the misfit
 correlations form blocks: the elastic constants with each other and with the β-Sn and sh phase energies, which are both compressed
 diamond-like structures; and the four point defects with each other (0.3–0.8), most strongly the three interstitials. Most other pairs
 are only weakly correlated.</p>
-<p>Table 4 compares the methods by their evidence. For both models the headline is far ahead of every baseline: by log Bayes factors
-of {lbf_txt("o3d12", "B1/q_b1")} (B1), {lbf_txt("o3d12", "B2lev50/lam_1")} (B2) and {lbf_txt("o3d12", "B3/lam_1")} (B3) for o3d12, and
-{lbf_txt("o4d20", "B1/q_b1")}, {lbf_txt("o4d20", "B2lev50/lam_1")} and {lbf_txt("o4d20", "B3/lam_1")} for o4d20, with the committee
-covariance. On the scale of Kass and Raftery [1995] a log Bayes factor beyond about 3 is strong evidence and beyond 5 very strong. B3 and B2 for o4d20
-lose through the misfit term, with intervals far too narrow for their errors. B1 loses less, because its overall size is calibrated,
-but its shape puts the width in the wrong places. B2 for o3d12, which covers {k95("o3d12", "B2lev50-committee", "lam_1")} QoIs one at a time, is still behind the headline
-({lbf_txt("o3d12", "B2lev50/lam_1")}): per-QoI coverage alone does not show that a covariance is right. The correlations also matter in
-the other direction. o4d20's headline misses five QoIs one at a time, but three of the five are the interstitials, which its covariance
+<p>Table 4 compares the methods by their evidence. The headline is far ahead of B1 and B3 for both models: by log Bayes
+factors of {lbf_txt("o3d12", "B1/q_b1")} (B1) and {lbf_txt("o3d12", "B3/lam_1")} (B3) for o3d12, and {lbf_txt("o4d20", "B1/q_b1")} and
+{lbf_txt("o4d20", "B3/lam_1")} for o4d20, with the committee covariance. On the scale of Kass and Raftery [1995] a log Bayes factor
+beyond about 3 is strong evidence and beyond 5 very strong. B3 loses through the misfit term, with intervals far too narrow for
+its errors. B1 loses less, because its overall size is calibrated, but its shape puts the width in the wrong places. POPS (B2) is
+the close competitor. Without the discrepancy term the evidence prefers it for o3d12 ({lbf_txt("o3d12", "B2lev50/lam_1")}) and the
+headline for o4d20 ({lbf_txt("o4d20", "B2lev50/lam_1")}). The o3d12 preference does not survive the discrepancy term of
+Section 3.8: with the term added to both, the headline is preferred for both models,
+strongly for o3d12 ({lbf2_txt("o3d12", "CR3/lam_F+disc", "B2lev50/lam_1+disc")}) and weakly for o4d20
+({lbf2_txt("o4d20", "CR3/lam_F+disc", "B2lev50/lam_1+disc")}). One at a time the headline covers more QoIs for o3d12
+({k95("o3d12", "CR3-headline", "lam_F")} against {k95("o3d12", "B2lev50-committee", "lam_1")}) and POPS for o4d20
+({k95("o4d20", "B2lev50-committee", "lam_1")} against {k95("o4d20", "CR3-headline", "lam_F")}): per-QoI coverage and the joint
+evidence need not agree. The correlations can also favour a method that
+misses QoIs one at a time: o4d20's headline misses five QoIs, but three of the five are the interstitials, which its covariance
 expects to move together, so jointly they cost less than three independent misses.</p>
 <p>The virial scale is better than the force scale for o3d12 ({lbf_txt("o3d12", "CR3/lam_V")}), whose QoI errors are larger
 relative to its force errors, and about as good for o4d20 ({lbf_txt("o4d20", "CR3/lam_V")}). The discrepancy term of Section 3.8 is
@@ -939,30 +950,28 @@ Elastic constants: the 1σ covariance ellipses of (C<sub>11</sub>, C<sub>12</sub
 the delta method, by the stress route (solid) and the energy route (dashed), for o3d12 (top) and o4d20 (bottom); the dot is the
 mean model's value and the star DFT.</figcaption></figure>
 <h3>3.7 Baselines</h3>
-<p>The three baselines of Section 2.6 each fall short in a different way (Figure 1, Figure 1b and Table 3). B3, the CR3 shape without
+<p>B1 and B3 fall short in different ways (Figure 1, Figure 1b and Table 3); B2 does not, once its box is numerically defined. B3, the CR3 shape without
 calibration, covers only {b3txt} of the QoIs at 95 %: the shape alone is several times too narrow, as the test-split scales of
 Section 3.3 already show. B1, the posterior with one conformal scale, covers {b1txt}. It has a calibrated overall size but the wrong
 shape, so it is too wide for some QoIs and too narrow for others, and its joint evidence is far below the headline's (Table 4).</p>
-<p>{B2_NOTE}</p>
 <p>B2, POPS, needed more care. With the ace-jax port's default, which builds the hypercube from every training row, the members are
 unphysical: the bounds are set by a handful of rows with near-zero leverage, whose corrections are unbounded, and the members spread
-the bulk energy of o3d12 by {pops_sd} meV/atom, so that almost every relaxation fails. Rejecting unphysical members cannot rescue
-this. Every axis of the full box spans 10<sup>6</sup>–10<sup>7</sup> eV/atom of bulk energy, and no member of either model comes within
-5 eV/atom of the mean on rattled diamond cells (0 of 200).</p>
+the bulk energy of o3d12 by {pops_sd} meV/atom. Rejecting unphysical members cannot rescue a box of that size.</p>
 <p>The POPS box is also numerically fragile on these designs. The o3d12 design has a condition number of
 {pc_cond} and its evidence fit puts σ<sub>c</sub> on its upper bound, so the ridge that gives the BLR mean is
 {sci(pc_lamblr)} of the largest eigenvalue. Below a relative ridge of about 10<sup>−11</sup> the box is set by roundoff. At the
 10<sup>−14</sup> that an earlier ridge selection chose, four equivalent evaluations from the same rows, mean and cut give
 bulk-energy spreads of {pc_old}. The POPS step of the reference package POPSRegression [Swinburne, POPSRegression] agrees with the
 stable SVD evaluation there, so the port and the package differ only in these numerics, not in the method. We therefore select
-the ridge from 10<sup>−10</sup> upwards. The selection then takes the smallest ridge it is offered for both models
-({pc_sel}), so in practice the floor sets the box. Within the numerically defined range the box widens with the ridge: for
+the ridge from 10<sup>−10</sup> upwards ({pc_sel}). For o3d12 the selection takes the smallest ridge it is offered, so the
+floor sets the box; for o4d20 it chooses inside the grid. Within the numerically defined range the box widens with the ridge: for
 o3d12 its bulk-energy spread is {pc_sweep}. The reference package's own default ridge, chosen by evidence, is
 {pc_refridge} of the largest eigenvalue, in the range where the box is not defined, so we do not use it.</p>
 <p>We ran committees at
 the 50 % cut (B2) and at 5 % (Table 3b). Their bulk-energy spreads, against the CR3 members at λ = 1 and at
-λ<sub>F</sub>, are {pops_w} meV/atom. B2 covers {pops_cov}. POPS has no calibration step, so its width is whatever the choice of support rows
-gives: of roughly the right size but in the wrong places for o3d12, and too narrow for o4d20.</p>""", "drafted", level=3)
+λ<sub>F</sub>, are {pops_w} meV/atom. B2 covers {pops_cov}. With a numerically defined box, POPS gives QoI intervals of about the headline's width and
+coverage without a calibration step. What sets its width is the ridge and the leverage cut instead: over the numerically defined
+ridges the o3d12 box's bulk-energy spread changes by a factor of about 60 (above).</p>""", "drafted", level=3)
 
 trend_rows = ""
 for m in ("o3d12", "o4d20"):
@@ -1107,7 +1116,7 @@ shape with the propagation's global λ<sub>F</sub> covers {fb("o3d12", "headline
 <figure><img src="fig7_force_calibration.png" alt="Per-atom force uncertainty against observed error for the learned scale, one hold-out quantile and the baselines, and test coverage per configuration type, for each model"><figcaption>Figure 2.
 Top: binned on predicted σ (20 equal-count bins), RMS observed |ΔF| against RMS σ, for the CR3 shape with one hold-out
 quantile (the method) and with the learned scale (ARD fit; σ<sub>F,i</sub> from the 90 % quantile), and for the per-atom σ of the
-propagation's methods on the BLR fit: CR3 × λ<sub>F</sub> (the headline), B1 (posterior × q̂), B2 ({B2_NOTE} POPS, 50 % leverage cut; the
+propagation's methods on the BLR fit: CR3 × λ<sub>F</sub> (the headline), B1 (posterior × q̂), B2 (POPS, 50 % leverage cut; the
 box's uniform variance) and B3 (CR3, λ = 1); the per-atom density behind. Points below the diagonal are conservative.
 Bottom: test coverage of the 90 % region, overall and per GAP-18 configuration type with at least 300 test atoms. Conformal
 regions: one quantile and the learned scale. Gaussian isotropic region |ΔF| ≤ σ (χ<sup>2</sup><sub>3</sub>(0.9)/3)<sup>1/2</sup>:
@@ -1146,8 +1155,7 @@ refit's coverage on the in-distribution test split.</caption>
 <p>Figure 2 also shows the per-atom forces of the baselines, to which the QoI comparison of Section 3.4 applies. B3 is
 about λ<sub>F</sub> times too narrow everywhere. B1, the posterior shape with one scale, under-covers
 ({fb("o3d12", "B1")} for o3d12, {fb("o4d20", "B1")} for o4d20), most in the amorphous, point-defect and surface cells. B2
-under-covers for o3d12 ({fb("o3d12", "B2")}), most in the liquid and surface cells, and is far too narrow for o4d20
-({fb("o4d20", "B2")}), as its QoI widths are.</p>""", "drafted", level=3)
+over-covers for o3d12 ({fb("o3d12", "B2")}) and is close to nominal for o4d20 ({fb("o4d20", "B2")}), in line with its QoI widths.</p>""", "drafted", level=3)
 
 dk95 = lambda m: (lambda d_: f"{d_['k95']}/{d_['n']}" if d_ else "?")(disc.get(m, {}).get("CR3-headline+disc/lam_F"))
 sec("discussion", "4  Discussion", f"""
@@ -1164,9 +1172,11 @@ as expected for a parameter variance that shrinks with the amount of data. The B
 has the right overall size but the wrong shape: it under-covers the QoIs and its joint evidence is far lower, because the posterior describes
 noise in the labels, not the approximation error of a misspecified model. Shanks et al. [2026] find the same split between
 accuracy and uncertainty for argon: MACE committees and seed ensembles predict accurately but cover far fewer errors than their
-intervals claim, and calibration, sharpness and the ranking of errors need not improve together. POPS (B2) targets that error directly, but its width is
-set by which training rows define the hypercube, and with no calibration step it is too narrow for the larger model. The CR3 shape,
-which measures how far the fit moves when each configuration is left out, is the one that transfers, provided it is scaled.</p>
+intervals claim, and calibration, sharpness and the ranking of errors need not improve together. POPS (B2) targets that error directly and, with a numerically defined box,
+performs comparably with the CR3 propagation on these QoIs: similar coverage and widths, and a joint evidence that prefers the CR3
+propagation once both carry the discrepancy term, strongly for o3d12 and weakly for o4d20. The two differ in what sets the width.
+The CR3 shape needs one scale, calibrated on held-out data, and the same covariance calibrates per-atom forces. The POPS box has no
+free scale but depends on a ridge and a leverage cut, and on these nearly singular designs it is defined only above a ridge floor.</p>
 <p>The scale is not unique. The virial scale is about a third larger than the force scale, and using it covers
 {k95("o3d12", "CR3-headline", "lam_V")} QoIs for o3d12 and {k95("o4d20", "CR3-headline", "lam_V")} for o4d20 with wider intervals; its joint evidence is higher than the force scale's for o3d12 and about equal for o4d20. Misspecification depends on the observable, and one could choose the scale by the QoI's physics, the virial scale
 for stress-like QoIs such as elastic constants, or report both. A single scale is also a compromise across configuration types
@@ -1201,7 +1211,8 @@ two levels. Per atom, with one conformal quantile from a held-out part of the tr
 their target coverage on held-out silicon data and on cracks left out of the fit; a scale learned from the site descriptor evens
 the coverage across environments seen in training but transfers less well to those left out. For derived properties, the same covariance with one scale fitted to held-out forces,
 propagated by implicit differentiation through each relaxation, covers most of 20 silicon QoIs against DFT, with intervals that
-shrink with the accuracy of the model, and outperforms the Bayesian posterior, POPS and the uncalibrated shape. Where it fails, for
+shrink with the accuracy of the model. It outperforms the Bayesian posterior and the uncalibrated shape, and performs comparably
+with POPS once the POPS box is numerically defined, while needing one calibrated scale instead of a ridge and a leverage cut. Where it fails, for
 relaxed point defects, the cause is a bias shared by all training snapshots of a kind, which no delete-one method can see; it can be
 measured from the training labels and added as a discrepancy term, which restores coverage. The methods are implemented in ace-jax.</p>""", "")
 
@@ -1219,7 +1230,8 @@ fixed the 21 QoIs and their tolerances, the four candidate scales λ<sub>F</sub>
 λ<sub>pool</sub>, the three baselines, the committee size and the 10 % rule that picks the delta method or the committee. λ<sub>F</sub>
 was chosen as the headline before any QoI coverage was seen; the specification lists the four scales but does not record that
 choice. Decided later, after QoI results had been seen: the POPS leverage cut (the specification's ace-jax default gave unphysical
-members, Section 3.7; B2 now follows the reference package's default), the member-rejection rule of the λ<sub>F</sub> re-run (fixed
+members, Section 3.7; B2 now follows the reference package's default) and its ridge floor (set by where the box is numerically
+defined, Section 3.7), the member-rejection rule of the λ<sub>F</sub> re-run (fixed
 before that re-run), the discrepancy term and its estimators (Section 2.7.4), the per-atom force method (Section 2.5, chosen after
 comparing it with a learned scale on the test split and on the out-of-distribution set), and Bayesian model comparison in place of
 the specification's fixed [0.8, 1.25] band on λ<sub>V</sub>/λ<sub>F</sub>. None of these uses a DFT QoI value as an input, but
