@@ -14,7 +14,7 @@ import seaborn as sns  # noqa: E402
 from .assemble import Z95  # noqa: E402
 from .propagate import COVER_KEYS, KEYS  # noqa: E402
 
-SURFACE, INK, MUTED, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e4e3df"
+SURFACE, INK, MUTED, GRID = "#ffffff", "#0b0b0b", "#52514e", "#e4e3df"
 CAT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#6250d6", "#008300"]
 MARK = ["o", "s", "D", "^", "v", "P", "X"]
 PANELS = (("CR3-headline", "lam_F", "CR3 × λ_F (headline)"), ("B1-headline", "q_b1", "B1: posterior × conformal q̂"),
