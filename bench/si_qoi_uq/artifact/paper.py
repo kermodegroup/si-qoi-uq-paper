@@ -377,15 +377,18 @@ whole configurations, so that the correlated energy, force and virial rows of on
 covariance that is calibrated by one scale on held-out data (Section 3.3); POPS has no calibration step. Like any sampling variance,
 the CR3 covariance shrinks as data are added, which is why the scale is needed: CR3 supplies the shape, and the held-out data the
 size.</p>
-<figure><img src="fig9_cr3_schematic.png" alt="Schematic of the CR3 construction: a misspecified straight-line fit with leave-one-configuration-out refits and the CR3 and posterior bands; the same in parameter space with deletion shifts and covariance ellipses; and a six-step flow of the computation"><figcaption>Figure 9.
-The CR3 construction on a toy problem, computed exactly. (a) A straight line is fitted to a curved truth sampled as five
-configurations of six points each (colours), so the model is misspecified. Thin lines: the fit with one configuration left out.
-The posterior band \(\sigma^2A^{-1}\) (orange) is narrow because the residual scatter within the data is small; the CR3 band
-(blue) is as wide as the fit's dependence on which configurations it saw, and is largest where the line misses the curve. Both
-bands are shown before the scale λ is applied. (b) The same in parameter space: each arrow is the exact shift of the coefficients
-when one configuration is left out, and the closed form \(A^{-1}\tilde g_k\) reproduces the refit to machine precision. The CR3
-covariance is the spread of these shifts. (c) The computation for the real models, with the reading of each quantity: one fit,
-then per configuration its leverage, its leave-out residuals and its pull, and finally the spread of the pulls.</figcaption></figure>
+<figure><img src="fig9_cr3_schematic.png" alt="Schematic of the CR3 construction on the regression demo's Lennard-Jones example: a degree-9 polynomial fit with the CR3 and posterior bands; the leave-one-point-out changes of the fit in the leading principal curves of the CR3 covariance; and a six-step flow of the computation"><figcaption>Figure 9.
+The CR3 construction on the Lennard-Jones example of the interactive regression demo [kermodegroup demos; scene
+lj-cr3], computed exactly. (a) A degree-9 polynomial, fitted by Bayesian ridge regression with evidence-optimised
+hyperparameters to 400 noisy samples of a clipped Lennard-Jones curve, cannot follow the repulsive wall, so the model is
+misspecified. The posterior band \(\sigma^2A^{-1}\) (orange) is narrow everywhere. The CR3 band (blue), scaled by λ from 101
+held-out calibration points, is wide where the fit is wrong: at the wall and near the ends. (b) Each dot is the change of the
+fitted curve when one training point is left out, \(-A^{-1}\tilde g_k\), in the two leading principal curves of the CR3
+covariance of the prediction; the closed form reproduces the refit to the precision the basis allows. The points near the wall
+(x ≈ 0) and at the ends move the fit most. The CR3 covariance is the sum of these shifts' outer products, so its ellipse is
+about √400 times the spread of single dots; the posterior ellipse is smaller. (c) The computation for the real models, with the
+reading of each quantity: one fit, then per configuration its leverage, its leave-out residuals and its pull, and finally the
+spread of the pulls.</figcaption></figure>
 <p><b>CR3.</b> For a cluster \(k=1,\dots,n_{\text{cl}}\) of rows (here: one whole configuration with its energy, force and virial rows) with
 whitened rows \(\Psi_k\) (the cluster's rows \(\psi^{\mathsf T}\) stacked), whitened targets \(\tilde y_k\) and residuals \(\rho_k=\tilde y_k-\Psi_k\hat\theta\), the cluster hat block and the leverage-corrected (PRESS)
 score are</p>
@@ -1104,6 +1107,7 @@ sec("refs", "References", """<p class="note">Checked against publisher or reposi
 <li>ace-jax: atomic cluster expansion potentials in JAX, https://github.com/ACEsuit/ace-jax.</li>
 <li>W. C. Witt, C. van der Oord, E. Gelžinytė, T. Järvinen, A. Ross, J. P. Darby, C. H. Ho, W. J. Baldwin, M. Sachs, J. Kermode, N. Bernstein, G. Csányi, C. Ortner, ACEpotentials.jl: a Julia implementation of the atomic cluster expansion, J. Chem. Phys. 159, 164101 (2023).</li>
 <li>R. Drautz, Atomic cluster expansion for accurate and transferable interatomic potentials, Phys. Rev. B 99, 014104 (2019).</li>
+<li>kermodegroup demos: interactive regression demo, https://github.com/kermodegroup/demos (apps/regression-demo.py; scene lj-cr3).</li>
 <li>T. Gneiting, A. E. Raftery, Strictly proper scoring rules, prediction, and estimation, J. Am. Stat. Assoc. 102, 359–378 (2007).</li>
 <li>A. Grossfield, D. M. Zuckerman, Quantifying uncertainty and sampling quality in biomolecular simulations, in Annual Reports in Computational Chemistry, Vol. 5, Elsevier (2009).</li>
 <li>K. Fisher, M. Herbst, J. Kermode, Y. Marzouk, Multivariate conformal uncertainty propagation in multitask atomistic simulation: successes and pitfalls, arXiv:2609.31384 (2026).</li>

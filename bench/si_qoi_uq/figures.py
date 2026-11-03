@@ -363,72 +363,100 @@ def ace_pareto(results, out, picked=("o3d12", "o4d20"), f_target=0.0825, q_targe
     _save(fig, out, "fig0_ace_pareto")
 
 
-def cr3_schematic(out, n_cfg=5, n_pts=6, seed=3):
-    """Schematic of the CR3 construction on an exact toy problem (no results file: it is a worked example).
-    A straight line a + b x is fitted (ridge 1e-3) to a curved truth 0.6 x + 0.9 x^2, sampled as n_cfg configurations of
-    n_pts points each.  (a) data, the full fit, every leave-one-configuration-out refit, the CR3 band and the posterior band
-    sigma^2 A^-1 (both at lambda = 1, +-1 sd); (b) the same in parameter space: deletion shifts theta - theta_(-k), which the
-    closed form A^-1 g_k reproduces exactly (asserted), the CR3 and posterior 1-sd ellipses; (c) the computation as a flow."""
+def _lj_demo(x):
+    """The LJ ground truth of the kermodegroup regression demo (apps/regression-demo.py, g(..., 'lj'))."""
+    r = np.maximum(x / 5.0 + 1.5, 0.3)
+    return np.clip(4.0 * ((1.5 / r) ** 12 - (1.5 / r) ** 6), -1.5, 1.5)
+
+
+def cr3_schematic(out, seed=0, n=500, noise=0.1, P=10, calib=0.2):
+    """Schematic of the CR3 construction on the regression demo's LJ scene (kermodegroup/demos, ?scene=lj-cr3):
+    n points uniform in [-10, 10] plus the two end points (x = 10 removed by the demo's filter), noise sd `noise`,
+    an 80/20 train/calibration split, a degree P - 1 polynomial basis, the evidence-fitted Bayesian ridge, CR3 with one
+    point per cluster and lambda the RMS standardised error on the calibration points; the demo's own code path and
+    random draws.  (a) data, the full fit, the CR3 band lambda sigma_CR3 and the posterior band; (b) the deletion shifts
+    theta - theta_(-k) = A^-1 g_k (asserted against refits) as changes of the predicted curve, projected on the two
+    leading principal curves of the CR3 covariance of the prediction (coefficient space is misleading for the
+    near-degenerate raw polynomial basis), coloured by the deleted point's x, with both 1-sd ellipses projected likewise;
+    (c) the computation as a flow."""
     from matplotlib.patches import Ellipse, FancyArrowPatch, FancyBboxPatch
-    rng = np.random.default_rng(seed)
-    KC = [CAT[2], CAT[3], CAT[4], CAT[5], "#8a5a2b"]                  # one colour per configuration, none reused
-    c = np.linspace(-0.9, 0.9, n_cfg)
-    x = (c[:, None] + rng.uniform(-0.12, 0.12, (n_cfg, n_pts))).ravel()
-    k_of = np.repeat(np.arange(n_cfg), n_pts)
-    y = 0.6 * x + 0.9 * x ** 2 + rng.normal(0, 0.02, x.size)
-    Psi = np.stack([np.ones_like(x), x], 1)
-    Lam = 1e-3 * np.eye(2)
-    A = Psi.T @ Psi + Lam
-    Ai = np.linalg.inv(A)
-    th = Ai @ Psi.T @ y
-    rho = y - Psi @ th
-    g, shifts, refits = [], [], []
-    for k in range(n_cfg):
-        m = k_of == k
-        Pk, rk = Psi[m], rho[m]
-        H = Pk @ Ai @ Pk.T
-        gk = Pk.T @ np.linalg.solve(np.eye(m.sum()) - H, rk)
-        g.append(gk); shifts.append(Ai @ gk)
-        th_k = np.linalg.solve(Psi[~m].T @ Psi[~m] + Lam, Psi[~m].T @ y[~m])
-        refits.append(th_k)
-        assert np.allclose(th - th_k, Ai @ gk, atol=1e-10), "closed-form deletion shift != refit"
-    g = np.array(g); gc = g - g.mean(0)
-    Scr3 = Ai @ (gc.T @ gc) @ Ai
-    Spost = np.mean(rho ** 2) * Ai
+    from sklearn.linear_model import BayesianRidge
+    from sklearn.model_selection import train_test_split
+    from sklearn.preprocessing import PolynomialFeatures
+    np.random.seed(seed)                                             # the demo's get_data and g, in order
+    x = np.append(np.random.uniform(-10, 10, size=n), np.linspace(-10, 10, 2))
+    x = np.sort(x[(x < 10.0) | (x > 10.0)])
+    y = _lj_demo(x) + np.random.normal(scale=noise, size=x.shape)
+    Xtr, Xc, ytr, yc = train_test_split(x[:, None], y, test_size=calib, random_state=seed)
+    pf = PolynomialFeatures(degree=P - 1, include_bias=True)
+    Ptr, Pc = pf.fit_transform(Xtr), pf.transform(Xc)
+    br = BayesianRidge(fit_intercept=False).fit(Ptr, ytr)        # alpha, lambda by evidence, as the demo
+    al, la = br.alpha_, br.lambda_
+    xg = np.linspace(-10, 10, 1000)
+    Bg = pf.transform(xg[:, None])
+
+    def ridge(Pm, ym):
+        """The ridge solution at fixed alpha, lambda by least squares on [sqrt(alpha) Phi; sqrt(lambda) I]: the raw
+        degree-9 basis has cond(A) ~ 1e18, so normal equations lose every digit of the coefficients."""
+        Aug = np.vstack([np.sqrt(al) * Pm, np.sqrt(la) * np.eye(Pm.shape[1])])
+        return np.linalg.lstsq(Aug, np.r_[np.sqrt(al) * ym, np.zeros(Pm.shape[1])], rcond=None)[0]
+    th = ridge(Ptr, ytr)
+    Ai = np.linalg.inv(al * Ptr.T @ Ptr + la * np.eye(P))
+    sa = np.sqrt(al)
+    Psi, rho = sa * Ptr, sa * (ytr - Ptr @ th)
+    h = np.einsum("ij,jk,ik->i", Psi, Ai, Psi)                       # one point per cluster: H_kk is a scalar
+    G = Psi * (rho / (1 - h))[:, None]
+    shifts = G @ Ai
+    for k in np.linspace(0, len(ytr) - 1, 5).astype(int):           # exact: refit without point k, same alpha, lambda
+        m = np.arange(len(ytr)) != k
+        d_ = np.abs(Bg @ (th - ridge(Ptr[m], ytr[m])) - Bg @ shifts[k]).max()
+        assert d_ < 1e-3 * np.abs(Bg @ shifts[k]).max(), f"deletion shift != refit (point {k}: {d_:.2e})"
+    Gc = G - G.mean(0)
+    Scr3 = Ai @ (Gc.T @ Gc) @ Ai
+    sd_c = lambda B: np.sqrt(np.einsum("ij,jk,ik->i", B, Scr3, B))
+    lam = float(np.sqrt(np.mean(((yc - Pc @ th) / sd_c(Pc)) ** 2)))
+    fit = Bg @ th
+    sd_post = np.sqrt(np.einsum("ij,jk,ik->i", Bg, Ai, Bg))
     fig = plt.figure(figsize=(13.0, 9.6), facecolor=SURFACE)
-    axa = fig.add_axes([0.05, 0.50, 0.42, 0.45]); axb = fig.add_axes([0.56, 0.50, 0.40, 0.45])
+    axa = fig.add_axes([0.05, 0.50, 0.50, 0.45]); axb = fig.add_axes([0.64, 0.50, 0.30, 0.45])
     axc = fig.add_axes([0.0, 0.0, 1.0, 0.40]); axc.axis("off"); axc.set_xlim(0, 1); axc.set_ylim(0, 1)
     _style(axa); _style(axb)
-    xg = np.linspace(-1.15, 1.15, 200)
-    Bg = np.stack([np.ones_like(xg), xg], 1)
-    fit = Bg @ th
-    sd = lambda S: np.sqrt(np.einsum("ni,ij,nj->n", Bg, S, Bg))
-    axa.fill_between(xg, fit - sd(Scr3), fit + sd(Scr3), color=CAT[0], alpha=0.18, lw=0, label="CR3 band (λ = 1)")
-    axa.fill_between(xg, fit - sd(Spost), fit + sd(Spost), color=CAT[1], alpha=0.45, lw=0, label="posterior band σ²A⁻¹")
-    axa.plot(xg, 0.6 * xg + 0.9 * xg ** 2, color=MUTED, lw=1.2, ls="--", label="truth (curved)")
-    for k in range(n_cfg):
-        axa.plot(xg, Bg @ refits[k], color=KC[k], lw=0.9, alpha=0.8, label="fit without one configuration" if k == 0 else None)
-        m = k_of == k
-        axa.scatter(x[m], y[m], s=22, color=KC[k], edgecolor=SURFACE, lw=0.6, zorder=4)
+    axa.fill_between(xg, fit - lam * sd_c(Bg), fit + lam * sd_c(Bg), color=CAT[0], alpha=0.20, lw=0,
+                     label=f"CR3 band, λ σ (λ = {lam:.1f} from calibration)")
+    axa.fill_between(xg, fit - sd_post, fit + sd_post, color=CAT[1], alpha=0.6, lw=0, label="posterior band, σ²A⁻¹")
+    axa.scatter(Xtr[:, 0], ytr, s=5, color=MUTED, alpha=0.6, lw=0, label="training points", zorder=2)
+    axa.scatter(Xc[:, 0], yc, s=7, color=CAT[2], alpha=0.8, lw=0, label="calibration points", zorder=2)
+    axa.plot(xg, _lj_demo(xg), color=INK, lw=1.2, ls="--", label="truth (LJ)")
     axa.plot(xg, fit, color=INK, lw=2, label="fit to all data, θ̂")
-    axa.set_xlabel("x (descriptor)", color=INK, fontsize=8); axa.set_ylabel("y (label)", color=INK, fontsize=8)
-    axa.set_title("(a) A misspecified linear fit: clusters of points are configurations", color=INK, fontsize=9, loc="left")
-    axa.legend(fontsize=7, frameon=False, loc="upper left")
-    for k in range(n_cfg):
-        axb.add_patch(FancyArrowPatch(th, refits[k], arrowstyle="-|>", mutation_scale=9, color=KC[k], lw=1.2))
-        axb.scatter(*refits[k], s=26, color=KC[k], edgecolor=SURFACE, lw=0.6, zorder=4)
-    for S, col, lab, a_ in ((Scr3, CAT[0], "CR3 covariance (1 sd)", 0.18), (Spost, CAT[1], "posterior σ²A⁻¹ (1 sd)", 0.45)):
-        w, U = np.linalg.eigh(S)
-        ang = np.degrees(np.arctan2(U[1, 1], U[0, 1]))
-        axb.add_patch(Ellipse(th, 2 * np.sqrt(w[1]), 2 * np.sqrt(w[0]), angle=ang, facecolor=col, alpha=a_, edgecolor=col, lw=1.2, label=lab))
-    axb.scatter(*th, s=50, color=INK, zorder=5, label="θ̂")
-    pts = np.array(refits + [th])
-    pad = 0.35 * np.ptp(pts, 0).max()
-    axb.set_xlim(pts[:, 0].min() - pad, pts[:, 0].max() + pad); axb.set_ylim(pts[:, 1].min() - pad, pts[:, 1].max() + pad)
-    axb.set_aspect("equal", adjustable="datalim")
-    axb.set_xlabel("θ₀ (intercept)", color=INK, fontsize=8); axb.set_ylabel("θ₁ (slope)", color=INK, fontsize=8)
-    axb.set_title("(b) Parameter space: each arrow is θ̂₍₋ₖ₎ − θ̂ = −A⁻¹g̃ₖ (exact, no refit)", color=INK, fontsize=9, loc="left")
+    axa.set_xlim(-10, 10); axa.set_ylim(-1.5, 1.5)
+    axa.set_xlabel("x", color=INK, fontsize=8); axa.set_ylabel("y", color=INK, fontsize=8)
+    axa.set_title(f"(a) The demo's LJ scene: a {P - 1}th-order polynomial cannot follow the wall", color=INK, fontsize=9, loc="left")
+    axa.legend(fontsize=7, frameon=False, loc="upper right")
+    # function space: coordinates along the two leading principal curves of the CR3 covariance of the prediction
+    # (RMS over the grid, units of y); coefficient space is the wrong view for a near-degenerate basis
+    ng = len(xg)
+    Cf = Bg @ Scr3 @ Bg.T / ng
+    w, U = np.linalg.eigh(Cf)
+    U2 = U[:, ::-1][:, :2]                                          # unit grid vectors
+    proj = lambda S: U2.T @ (Bg @ S @ Bg.T / ng) @ U2
+    pts = -(Bg @ shifts.T).T @ U2 / np.sqrt(ng)                     # prediction of theta_(-k) - theta, projected
+    sc = axb.scatter(pts[:, 0], pts[:, 1], c=Xtr[:, 0], cmap="viridis", s=12, lw=0, zorder=3)
+    for S, col, lab, a_ in ((proj(Scr3), CAT[0], "CR3 covariance (1 sd, λ = 1)", 0.22), (proj(Ai), CAT[1], "posterior σ²A⁻¹ (1 sd)", 0.6)):
+        ww, V = np.linalg.eigh(S)
+        ang = np.degrees(np.arctan2(V[1, 1], V[0, 1]))
+        axb.add_patch(Ellipse((0, 0), 2 * np.sqrt(ww[1]), 2 * np.sqrt(ww[0]), angle=ang, facecolor=col, alpha=a_, edgecolor=col,
+                              lw=1.2, label=lab, zorder=2))
+    axb.scatter([0], [0], s=40, color=INK, zorder=4, label="θ̂")
+    lim = 1.15 * max(np.abs(pts).max(), np.sqrt(np.linalg.eigvalsh(proj(Scr3)).max()))
+    axb.set_xlim(-lim, lim); axb.set_ylim(-lim, lim)
+    axb.set_xlabel("first principal curve of the CR3 covariance (y units)", color=INK, fontsize=8)
+    axb.set_ylabel("second principal curve", color=INK, fontsize=8)
+    axb.set_title("(b) Each dot: the fit's change when one point is left out", color=INK, fontsize=9, loc="left")
     axb.legend(fontsize=7, frameon=False, loc="lower left")
+    axb.text(0.02, 0.98, f"Σ_CR3 is the sum of the {len(ytr)} shifts' outer\nproducts, so its ellipse is ~√{len(ytr)} × the\nspread of single dots",
+             transform=axb.transAxes, fontsize=7, color=MUTED, va="top")
+    cb = fig.colorbar(sc, ax=axb, fraction=0.05, pad=0.02)
+    cb.set_label("x of the deleted point", color=INK, fontsize=8); cb.ax.tick_params(labelsize=7)
     steps = [("1  Fit and residuals", [r"$A=\Psi^T\Psi+\Lambda$", r"$\rho_k=\tilde y_k-\Psi_k\hat\theta$"],
               "one fit to all configurations;\nrows Ψₖ of configuration k\n(energy, forces, virial)\nmove together"),
              ("2  Leverage of k", [r"$H_{kk}=\Psi_kA^{-1}\Psi_k^T$"],
@@ -457,6 +485,7 @@ def cr3_schematic(out, n_cfg=5, n_pts=6, seed=3):
     axc.text(0.012, 0.86, "(c) The CR3 computation: one fit, then closed-form leave-one-configuration-out quantities", fontsize=9,
              color=INK, transform=axc.transAxes)
     _save(fig, out, "fig9_cr3_schematic")
+    return {"lambda": lam, "n_train": int(len(ytr)), "n_calib": int(len(yc))}
 
 
 def all_figures(results, out, runs, models, extras):
