@@ -191,6 +191,12 @@ def main():
     tex = re.sub(r"\s+(CITETOKEN\d+X)", r"\1", tex)               # superscript citations hug the preceding word
     for k, v in list(tok.items()) + list(mtok.items()):
         tex = tex.replace(k, v)
+    # nor before it: a blank line there ends the paragraph and adds space above the equation
+    tex = re.sub(r"\n\s*\n(\\begin\{(?:equation|gather|multline)\})", r"\n\1", tex)
+    # a display continues its paragraph: no blank line (new, indented paragraph) after it, unless what follows starts
+    # one anyway (a bold run-in heading, a section, a float, a list)
+    tex = re.sub(r"(\\end\{(?:equation|gather|multline)\})\n\s*\n(?!\s*\\(?:textbf|section|subsection|subsubsection|"
+                 r"paragraph|begin\{(?:figure|table|itemize|enumerate))|\s*\\noindent)", r"\1\n", tex)
     left = re.findall(r"\[[A-Z][^\]]{0,60}\d{4}\]", tex)
     if left:
         sys.exit(f"unmapped citations: {sorted(set(left))[:10]}")
