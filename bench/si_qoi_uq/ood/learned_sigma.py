@@ -1,7 +1,7 @@
 """Recompute the Gaussian reading of the learned scale from saved per-atom arrays (results/learned_scale_<tag>_atoms.npz):
 sigma_F,i = (q / chi_3^-1(1 - alpha)) e^{f/2} sqrt(v) = radius_i sqrt(v_i) / chi_3^-1(1 - alpha).  learned_scale.py first used
 an RMS of the normalised hold-out scores, which a few symmetry-zero calibration atoms blow up; the quantile is robust.
-Rewrites rms_e_over_sigma_learned in results/learned_scale_<tag>.json (all, per_type, per_group; mean over seeds).
+Rewrites rms_e_over_sigma_learned (and the median ratio, overall) in results/learned_scale_<tag>.json (all, per_type, per_group; mean over seeds).
 
     python -m bench.si_qoi_uq.ood.learned_sigma <tag> [<tag> ...]
 """
@@ -24,6 +24,7 @@ def main():
             sig = [z[f"{name}_radius_seed{sd}"] * np.sqrt(v) / k for sd in seeds]
             rms = lambda mk: float(np.mean([np.sqrt(np.mean((e[mk] / sg[mk]) ** 2)) for sg in sig]))
             o["all"]["rms_e_over_sigma_learned"] = rms(np.ones(len(e), bool))
+            o["all"]["median_e_over_sigma_learned"] = float(np.mean([np.median(e / sg) for sg in sig]))
             for tt, r in o["per_type"].items():
                 r["rms_e_over_sigma_learned"] = rms(t == tt)
             for gg, r in o["per_group"].items():

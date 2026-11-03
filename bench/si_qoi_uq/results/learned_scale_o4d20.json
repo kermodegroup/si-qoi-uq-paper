@@ -1,0 +1,1323 @@
+{
+ "model": "o4d20",
+ "fit": "/storage/eng/essswb/projects/ace-jax/runs/si_qoi_uq_ard137/fits/o4d20/cr3",
+ "alpha": 0.09999999999999998,
+ "n_features": 139,
+ "ridge": [
+  100.0,
+  31.622776601683793,
+  100.0,
+  0.03162277660168379,
+  0.0001
+ ],
+ "q_one": 16.486648559570312,
+ "q_one_cfgw": 13.836259841918945,
+ "q_learned": [
+  1.9786544513314468,
+  1.9972281959791165,
+  2.0438050650402624,
+  1.9717070773498702,
+  1.8789687804693918
+ ],
+ "kappa": [
+  0.7913737797682685,
+  0.7988024515590333,
+  0.8174311276747076,
+  0.7885951391604735,
+  0.7515039449490785
+ ],
+ "f_range": [
+  [
+   -11.243721867946059,
+   11.930404912598506
+  ],
+  [
+   -5.893922832333071,
+   8.634398118817014
+  ],
+  [
+   -2.943666294943274,
+   14.393568966385372
+  ],
+  [
+   -5.066802419632093,
+   10.42517236623872
+  ],
+  [
+   -2.385454497800577,
+   14.798808539572455
+  ]
+ ],
+ "clipped_share": {
+  "test": [
+   0.0,
+   0.0,
+   0.00022808918287050236,
+   0.00011404459143525118,
+   5.702229571762559e-05
+  ]
+ },
+ "sets": {
+  "test": {
+   "all": {
+    "atoms": 17537,
+    "configs": 239,
+    "mondrian_cfgw": 0.9318678337922255,
+    "mondrian": 0.9017505844785311,
+    "mondrian_ci90": [
+     0.8857851602324377,
+     0.9176742730553177
+    ],
+    "one_group_cfgw": 0.93253190660452,
+    "one_group": 0.9002109824941552,
+    "one_group_ci90": [
+     0.8833673711134994,
+     0.9167541196904064
+    ],
+    "one_group_cfgq_cfgw": 0.8833489674887489,
+    "one_group_cfgq": 0.835205565376062,
+    "one_group_cfgq_ci90": [
+     0.810498258235958,
+     0.858986826324892
+    ],
+    "learned_cfgw": 0.922919205235994,
+    "learned": 0.9076010720191595,
+    "learned_seed_range": [
+     0.9038033871243656,
+     0.9124707760734447
+    ],
+    "learned_ci90": [
+     0.8937245438188922,
+     0.9141759990779864
+    ],
+    "median_radius": {
+     "mondrian": 15.929686201786692,
+     "one_group": 16.486648559570312,
+     "learned": 15.146812515869211
+    },
+    "rms_e_over_sigma_learned": 1.3295048586357718,
+    "median_e_over_sigma_learned": 0.7620699455597875
+   },
+   "per_group": {
+    "0": {
+     "atoms": 8392,
+     "configs": 136,
+     "mondrian_cfgw": 0.8965602483553016,
+     "mondrian": 0.9028836987607245,
+     "mondrian_ci90": [
+      0.8769513772825781,
+      0.9261211988770778
+     ],
+     "one_group_cfgw": 0.8721050070847359,
+     "one_group": 0.8773832221163013,
+     "one_group_ci90": [
+      0.8465859458554319,
+      0.9036074757411362
+     ],
+     "one_group_cfgq_cfgw": 0.7921196508313063,
+     "one_group_cfgq": 0.8093422306959008,
+     "one_group_cfgq_ci90": [
+      0.7681488288172965,
+      0.8473101567825494
+     ],
+     "learned_cfgw": 0.9073594813052812,
+     "learned": 0.9007864632983795,
+     "learned_seed_range": [
+      0.8938274547187798,
+      0.9075309818875119
+     ],
+     "learned_ci90": [
+      0.8738498805889667,
+      0.911481877968401
+     ],
+     "median_radius": {
+      "mondrian": 17.704197678182176,
+      "one_group": 16.486648559570312,
+      "learned": 15.505015237317775
+     },
+     "rms_e_over_sigma_learned": 0.9408114327893985
+    },
+    "1": {
+     "atoms": 983,
+     "configs": 141,
+     "mondrian_cfgw": 0.8709573657272637,
+     "mondrian": 0.9450661241098678,
+     "mondrian_ci90": [
+      0.917327070384605,
+      0.9664499181687995
+     ],
+     "one_group_cfgw": 0.9439233330791328,
+     "one_group": 0.9745676500508647,
+     "one_group_ci90": [
+      0.9599103605349107,
+      0.9862580837242498
+     ],
+     "one_group_cfgq_cfgw": 0.9044412033859528,
+     "one_group_cfgq": 0.9613428280773143,
+     "one_group_cfgq_ci90": [
+      0.940264927927482,
+      0.9772022265927893
+     ],
+     "learned_cfgw": 0.892906225735346,
+     "learned": 0.9206510681586979,
+     "learned_seed_range": [
+      0.9104781281790437,
+      0.9267548321464903
+     ],
+     "learned_ci90": [
+      0.9066377932415196,
+      0.9423469295450754
+     ],
+     "median_radius": {
+      "mondrian": 12.32717850325588,
+      "one_group": 16.486648559570312,
+      "learned": 8.256710696913874
+     },
+     "rms_e_over_sigma_learned": 0.9999081803565085
+    },
+    "2": {
+     "atoms": 4730,
+     "configs": 104,
+     "mondrian_cfgw": 0.9050502595669409,
+     "mondrian": 0.8549682875264271,
+     "mondrian_ci90": [
+      0.8402329986822028,
+      0.8706741109496208
+     ],
+     "one_group_cfgw": 0.9164633408542374,
+     "one_group": 0.8723044397463002,
+     "one_group_ci90": [
+      0.858949949771466,
+      0.8866024729154819
+     ],
+     "one_group_cfgq_cfgw": 0.8397528001584503,
+     "one_group_cfgq": 0.7714587737843552,
+     "one_group_cfgq_ci90": [
+      0.7507378273343536,
+      0.7934160932089938
+     ],
+     "learned_cfgw": 0.9191272736692981,
+     "learned": 0.906088794926004,
+     "learned_seed_range": [
+      0.9023255813953488,
+      0.9128964059196617
+     ],
+     "learned_ci90": [
+      0.8930620495410325,
+      0.912466390013791
+     ],
+     "median_radius": {
+      "mondrian": 15.929686201786692,
+      "one_group": 16.486648559570312,
+      "learned": 17.771189045142414
+     },
+     "rms_e_over_sigma_learned": 0.9364348549093122
+    },
+    "3": {
+     "atoms": 1658,
+     "configs": 141,
+     "mondrian_cfgw": 0.9142221352327735,
+     "mondrian": 0.9806996381182147,
+     "mondrian_ci90": [
+      0.9715686944029218,
+      0.9876130368797215
+     ],
+     "one_group_cfgw": 0.9534110097939884,
+     "one_group": 0.9921592279855247,
+     "one_group_ci90": [
+      0.9878915491803456,
+      0.9955997726590314
+     ],
+     "one_group_cfgq_cfgw": 0.9298742234912449,
+     "one_group_cfgq": 0.9843184559710495,
+     "one_group_cfgq_ci90": [
+      0.9765851030419633,
+      0.9902583053454835
+     ],
+     "learned_cfgw": 0.901265363865023,
+     "learned": 0.9305186972255729,
+     "learned_seed_range": [
+      0.9149577804583836,
+      0.9372738238841978
+     ],
+     "learned_ci90": [
+      0.923582177465324,
+      0.9474926957709394
+     ],
+     "median_radius": {
+      "mondrian": 13.54653251252269,
+      "one_group": 16.486648559570312,
+      "learned": 8.376849448592765
+     },
+     "rms_e_over_sigma_learned": 2.4204337247882464
+    },
+    "4": {
+     "atoms": 1015,
+     "configs": 78,
+     "mondrian_cfgw": 0.878610124113639,
+     "mondrian": 0.8995073891625616,
+     "mondrian_ci90": [
+      0.8795574944818689,
+      0.9209401709401709
+     ],
+     "one_group_cfgw": 0.9134935051521413,
+     "one_group": 0.9359605911330049,
+     "one_group_ci90": [
+      0.9203843185579051,
+      0.9513702422996936
+     ],
+     "one_group_cfgq_cfgw": 0.869899063516762,
+     "one_group_cfgq": 0.8847290640394089,
+     "one_group_cfgq_ci90": [
+      0.8617059250425769,
+      0.9092927625113025
+     ],
+     "learned_cfgw": 0.8816700838259124,
+     "learned": 0.9144827586206896,
+     "learned_seed_range": [
+      0.9103448275862069,
+      0.9182266009852217
+     ],
+     "learned_ci90": [
+      0.8980830237759284,
+      0.9284094606586473
+     ],
+     "median_radius": {
+      "mondrian": 14.474360256210238,
+      "one_group": 16.486648559570312,
+      "learned": 15.375258264454818
+     },
+     "rms_e_over_sigma_learned": 0.9918391387065524
+    },
+    "5": {
+     "atoms": 590,
+     "configs": 87,
+     "mondrian_cfgw": 0.8501915708812261,
+     "mondrian": 0.9610169491525423,
+     "mondrian_ci90": [
+      0.9395708985649054,
+      0.976401875660934
+     ],
+     "one_group_cfgw": 0.9080459770114943,
+     "one_group": 0.9796610169491525,
+     "one_group_ci90": [
+      0.9666666666666667,
+      0.9891474270014158
+     ],
+     "one_group_cfgq_cfgw": 0.8501915708812261,
+     "one_group_cfgq": 0.9610169491525423,
+     "one_group_cfgq_ci90": [
+      0.9377970577140702,
+      0.9759221142467817
+     ],
+     "learned_cfgw": 0.8361357501850722,
+     "learned": 0.9183050847457628,
+     "learned_seed_range": [
+      0.9033898305084745,
+      0.9254237288135593
+     ],
+     "learned_ci90": [
+      0.899446153476892,
+      0.9435897435897436
+     ],
+     "median_radius": {
+      "mondrian": 13.778826011544258,
+      "one_group": 16.486648559570312,
+      "learned": 8.879871137977142
+     },
+     "rms_e_over_sigma_learned": 1.6493382370170715
+    },
+    "6": {
+     "atoms": 88,
+     "configs": 41,
+     "mondrian_cfgw": 0.9292682926829269,
+     "mondrian": 0.9431818181818182,
+     "mondrian_ci90": [
+      0.8912935858803271,
+      0.9875
+     ],
+     "one_group_cfgw": 0.9829268292682927,
+     "one_group": 0.9772727272727273,
+     "one_group_ci90": [
+      0.9493670886075949,
+      1.0
+     ],
+     "one_group_cfgq_cfgw": 0.9585365853658536,
+     "one_group_cfgq": 0.9659090909090909,
+     "one_group_cfgq_ci90": [
+      0.9295774647887324,
+      0.9905704461294305
+     ],
+     "learned_cfgw": 0.9355632984901279,
+     "learned": 0.9227272727272726,
+     "learned_seed_range": [
+      0.8863636363636364,
+      0.9431818181818182
+     ],
+     "learned_ci90": [
+      0.9041095890410958,
+      0.9782725572697523
+     ],
+     "median_radius": {
+      "mondrian": 12.326928746795293,
+      "one_group": 16.486648559570312,
+      "learned": 10.986403719531163
+     },
+     "rms_e_over_sigma_learned": 0.880889561580209
+    },
+    "7": {
+     "atoms": 81,
+     "configs": 31,
+     "mondrian_cfgw": 0.8709677419354839,
+     "mondrian": 0.9259259259259259,
+     "mondrian_ci90": [
+      0.8629664619744922,
+      0.9690721649484536
+     ],
+     "one_group_cfgw": 1.0,
+     "one_group": 1.0,
+     "one_group_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgq_cfgw": 0.9354838709677419,
+     "one_group_cfgq": 0.9753086419753086,
+     "one_group_cfgq_ci90": [
+      0.9367088607594937,
+      1.0
+     ],
+     "learned_cfgw": 0.8489247311827958,
+     "learned": 0.8938271604938273,
+     "learned_seed_range": [
+      0.8395061728395061,
+      0.9382716049382716
+     ],
+     "learned_ci90": [
+      0.828125,
+      0.9357175622542595
+     ],
+     "median_radius": {
+      "mondrian": 9.745321265760646,
+      "one_group": 16.486648559570312,
+      "learned": 9.453590183512834
+     },
+     "rms_e_over_sigma_learned": 1.3968058482204833
+    }
+   },
+   "per_type": {
+    "111adatom": {
+     "atoms": 146,
+     "configs": 1,
+     "mondrian_cfgw": 0.684931506849315,
+     "mondrian": 0.684931506849315,
+     "mondrian_ci90": [
+      0.684931506849315,
+      0.684931506849315
+     ],
+     "one_group_cfgw": 0.6986301369863014,
+     "one_group": 0.6986301369863014,
+     "one_group_ci90": [
+      0.6986301369863014,
+      0.6986301369863014
+     ],
+     "one_group_cfgq_cfgw": 0.5821917808219178,
+     "one_group_cfgq": 0.5821917808219178,
+     "one_group_cfgq_ci90": [
+      0.5821917808219178,
+      0.5821917808219178
+     ],
+     "learned_cfgw": 0.8287671232876713,
+     "learned": 0.8287671232876713,
+     "learned_seed_range": [
+      0.8082191780821918,
+      0.8493150684931506
+     ],
+     "learned_ci90": [
+      0.8082191780821918,
+      0.8082191780821918
+     ],
+     "median_radius": {
+      "mondrian": 15.929686201786692,
+      "one_group": 16.486648559570312,
+      "learned": 19.81680684083073
+     },
+     "rms_e_over_sigma_learned": 1.1182460712288669
+    },
+    "amorph": {
+     "atoms": 3304,
+     "configs": 16,
+     "mondrian_cfgw": 0.9843388310185186,
+     "mondrian": 0.985774818401937,
+     "mondrian_ci90": [
+      0.9809027777777778,
+      0.99
+     ],
+     "one_group_cfgw": 0.9878110532407407,
+     "one_group": 0.989406779661017,
+     "one_group_ci90": [
+      0.9856666666666667,
+      0.9927662037037037
+     ],
+     "one_group_cfgq_cfgw": 0.9626012731481481,
+     "one_group_cfgq": 0.9651937046004843,
+     "one_group_cfgq_ci90": [
+      0.959488358667384,
+      0.9704861111111112
+     ],
+     "learned_cfgw": 0.9208043981481481,
+     "learned": 0.9257869249394673,
+     "learned_seed_range": [
+      0.8910411622276029,
+      0.9470338983050848
+     ],
+     "learned_ci90": [
+      0.9376658999192897,
+      0.9524818401937046
+     ],
+     "median_radius": {
+      "mondrian": 17.704197678182176,
+      "one_group": 16.486648559570312,
+      "learned": 12.820708115656998
+     },
+     "rms_e_over_sigma_learned": 0.917547186365
+    },
+    "bc8": {
+     "atoms": 40,
+     "configs": 5,
+     "mondrian_cfgw": 1.0,
+     "mondrian": 1.0,
+     "mondrian_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgw": 1.0,
+     "one_group": 1.0,
+     "one_group_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgq_cfgw": 1.0,
+     "one_group_cfgq": 1.0,
+     "one_group_cfgq_ci90": [
+      1.0,
+      1.0
+     ],
+     "learned_cfgw": 0.9199999999999999,
+     "learned": 0.9199999999999999,
+     "learned_seed_range": [
+      0.85,
+      1.0
+     ],
+     "learned_ci90": [
+      0.9,
+      1.0
+     ],
+     "median_radius": {
+      "mondrian": 14.474360256210238,
+      "one_group": 16.486648559570312,
+      "learned": 6.486618501301986
+     },
+     "rms_e_over_sigma_learned": 0.9340116963137479
+    },
+    "bcc": {
+     "atoms": 10,
+     "configs": 5,
+     "mondrian_cfgw": 1.0,
+     "mondrian": 1.0,
+     "mondrian_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgw": 1.0,
+     "one_group": 1.0,
+     "one_group_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgq_cfgw": 1.0,
+     "one_group_cfgq": 1.0,
+     "one_group_cfgq_ci90": [
+      1.0,
+      1.0
+     ],
+     "learned_cfgw": 0.8800000000000001,
+     "learned": 0.8800000000000001,
+     "learned_seed_range": [
+      0.4,
+      1.0
+     ],
+     "learned_ci90": [
+      1.0,
+      1.0
+     ],
+     "median_radius": {
+      "mondrian": 13.54653251252269,
+      "one_group": 16.486648559570312,
+      "learned": 7.976509292233629
+     },
+     "rms_e_over_sigma_learned": 0.8056506687692394
+    },
+    "bt": {
+     "atoms": 1546,
+     "configs": 44,
+     "mondrian_cfgw": 1.0,
+     "mondrian": 1.0,
+     "mondrian_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgw": 1.0,
+     "one_group": 1.0,
+     "one_group_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgq_cfgw": 1.0,
+     "one_group_cfgq": 1.0,
+     "one_group_cfgq_ci90": [
+      1.0,
+      1.0
+     ],
+     "learned_cfgw": 0.9686868686868687,
+     "learned": 0.9564036222509703,
+     "learned_seed_range": [
+      0.9353169469598965,
+      0.9683053040103493
+     ],
+     "learned_ci90": [
+      0.9462416823497782,
+      0.9661568254421733
+     ],
+     "median_radius": {
+      "mondrian": 13.54653251252269,
+      "one_group": 16.486648559570312,
+      "learned": 7.869933223331829
+     },
+     "rms_e_over_sigma_learned": 0.853021401514304
+    },
+    "crack_111_1-10": {
+     "atoms": 192,
+     "configs": 1,
+     "mondrian_cfgw": 0.8489583333333334,
+     "mondrian": 0.8489583333333334,
+     "mondrian_ci90": [
+      0.8489583333333334,
+      0.8489583333333334
+     ],
+     "one_group_cfgw": 0.8697916666666666,
+     "one_group": 0.8697916666666666,
+     "one_group_ci90": [
+      0.8697916666666666,
+      0.8697916666666666
+     ],
+     "one_group_cfgq_cfgw": 0.8229166666666666,
+     "one_group_cfgq": 0.8229166666666666,
+     "one_group_cfgq_ci90": [
+      0.8229166666666666,
+      0.8229166666666666
+     ],
+     "learned_cfgw": 0.84375,
+     "learned": 0.84375,
+     "learned_seed_range": [
+      0.8229166666666666,
+      0.859375
+     ],
+     "learned_ci90": [
+      0.8489583333333334,
+      0.8489583333333334
+     ],
+     "median_radius": {
+      "mondrian": 15.929686201786692,
+      "one_group": 16.486648559570312,
+      "learned": 14.301251994372212
+     },
+     "rms_e_over_sigma_learned": 1.0204227826222394
+    },
+    "decohesion": {
+     "atoms": 72,
+     "configs": 3,
+     "mondrian_cfgw": 0.9166666666666666,
+     "mondrian": 0.9166666666666666,
+     "mondrian_ci90": [
+      0.890625,
+      0.9375
+     ],
+     "one_group_cfgw": 0.9375,
+     "one_group": 0.9305555555555556,
+     "one_group_ci90": [
+      0.9,
+      0.96875
+     ],
+     "one_group_cfgq_cfgw": 0.8784722222222222,
+     "one_group_cfgq": 0.875,
+     "one_group_cfgq_ci90": [
+      0.828125,
+      0.921875
+     ],
+     "learned_cfgw": 0.9895833333333334,
+     "learned": 0.986111111111111,
+     "learned_seed_range": [
+      0.9861111111111112,
+      0.9861111111111112
+     ],
+     "learned_ci90": [
+      0.975,
+      1.0
+     ],
+     "median_radius": {
+      "mondrian": 15.929686201786692,
+      "one_group": 16.486648559570312,
+      "learned": 19.406496630789203
+     },
+     "rms_e_over_sigma_learned": 0.6818586633501308
+    },
+    "dia": {
+     "atoms": 2144,
+     "configs": 49,
+     "mondrian_cfgw": 0.8983253023431595,
+     "mondrian": 0.8903917910447762,
+     "mondrian_ci90": [
+      0.8359960739614996,
+      0.9389839949654727
+     ],
+     "one_group_cfgw": 0.8746870275888133,
+     "one_group": 0.8600746268656716,
+     "one_group_ci90": [
+      0.7954317340580495,
+      0.9187621639753698
+     ],
+     "one_group_cfgq_cfgw": 0.7748015873015873,
+     "one_group_cfgq": 0.78125,
+     "one_group_cfgq_ci90": [
+      0.7010172361933906,
+      0.8541369208793451
+     ],
+     "learned_cfgw": 0.938636148904006,
+     "learned": 0.9162313432835821,
+     "learned_seed_range": [
+      0.8871268656716418,
+      0.9514925373134329
+     ],
+     "learned_ci90": [
+      0.8483511579230089,
+      0.9217492267659233
+     ],
+     "median_radius": {
+      "mondrian": 17.704197678182176,
+      "one_group": 16.486648559570312,
+      "learned": 16.328062716029848
+     },
+     "rms_e_over_sigma_learned": 0.9045542930857661
+    },
+    "divacancy": {
+     "atoms": 1712,
+     "configs": 8,
+     "mondrian_cfgw": 0.8417056074766356,
+     "mondrian": 0.8417056074766355,
+     "mondrian_ci90": [
+      0.830607476635514,
+      0.8533878504672897
+     ],
+     "one_group_cfgw": 0.856892523364486,
+     "one_group": 0.856892523364486,
+     "one_group_ci90": [
+      0.842873831775701,
+      0.8714953271028038
+     ],
+     "one_group_cfgq_cfgw": 0.7517523364485982,
+     "one_group_cfgq": 0.7517523364485982,
+     "one_group_cfgq_ci90": [
+      0.7371495327102804,
+      0.7669392523364486
+     ],
+     "learned_cfgw": 0.8897196261682243,
+     "learned": 0.8897196261682243,
+     "learned_seed_range": [
+      0.884929906542056,
+      0.9030373831775701
+     ],
+     "learned_ci90": [
+      0.8726635514018691,
+      0.8983644859813084
+     ],
+     "median_radius": {
+      "mondrian": 15.929686201786692,
+      "one_group": 16.486648559570312,
+      "learned": 17.722902618542367
+     },
+     "rms_e_over_sigma_learned": 0.9718028912961488
+    },
+    "fcc": {
+     "atoms": 20,
+     "configs": 5,
+     "mondrian_cfgw": 1.0,
+     "mondrian": 1.0,
+     "mondrian_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgw": 1.0,
+     "one_group": 1.0,
+     "one_group_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgq_cfgw": 1.0,
+     "one_group_cfgq": 1.0,
+     "one_group_cfgq_ci90": [
+      1.0,
+      1.0
+     ],
+     "learned_cfgw": 0.93,
+     "learned": 0.93,
+     "learned_seed_range": [
+      0.8,
+      1.0
+     ],
+     "learned_ci90": [
+      0.6,
+      1.0
+     ],
+     "median_radius": {
+      "mondrian": 13.54653251252269,
+      "one_group": 16.486648559570312,
+      "learned": 7.984231860819952
+     },
+     "rms_e_over_sigma_learned": 0.9339109538223415
+    },
+    "hcp": {
+     "atoms": 10,
+     "configs": 5,
+     "mondrian_cfgw": 1.0,
+     "mondrian": 1.0,
+     "mondrian_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgw": 1.0,
+     "one_group": 1.0,
+     "one_group_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgq_cfgw": 1.0,
+     "one_group_cfgq": 1.0,
+     "one_group_cfgq_ci90": [
+      1.0,
+      1.0
+     ],
+     "learned_cfgw": 0.8400000000000001,
+     "learned": 0.8400000000000001,
+     "learned_seed_range": [
+      0.6,
+      1.0
+     ],
+     "learned_ci90": [
+      1.0,
+      1.0
+     ],
+     "median_radius": {
+      "mondrian": 12.32717850325588,
+      "one_group": 16.486648559570312,
+      "learned": 5.352909909534835
+     },
+     "rms_e_over_sigma_learned": 0.8633355422756115
+    },
+    "hex_diamond": {
+     "atoms": 20,
+     "configs": 5,
+     "mondrian_cfgw": 1.0,
+     "mondrian": 1.0,
+     "mondrian_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgw": 1.0,
+     "one_group": 1.0,
+     "one_group_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgq_cfgw": 0.85,
+     "one_group_cfgq": 0.85,
+     "one_group_cfgq_ci90": [
+      0.7,
+      1.0
+     ],
+     "learned_cfgw": 0.9400000000000001,
+     "learned": 0.9400000000000001,
+     "learned_seed_range": [
+      0.8,
+      1.0
+     ],
+     "learned_ci90": [
+      1.0,
+      1.0
+     ],
+     "median_radius": {
+      "mondrian": 15.929686201786692,
+      "one_group": 16.486648559570312,
+      "learned": 14.510281720912015
+     },
+     "rms_e_over_sigma_learned": 0.9639848977148417
+    },
+    "interstitial": {
+     "atoms": 2543,
+     "configs": 12,
+     "mondrian_cfgw": 0.8222532395919492,
+     "mondrian": 0.8273692489186001,
+     "mondrian_ci90": [
+      0.7943355207409021,
+      0.8575329599702325
+     ],
+     "one_group_cfgw": 0.8182135964394028,
+     "one_group": 0.8246165945733386,
+     "one_group_ci90": [
+      0.7804108707019329,
+      0.8625384024577573
+     ],
+     "one_group_cfgq_cfgw": 0.7063959785733979,
+     "one_group_cfgq": 0.7105780574125049,
+     "one_group_cfgq_ci90": [
+      0.666659604519774,
+      0.7538343638420699
+     ],
+     "learned_cfgw": 0.8878446374414116,
+     "learned": 0.8945340149429807,
+     "learned_seed_range": [
+      0.8808493904836807,
+      0.9115218246165946
+     ],
+     "learned_ci90": [
+      0.8444702061368079,
+      0.9074500768049155
+     ],
+     "median_radius": {
+      "mondrian": 15.929686201786692,
+      "one_group": 16.486648559570312,
+      "learned": 19.06351618389547
+     },
+     "rms_e_over_sigma_learned": 0.9463008350076318
+    },
+    "liq": {
+     "atoms": 576,
+     "configs": 8,
+     "mondrian_cfgw": 0.998046875,
+     "mondrian": 0.9982638888888888,
+     "mondrian_ci90": [
+      0.9947916666666666,
+      1.0
+     ],
+     "one_group_cfgw": 1.0,
+     "one_group": 1.0,
+     "one_group_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgq_cfgw": 0.998046875,
+     "one_group_cfgq": 0.9982638888888888,
+     "one_group_cfgq_ci90": [
+      0.9947916666666666,
+      1.0
+     ],
+     "learned_cfgw": 0.932421875,
+     "learned": 0.929861111111111,
+     "learned_seed_range": [
+      0.9097222222222222,
+      0.9409722222222222
+     ],
+     "learned_ci90": [
+      0.9288194444444444,
+      0.953125
+     ],
+     "median_radius": {
+      "mondrian": 13.778826011544258,
+      "one_group": 16.486648559570312,
+      "learned": 9.923615953527033
+     },
+     "rms_e_over_sigma_learned": 2.7264486444393214
+    },
+    "screw_disloc": {
+     "atoms": 288,
+     "configs": 2,
+     "mondrian_cfgw": 0.9131944444444444,
+     "mondrian": 0.9131944444444444,
+     "mondrian_ci90": [
+      0.8611111111111112,
+      0.9652777777777778
+     ],
+     "one_group_cfgw": 0.9027777777777778,
+     "one_group": 0.9027777777777778,
+     "one_group_ci90": [
+      0.8472222222222222,
+      0.9583333333333334
+     ],
+     "one_group_cfgq_cfgw": 0.8472222222222222,
+     "one_group_cfgq": 0.8472222222222222,
+     "one_group_cfgq_ci90": [
+      0.7777777777777778,
+      0.9166666666666666
+     ],
+     "learned_cfgw": 0.8729166666666666,
+     "learned": 0.8729166666666666,
+     "learned_seed_range": [
+      0.8402777777777778,
+      0.8923611111111112
+     ],
+     "learned_ci90": [
+      0.8472222222222222,
+      0.9305555555555556
+     ],
+     "median_radius": {
+      "mondrian": 15.929686201786692,
+      "one_group": 16.486648559570312,
+      "learned": 14.384860350184255
+     },
+     "rms_e_over_sigma_learned": 1.0301281316842237
+    },
+    "sh": {
+     "atoms": 367,
+     "configs": 13,
+     "mondrian_cfgw": 1.0,
+     "mondrian": 1.0,
+     "mondrian_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgw": 1.0,
+     "one_group": 1.0,
+     "one_group_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgq_cfgw": 1.0,
+     "one_group_cfgq": 1.0,
+     "one_group_cfgq_ci90": [
+      1.0,
+      1.0
+     ],
+     "learned_cfgw": 0.915900997150997,
+     "learned": 0.9297002724795641,
+     "learned_seed_range": [
+      0.9019073569482289,
+      0.9427792915531336
+     ],
+     "learned_ci90": [
+      0.9128421618378622,
+      0.9654363558961261
+     ],
+     "median_radius": {
+      "mondrian": 13.54653251252269,
+      "one_group": 16.486648559570312,
+      "learned": 7.406014999218195
+     },
+     "rms_e_over_sigma_learned": 0.8870035633579825
+    },
+    "sp": {
+     "atoms": 40,
+     "configs": 10,
+     "mondrian_cfgw": 0.9,
+     "mondrian": 0.9,
+     "mondrian_ci90": [
+      0.825,
+      0.95
+     ],
+     "one_group_cfgw": 1.0,
+     "one_group": 1.0,
+     "one_group_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgq_cfgw": 1.0,
+     "one_group_cfgq": 1.0,
+     "one_group_cfgq_ci90": [
+      1.0,
+      1.0
+     ],
+     "learned_cfgw": 0.9099999999999999,
+     "learned": 0.9099999999999999,
+     "learned_seed_range": [
+      0.85,
+      0.95
+     ],
+     "learned_ci90": [
+      0.875,
+      0.975
+     ],
+     "median_radius": {
+      "mondrian": 11.036249884508262,
+      "one_group": 16.486648559570312,
+      "learned": 10.914610206676036
+     },
+     "rms_e_over_sigma_learned": 0.8970828756121797
+    },
+    "sp2": {
+     "atoms": 40,
+     "configs": 5,
+     "mondrian_cfgw": 1.0,
+     "mondrian": 1.0,
+     "mondrian_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgw": 1.0,
+     "one_group": 1.0,
+     "one_group_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgq_cfgw": 1.0,
+     "one_group_cfgq": 1.0,
+     "one_group_cfgq_ci90": [
+      1.0,
+      1.0
+     ],
+     "learned_cfgw": 1.0,
+     "learned": 1.0,
+     "learned_seed_range": [
+      1.0,
+      1.0
+     ],
+     "learned_ci90": [
+      1.0,
+      1.0
+     ],
+     "median_radius": {
+      "mondrian": 12.32717850325588,
+      "one_group": 16.486648559570312,
+      "learned": 9.788406922797822
+     },
+     "rms_e_over_sigma_learned": 0.6781745702748884
+    },
+    "st12": {
+     "atoms": 60,
+     "configs": 5,
+     "mondrian_cfgw": 1.0,
+     "mondrian": 1.0,
+     "mondrian_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgw": 1.0,
+     "one_group": 1.0,
+     "one_group_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgq_cfgw": 1.0,
+     "one_group_cfgq": 1.0,
+     "one_group_cfgq_ci90": [
+      1.0,
+      1.0
+     ],
+     "learned_cfgw": 0.9633333333333333,
+     "learned": 0.9633333333333333,
+     "learned_seed_range": [
+      0.95,
+      0.9833333333333333
+     ],
+     "learned_ci90": [
+      0.9333333333333333,
+      1.0
+     ],
+     "median_radius": {
+      "mondrian": 14.474360256210238,
+      "one_group": 16.486648559570312,
+      "learned": 8.333140876888345
+     },
+     "rms_e_over_sigma_learned": 0.8475958273817634
+    },
+    "surface_001": {
+     "atoms": 432,
+     "configs": 3,
+     "mondrian_cfgw": 0.9421296296296297,
+     "mondrian": 0.9421296296296297,
+     "mondrian_ci90": [
+      0.9004629629629629,
+      0.9837962962962963
+     ],
+     "one_group_cfgw": 0.9467592592592592,
+     "one_group": 0.9467592592592593,
+     "one_group_ci90": [
+      0.9004629629629629,
+      0.9930555555555556
+     ],
+     "one_group_cfgq_cfgw": 0.9074074074074074,
+     "one_group_cfgq": 0.9074074074074074,
+     "one_group_cfgq_ci90": [
+      0.8495370370370371,
+      0.9652777777777778
+     ],
+     "learned_cfgw": 0.9361111111111111,
+     "learned": 0.9361111111111111,
+     "learned_seed_range": [
+      0.9282407407407407,
+      0.9444444444444444
+     ],
+     "learned_ci90": [
+      0.8935185185185185,
+      0.9629629629629629
+     ],
+     "median_radius": {
+      "mondrian": 15.929686201786692,
+      "one_group": 16.486648559570312,
+      "learned": 13.323409114845727
+     },
+     "rms_e_over_sigma_learned": 1.4287384196128874
+    },
+    "surface_110": {
+     "atoms": 324,
+     "configs": 3,
+     "mondrian_cfgw": 0.9969135802469135,
+     "mondrian": 0.9969135802469136,
+     "mondrian_ci90": [
+      0.9938271604938271,
+      1.0
+     ],
+     "one_group_cfgw": 0.9969135802469135,
+     "one_group": 0.9969135802469136,
+     "one_group_ci90": [
+      0.9938271604938271,
+      1.0
+     ],
+     "one_group_cfgq_cfgw": 0.9814814814814815,
+     "one_group_cfgq": 0.9814814814814815,
+     "one_group_cfgq_ci90": [
+      0.9722222222222222,
+      0.9907407407407407
+     ],
+     "learned_cfgw": 0.9919753086419754,
+     "learned": 0.9919753086419754,
+     "learned_seed_range": [
+      0.9814814814814815,
+      0.9969135802469136
+     ],
+     "learned_ci90": [
+      0.9876543209876543,
+      1.0
+     ],
+     "median_radius": {
+      "mondrian": 15.929686201786692,
+      "one_group": 16.486648559570312,
+      "learned": 15.70822553591747
+     },
+     "rms_e_over_sigma_learned": 0.6159871368642129
+    },
+    "surface_111": {
+     "atoms": 480,
+     "configs": 5,
+     "mondrian_cfgw": 0.9916666666666666,
+     "mondrian": 0.9916666666666667,
+     "mondrian_ci90": [
+      0.9895833333333334,
+      0.9958333333333333
+     ],
+     "one_group_cfgw": 0.99375,
+     "one_group": 0.99375,
+     "one_group_ci90": [
+      0.9875,
+      1.0
+     ],
+     "one_group_cfgq_cfgw": 0.9833333333333334,
+     "one_group_cfgq": 0.9833333333333333,
+     "one_group_cfgq_ci90": [
+      0.9625,
+      0.9979166666666667
+     ],
+     "learned_cfgw": 0.9108333333333333,
+     "learned": 0.9108333333333334,
+     "learned_seed_range": [
+      0.89375,
+      0.93125
+     ],
+     "learned_ci90": [
+      0.8979166666666667,
+      0.9604166666666667
+     ],
+     "median_radius": {
+      "mondrian": 14.474360256210238,
+      "one_group": 16.486648559570312,
+      "learned": 11.542831727560863
+     },
+     "rms_e_over_sigma_learned": 1.0589719287132358
+    },
+    "surface_111_pandey": {
+     "atoms": 480,
+     "configs": 5,
+     "mondrian_cfgw": 0.9979166666666668,
+     "mondrian": 0.9979166666666667,
+     "mondrian_ci90": [
+      0.99375,
+      1.0
+     ],
+     "one_group_cfgw": 1.0,
+     "one_group": 1.0,
+     "one_group_ci90": [
+      1.0,
+      1.0
+     ],
+     "one_group_cfgq_cfgw": 0.99375,
+     "one_group_cfgq": 0.99375,
+     "one_group_cfgq_ci90": [
+      0.9895833333333334,
+      0.9979166666666667
+     ],
+     "learned_cfgw": 0.9283333333333333,
+     "learned": 0.9283333333333333,
+     "learned_seed_range": [
+      0.9125,
+      0.9458333333333333
+     ],
+     "learned_ci90": [
+      0.9229166666666667,
+      0.9645833333333333
+     ],
+     "median_radius": {
+      "mondrian": 14.474360256210238,
+      "one_group": 16.486648559570312,
+      "learned": 11.482525258260988
+     },
+     "rms_e_over_sigma_learned": 3.3012823713479356
+    },
+    "vacancy": {
+     "atoms": 2691,
+     "configs": 21,
+     "mondrian_cfgw": 0.7375555907117369,
+     "mondrian": 0.781122259383129,
+     "mondrian_ci90": [
+      0.7427686293233814,
+      0.8133906651500795
+     ],
+     "one_group_cfgw": 0.7405016787076587,
+     "one_group": 0.7788926049795615,
+     "one_group_ci90": [
+      0.7360148898991624,
+      0.8162875287848942
+     ],
+     "one_group_cfgq_cfgw": 0.6067288931076307,
+     "one_group_cfgq": 0.6521739130434783,
+     "one_group_cfgq_ci90": [
+      0.6017798215351798,
+      0.6949155305010265
+     ],
+     "learned_cfgw": 0.8217898011917943,
+     "learned": 0.8548494983277592,
+     "learned_seed_range": [
+      0.8364920104050538,
+      0.872166480862133
+     ],
+     "learned_ci90": [
+      0.7982102908277405,
+      0.8652831516004221
+     ],
+     "median_radius": {
+      "mondrian": 15.929686201786692,
+      "one_group": 16.486648559570312,
+      "learned": 19.62185993658307
+     },
+     "rms_e_over_sigma_learned": 1.027253664044163
+    }
+   }
+  }
+ }
+}

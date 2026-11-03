@@ -13,6 +13,8 @@ anisotropic score s = sqrt(e^T (V + eps v/3 I)^-1 e).  Here that ratio is learne
            Mondrian per-group weights (each configuration 1 per group it populates) pooled over groups give the same
            quantile to 0.01; a configuration-weighted pooled quantile is ~12 % lower and under-covers (one_group_cfgq)
   region   s <= q exp(f(x) / 2): an ellipsoid of the CR3 shape whose size varies continuously with the environment.
+  clip     f is clipped to the range it takes on the calibration atoms: the quadratic terms can otherwise send it far
+           below anything calibrated for a few outlying descriptors (o4d20: radii 1e-4 of the typical size).
 
 The finite-sample guarantee of split conformal holds for B's exchangeable configurations, as for one group.  Splits are
 repeated over SEEDS; reported: coverage (mean and range over seeds), configuration-bootstrap 90 % interval for seed 0,
@@ -170,9 +172,16 @@ def main():
     if len(Phi_c) != len(s_c):
         raise ValueError(f"{len(Phi_c)} calibration descriptor rows for {len(s_c)} scores")
     ok = s_c > 0
-    sets = {n: scored_atoms(lin, post, calc, pathlib.Path(p)) for n, p in sets_spec.items()}
-    for S in sets.values():
-        S["Phi"] = features(ref, S["X"], S["Z"])
+    sets = {}
+    for n, p in sets_spec.items():
+        cache = work / f"scored_{n}_{pathlib.Path(p).stem}.npz"     # per-atom scores and descriptors (slow to rebuild)
+        if cache.exists():
+            z = np.load(cache, allow_pickle=True)
+            sets[n] = {k: z[k] for k in z.files}
+        else:
+            sets[n] = scored_atoms(lin, post, calc, pathlib.Path(p))
+            np.savez(cache, **sets[n])
+        sets[n]["Phi"] = features(ref, sets[n]["X"], sets[n]["Z"])
     q1 = float(np.quantile(s_c, 1 - alpha, method="higher"))   # one atom-weighted quantile (the pooled Mondrian weights)
     q1_cfg = float(quantiles(s_c, np.zeros(len(s_c), int), cfg_c, 1, alpha, 1, [np.inf])[0][0])
     per_seed = []
@@ -182,18 +191,23 @@ def main():
         A = set(rng.permutation(u)[: len(u) // 2].tolist())
         inA = np.array([c in A for c in cfg_c])
         b, lam = fit_scale(Phi_c[inA & ok], np.log(s_c[inA & ok] ** 2), cfg_c[inA & ok], rng)
-        uB = s_c[~inA] / np.exp(Phi_c[~inA] @ b / 2)
+        fr = (float((Phi_c @ b).min()), float((Phi_c @ b).max()))     # f on the calibration atoms: no extrapolation
+        fx = lambda P, b=b, fr=fr: np.clip(P @ b, *fr)
+        uB = s_c[~inA] / np.exp(fx(Phi_c[~inA]) / 2)
         q = float(np.quantile(uB, 1 - alpha, method="higher"))  # atom-weighted, as Mondrian's per-group weights pool
         kappa = q / CHI3_INV                                   # Gaussian reading from the quantile: an RMS of u is not
                                                                 # robust (stored hold-out scores include symmetry-zero atoms)
-        rec = {"seed": seed, "ridge": lam, "q": q, "kappa": kappa}
+        rec = {"seed": seed, "ridge": lam, "q": q, "kappa": kappa, "beta": b, "f_range": fr}
         for name, S in sets.items():
-            sc_ = np.exp(S["Phi"] @ b / 2)
+            sc_ = np.exp(fx(S["Phi"]) / 2)
+            rec[name + "_clipped"] = float(np.mean((S["Phi"] @ b < fr[0]) | (S["Phi"] @ b > fr[1])))
             rec[name] = {"cov": S["s"] <= q * sc_, "radius": q * sc_, "sigma": kappa * sc_ * np.sqrt(S["v"])}
         per_seed.append(rec)
     res = {"model": m, "fit": str(d), "alpha": alpha, "n_features": int(Phi_c.shape[1]),
            "ridge": [r["ridge"] for r in per_seed], "q_one": q1, "q_one_cfgw": q1_cfg,
-           "q_learned": [r["q"] for r in per_seed], "kappa": [r["kappa"] for r in per_seed], "sets": {}}
+           "q_learned": [r["q"] for r in per_seed], "kappa": [r["kappa"] for r in per_seed],
+           "f_range": [r["f_range"] for r in per_seed],
+           "clipped_share": {n: [r[n + "_clipped"] for r in per_seed] for n in sets}, "sets": {}}
     rng = np.random.default_rng(0)
     for name, S in sets.items():
         base = {"mondrian": S["s"] <= q_g[S["g"]], "one_group": S["s"] <= q1, "one_group_cfgq": S["s"] <= q1_cfg}
@@ -225,7 +239,9 @@ def main():
     np.savez(RESULTS / f"learned_scale_{m}_atoms.npz",
              **{f"{n}_{k}": S[k] for n, S in sets.items() for k in ("s", "e", "v", "g", "c", "t")},
              **{f"{n}_radius_seed{r['seed']}": r[n]["radius"] for n in sets for r in per_seed},
-             **{f"{n}_sigma_seed{r['seed']}": r[n]["sigma"] for n in sets for r in per_seed}, q_g=q_g, q_one=q1, alpha=alpha)
+             **{f"{n}_sigma_seed{r['seed']}": r[n]["sigma"] for n in sets for r in per_seed},
+             **{f"beta_seed{r['seed']}": r["beta"] for r in per_seed}, f_range=np.array([r["f_range"] for r in per_seed]),
+             q_g=q_g, q_one=q1, alpha=alpha)
     for name, o in res["sets"].items():
         print(m, name, {k: (round(v, 3) if isinstance(v, float) else v) for k, v in o["all"].items()})
 

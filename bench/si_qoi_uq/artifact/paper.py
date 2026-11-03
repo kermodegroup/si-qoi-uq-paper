@@ -113,6 +113,7 @@ lm = lambda m, k: "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all'][
 lm_seeds = lambda m: "–" if m not in _lsm else "–".join(f"{x:.2f}" for x in _lsm[m]["sets"]["test"]["all"]["learned_seed_range"])
 lm_rad = lambda m, k: "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all']['median_radius'][k]:.1f}"
 lm_rms = lambda m: "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all']['rms_e_over_sigma_learned']:.2f}"
+lm_med = lambda m: "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all'].get('median_e_over_sigma_learned', float('nan')):.2f}"
 evdev = lambda tag, st, k: "–" if tag not in _evn else f"{_evn[tag][st][k]['rms_dev']:.3f}"
 def _type_rows():
     rows = ""
@@ -380,8 +381,8 @@ size.</p>
 <figure><img src="fig9_cr3_schematic.png" alt="Schematic of the CR3 construction on the regression demo's Lennard-Jones example: a degree-9 polynomial fit with the CR3 and posterior bands; the leave-one-point-out changes of the fit in the leading principal curves of the CR3 covariance; and a six-step flow of the computation"><figcaption>Figure 9.
 The CR3 construction on the Lennard-Jones example of the interactive regression demo [kermodegroup demos; scene
 lj-cr3], computed exactly. (a) A degree-9 polynomial, fitted by Bayesian ridge regression with evidence-optimised
-hyperparameters to 400 noisy samples of a clipped Lennard-Jones curve, cannot follow the repulsive wall, so the model is
-misspecified. The posterior band \(\sigma^2A^{-1}\) (orange) is narrow everywhere. The CR3 band (blue), scaled by λ from 101
+hyperparameters to 400 nearly noiseless samples (noise standard deviation 0.011, as for DFT labels) of a clipped
+Lennard-Jones curve, cannot follow the repulsive wall: the error is approximation error, not noise. The posterior band \(\sigma^2A^{-1}\) (orange) is narrow everywhere. The CR3 band (blue), scaled by λ from 101
 held-out calibration points, is wide where the fit is wrong: at the wall and near the ends. (b) Each dot is the change of the
 fitted curve when one training point is left out, \(-A^{-1}\tilde g_k\), in the two leading principal curves of the CR3
 covariance of the prediction; the closed form reproduces the refit to the precision the basis allows. The points near the wall
@@ -964,21 +965,24 @@ sec("results-forces", "3.2  Calibrated per-atom forces", f"""
 atoms whose force rows vanish by site symmetry are dropped by the rule of Section 3.3. At a nominal 90 %, the learned scale
 covers {lm("o3d12", "learned")} of the test atoms for o3d12 and {lm("o4d20", "learned")} for o4d20 (ranges over the five hold-out
 splits {lm_seeds("o3d12")} and {lm_seeds("o4d20")}), and one hold-out quantile for all atoms covers {lm("o3d12", "one_group")}
-and {lm("o4d20", "one_group")}. Both are slightly below nominal, which points to the transfer from the hold-out fit to the full
-fit as the remaining approximation. The median region sizes are the same ({lm_rad("o3d12", "learned")} and
-{lm_rad("o3d12", "one_group")} for o3d12, {lm_rad("o4d20", "learned")} and {lm_rad("o4d20", "one_group")} for o4d20, in units
-of the score).</p>
-<p>The two differ in how the coverage is spread over environments. With one quantile, the amorphous and point-defect cells are
-under-covered and the liquid and surfaces over-covered (Figure 2, bottom). The learned scale moves most types towards nominal, the
-amorphous cells excepted, and the RMS deviation of the per-type coverage from 0.90 falls from {evdev("o3d12", "test", "one_group")} to {evdev("o3d12", "test", "learned")}
+and {lm("o4d20", "one_group")}. o4d20 is at nominal; o3d12 is slightly below it, which points to the transfer from the hold-out
+fit to the full fit as the remaining approximation for the smaller model. The median region sizes are similar
+({lm_rad("o3d12", "learned")} and {lm_rad("o3d12", "one_group")} for o3d12, {lm_rad("o4d20", "learned")} and
+{lm_rad("o4d20", "one_group")} for o4d20, in units of the score).</p>
+<p>The two differ in how the coverage is spread over environments. With one quantile, the point-defect cells are under-covered
+and the liquid and surface cells over-covered in both models (Figure 2, bottom); the amorphous cells are under-covered for o3d12
+and over-covered for o4d20. The learned scale moves most types towards nominal (for o3d12 the amorphous cells are the
+exception), and the RMS deviation of the per-type coverage from 0.90 falls from {evdev("o3d12", "test", "one_group")} to {evdev("o3d12", "test", "learned")}
 for o3d12 and from {evdev("o4d20", "test", "one_group")} to {evdev("o4d20", "test", "learned")} for o4d20 (Table 2). It does so from
-the descriptor alone, with no categories chosen by hand. That the gain is modest is itself informative: the CR3 shape already
-carries most of the dependence of the error on the environment.</p>
+the descriptor alone, with no categories chosen by hand. The division of labour is clear: the CR3 shape carries most of the
+dependence of the error on the environment, so one quantile already reaches the nominal level overall, and the learned scale
+corrects how that coverage is spread across environments.</p>
 <p>How the quantile weights the calibration atoms matters more than either scale. A quantile that counts each calibration
 configuration once in total is about 12 % smaller and covers only {lm("o3d12", "one_group_cfgq")} and
 {lm("o4d20", "one_group_cfgq")}, because the many small, well-predicted cells then dominate it; the quantiles here are
-atom-weighted. In the Gaussian reading, the RMS of |ΔF|/σ<sub>F,i</sub> is {lm_rms("o3d12")} (o3d12) and {lm_rms("o4d20")}
-(o4d20): σ<sub>F,i</sub> is set from the 90 % quantile, and heavy-tailed scores make it conservative for typical atoms. The CR3
+atom-weighted. In the Gaussian reading, set from the 90 % quantile, the median of |ΔF|/σ<sub>F,i</sub> is
+{lm_med("o3d12")} (o3d12) and {lm_med("o4d20")} (o4d20), so σ<sub>F,i</sub> is conservative for typical atoms, while its RMS,
+{lm_rms("o3d12")} and {lm_rms("o4d20")}, is set by a heavy tail of large errors. The CR3
 shape with the propagation's global λ<sub>F</sub> covers {fb("o3d12", "headline")} and {fb("o4d20", "headline")}, but
 λ<sub>F</sub> is fitted on these test configurations, so that is in sample and not a validation.</p>
 <figure><img src="fig7_force_calibration.png" alt="Per-atom force uncertainty against observed error for the learned scale, one hold-out quantile and the baselines, and test coverage per configuration type, for each model"><figcaption>Figure 2.

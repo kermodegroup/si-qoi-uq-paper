@@ -369,8 +369,9 @@ def _lj_demo(x):
     return np.clip(4.0 * ((1.5 / r) ** 12 - (1.5 / r) ** 6), -1.5, 1.5)
 
 
-def cr3_schematic(out, seed=0, n=500, noise=0.1, P=10, calib=0.2):
-    """Schematic of the CR3 construction on the regression demo's LJ scene (kermodegroup/demos, ?scene=lj-cr3):
+def cr3_schematic(out, seed=0, n=500, noise=0.011, P=10, calib=0.2):
+    """Schematic of the CR3 construction on the regression demo's LJ scene (kermodegroup/demos, ?scene=lj-cr3; labels
+    nearly noiseless, noise sd 0.011, as for DFT training data):
     n points uniform in [-10, 10] plus the two end points (x = 10 removed by the demo's filter), noise sd `noise`,
     an 80/20 train/calibration split, a degree P - 1 polynomial basis, the evidence-fitted Bayesian ridge, CR3 with one
     point per cluster and lambda the RMS standardised error on the calibration points; the demo's own code path and
