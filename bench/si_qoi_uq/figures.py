@@ -25,7 +25,7 @@ SHORT = {"diamond_bulk_modulus": "B", "diamond_c11": "C11", "diamond_c12": "C12"
          "gamma_us glide (J/m2)": "γus glide", "gamma_us shuffle (J/m2)": "γus shuffle",
          "decohesion_max_stress": "decoh. σmax", "phonon_f rms vs DFT (THz)": "phonon rms"}
 STRIP = [("CR3-headline", "lam_F", "CR3, λ_F"), ("CR3-headline", "lam_V", "CR3, λ_V"),
-         ("B1-headline", "q_b1", "B1 (posterior + q̂)"), ("B2-committee", "lam_1", "B2 (POPS)"),
+         ("B1-headline", "q_b1", "B1: posterior × q̂"), ("B2-committee", "lam_1", "B2 (POPS)"),
          ("B2blr-committee", "lam_1", "B2 (POPS, ridge blr)")]
 
 
@@ -79,6 +79,16 @@ def _save(fig, out, name):
     plt.close(fig)
 
 
+def _top_legend(fig, ax, ncol):
+    """One legend for the whole figure, above every panel (axes legends sat on titles and data at talk sizes):
+    the layout is redone with the legend's own measured height reserved at the top."""
+    h, lab = ax.get_legend_handles_labels()
+    leg = fig.legend(h, lab, loc="upper center", ncol=ncol, frameon=False, fontsize="x-small", bbox_to_anchor=(0.5, 1.0))
+    fig.canvas.draw()
+    frac = leg.get_window_extent().height / fig.bbox.height
+    fig.tight_layout(rect=(0, 0, 1, 1 - frac - 0.01))
+
+
 def _rows(results):
     def num(v):
         try:
@@ -104,10 +114,9 @@ def strip(results, out, models):
             ax.scatter(x + (j - 2) * 0.15, np.clip(zz, -8, 8), s=26, marker=MARK[j], color=CAT[j], label=lab,
                        edgecolor=SURFACE, linewidth=0.8, zorder=3)
         ax.set_xticks(x, [short(k) for k in COVER_KEYS], rotation=60, ha="right")
-        ax.set_ylabel("z = (Q̂ − Q_DFT) / σ  (clipped ±8)", color=INK, fontsize="small")
-        ax.set_title(f"{m}: standardised QoI errors (bands ±1, ±2)", color=INK, fontsize="medium", loc="left", pad=22)
-        ax.legend(fontsize="x-small", frameon=False, ncol=5, loc="lower left", bbox_to_anchor=(0, 1.08))
-    fig.tight_layout()
+        ax.set_ylabel("z = (Q̂ − Q_DFT) / σ", color=INK, fontsize="small")
+        ax.set_title(f"{m}: standardised QoI errors (bands ±1, ±2; clipped at ±8)", color=INK, fontsize="medium", loc="left")
+    _top_legend(fig, axes[0, 0], ncol=5)
     _save(fig, out, "fig1_z_strip")
 
 
@@ -189,9 +198,7 @@ def elastic(out, models, extras):
             ax.set_xlabel(f"{short(a)} (GPa)", color=INK, fontsize="small")
             ax.set_ylabel(f"{short(b)} (GPa)", color=INK, fontsize="small")
             ax.set_title(f"{m}: {short(a)}–{short(b)}", color=INK, fontsize="medium", loc="left")
-            if r == len(models) - 1 and c == 0:            # one legend, lower left, where it hides no ellipse
-                ax.legend(fontsize="x-small", frameon=False)
-    fig.tight_layout()
+    _top_legend(fig, axes[0, 0], ncol=4)
     _save(fig, out, "fig4_elastic_ellipses")
 
 
@@ -218,9 +225,7 @@ def scales_fig(results, out, models):
         ax.set_xticks(range(len(cats)), cats, rotation=45, ha="right", rotation_mode="anchor")
         ax.set_ylabel("λ = RMS z", color=INK, fontsize="small")
         ax.set_title(f"{m}: test-split scale per observable and configuration type", color=INK, fontsize="medium", loc="left")
-        if ax is axes[0, 0]:
-            ax.legend(fontsize="x-small", frameon=False, ncol=3, loc="lower right", bbox_to_anchor=(1.0, 1.0))
-    fig.tight_layout()
+    _top_legend(fig, axes[0, 0], ncol=3)
     _save(fig, out, "fig5_scale_diagnostics")
 
 
@@ -414,7 +419,7 @@ def cr3_schematic(out, seed=0, n=500, noise=0.011, P=6, calib=0.2):
     leading principal curves of the CR3 covariance of the prediction (coefficient space is misleading for the
     near-degenerate raw polynomial basis), coloured by the deleted point's x, with both 1-sd ellipses projected likewise;
     (c) the computation as a flow."""
-    from matplotlib.patches import Ellipse, FancyArrowPatch, FancyBboxPatch
+    from matplotlib.patches import Ellipse, FancyBboxPatch
     from sklearn.linear_model import BayesianRidge
     from sklearn.model_selection import train_test_split
     from sklearn.preprocessing import PolynomialFeatures
@@ -467,7 +472,7 @@ def cr3_schematic(out, seed=0, n=500, noise=0.011, P=6, calib=0.2):
     axa.set_xlim(X_MIN, 10); axa.set_ylim(-1.25, 0.6)
     axa.set_xlabel("x", color=INK, fontsize="small"); axa.set_ylabel("y", color=INK, fontsize="small")
     axa.set_title(f"(a) LJ demo scene: a degree-{P - 1} polynomial fit", color=INK, fontsize="medium", loc="left")
-    axa.legend(fontsize="x-small", frameon=False, loc="upper right", ncol=2)
+    axa.legend(fontsize="x-small", frameon=False, loc="lower right", ncol=1)   # the empty corner below the curve
     # function space: coordinates along the two leading principal curves of the CR3 covariance of the prediction
     # (RMS over the grid, units of y); coefficient space is the wrong view for a near-degenerate basis
     ng = len(xg)
@@ -517,9 +522,6 @@ def cr3_schematic(out, seed=0, n=500, noise=0.011, P=6, calib=0.2):
             axc.text(x0 + W / 2, yy, eq, fontsize="small", color=INK, ha="center", va="center", transform=axc.transAxes)
         axc.text(x0 + 0.012, y0 + 0.025, read, fontsize="x-small", color=MUTED, va="bottom",
                  transform=axc.transAxes, linespacing=1.3)
-        if c_ < 2:
-            axc.add_patch(FancyArrowPatch((x0 + W + 0.001, y0 + Hh / 2), (x0 + W + gx - 0.001, y0 + Hh / 2), arrowstyle="-|>",
-                                          mutation_scale=8, color=MUTED, lw=1.0, transform=axc.transAxes))
     axc.text(0.012, 0.95, "(c) The CR3 computation: one fit, then closed-form leave-one-configuration-out quantities",
              fontsize="medium", color=INK, transform=axc.transAxes)
     _save(fig, out, "fig9_cr3_schematic")

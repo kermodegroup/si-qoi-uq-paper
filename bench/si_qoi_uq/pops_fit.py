@@ -54,6 +54,9 @@ def main():
     path, ridge = kept["path"], kept["ridge"]
     git = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True,
                          cwd=pathlib.Path(__file__).parent).stdout.strip()
+    import ace_jax
+    acejax = ace_jax.__version__ + "+" + subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True,
+                                                      cwd=pathlib.Path(ace_jax.__file__).parent).stdout.strip()
     # one ridge per member set: the predictions use one per quantity, a parameter committee needs one -- the
     # auto-selected force ridge (o3d12: E = F = V = 1e-14); and "blr" (c* the BLR mean, A the BLR posterior),
     # since 1e-14 relative sits at the eigendecomposition's resolution, where A is roundoff (RECON)
@@ -71,7 +74,8 @@ def main():
         lo, hi = path.rows.projection_bounds(coef, keepm, A @ support)
         c_star = np.asarray(path.c_star)                         # the mean the predictions used (POPS_MEAN)
         np.savez(out / f"{name}.npz", c_star=c_star, support=np.asarray(support), lo=np.asarray(lo),
-                 hi=np.asarray(hi), ridge=str(rd), leverage_pct=lev, ridge_selected=json.dumps(ridge), git=git)
+                 hi=np.asarray(hi), ridge=str(rd), leverage_pct=lev, ridge_selected=json.dumps(ridge), git=git,
+                 acejax=acejax)
         print(f"{name}: support {support.shape}, ridge {rd}, leverage pct {lev}", flush=True)
         if levels is not None:
             screen[name] = dict(ridge=str(rd), leverage_pct=lev, n_support=int(np.asarray(support).shape[1]),
