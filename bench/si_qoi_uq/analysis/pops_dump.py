@@ -23,6 +23,7 @@ def main():
     from ace_jax.fit.stats import HostRows
     from ..pops_fit import BASIS, DATA
     m = sys.argv[1]
+    ridge = sys.argv[sys.argv.index("--ridge") + 1] if "--ridge" in sys.argv else None   # skip the ridge selection
     kept, orig = {}, ppred._pops_setup
 
     def keep(cfg, d, b, stats, theta, log):
@@ -34,7 +35,7 @@ def main():
         cli.main(["fit", "--train", f"{DATA}/train.xyz", "--test", f"{DATA}/test.xyz", *BASIS[m], "--rcut", "5.0",
                   "--virial-key", "virial", "--weights", f"{DATA}/weights_acejax.json", "--e0", "lsq", "--rungs", "map",
                   "--m-per-species", "0", "--noise", "shared", "--configs-per-batch", "1", "--seed", "0", "--uq", "pops",
-                  "--lml-solver", "cholesky", "--no-save-model", "--out", str(OUT / f"fit_{m}")])
+                  "--lml-solver", "cholesky", *(["--pops-ridge", ridge] if ridge else []), "--no-save-model", "--out", str(OUT / f"fit_{m}")])
     except ValueError as e:
         if "path" not in kept:
             raise

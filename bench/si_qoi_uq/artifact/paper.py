@@ -267,6 +267,8 @@ leaves the fit unchanged.</p>
 (2.5), the baselines (2.6) and the propagation to QoIs (2.7). Section 3 gives the validation statistics and the results: the per-atom forces first, then the global scale that the
 propagation uses, then the QoIs. Section 4 discusses them and Section 5 concludes.</p>""", "draft")
 
+B2_NOTE = ("<b>[Draft: the B2 (POPS) committees are being rerun with the rebuilt boxes of Section 3.7; every B2 number "
+           "in this version comes from the earlier boxes and will change.]</b>")
 QOI_ROWS = (  # (key, name, unit, tolerance text): the benchmark's QoIs and tolerances (ace-jax bench/si_qoi/score.py)
     *[(k, n, "GPa", "10 %") for k, n in (("diamond_c11", "C<sub>11</sub>"), ("diamond_c12", "C<sub>12</sub>"),
                                          ("diamond_c44", "C<sub>44</sub>"), ("diamond_bulk_modulus", "bulk modulus B"))],
@@ -293,16 +295,19 @@ def _qoi_table():
         d, phon = _QDIG.get(unit, 1), k.startswith("phonon")
         cells = ""
         for r in rs:
-            err = "–" if phon else f"{float(r['mean']) - float(r['dft']):+.{d}f}"
-            cells += f"<td class=n>{float(r['mean']):.{d}f}</td><td class=n>{err}</td>"
+            e = float(r["mean"]) - float(r["dft"])
+            err, pct = ("–", "–") if phon else (f"{e:+.{d}f}".replace("-", "−"), f"{100 * e / float(r['dft']):+.1f}".replace("-", "−"))
+            cells += f"<td class=n>{float(r['mean']):.{d}f}</td><td class=n>{err}</td><td class=n>{pct}</td>"
         dft = "–" if phon else f"{float(rs[0]['dft']):.{d}f}"
         rows += f"<tr><td>{name}</td><td class=n>{dft}</td><td>{unit}</td><td class=n>{tol}</td>{cells}</tr>"
     return ("<div class=\"wrap\"><table><caption>Table 0. The silicon QoIs: DFT (CASTEP) reference value, unit, benchmark tolerance, "
-            "and the value and error (model − DFT) of the two ACE models. A tolerance in % is relative to the DFT value. "
+            "and the value, error (model − DFT) and relative error (error / DFT) of the two ACE models. A tolerance in % is "
+            "relative to the DFT value. The 10 meV/atom phase-energy tolerance is most of the small hexagonal-diamond value; "
+            "the relative error is the more telling measure there. "
             "The phonon entry is the RMS difference of the phonon frequencies from DFT, so it has no DFT value or error and is not "
             "scored for coverage.</caption><thead><tr><th rowspan=2>QoI</th><th rowspan=2>DFT</th><th rowspan=2>unit</th>"
-            "<th rowspan=2>tolerance</th><th colspan=2>ACE o3d12</th><th colspan=2>ACE o4d20</th></tr>"
-            "<tr><th>value</th><th>error</th><th>value</th><th>error</th></tr></thead>"
+            "<th rowspan=2>tolerance</th><th colspan=3>ACE o3d12</th><th colspan=3>ACE o4d20</th></tr>"
+            "<tr><th>value</th><th>error</th><th>error (%)</th><th>value</th><th>error</th><th>error (%)</th></tr></thead>"
             f"<tbody>{rows}</tbody></table></div>")
 qoi_table = _qoi_table()
 _par = {p_["size"]: p_ for p_ in json.load(open(RES / "ace_pareto.json"))} if (RES / "ace_pareto.json").exists() else {}
@@ -534,10 +539,11 @@ package POPSRegression [Swinburne, POPSRegression]. For each training row \(i\) 
 row weights but no noise scale, \(r_i\) is the row's residual at the ridge solution, and \(A_\mu=M+\mu\operatorname{diag}(\Gamma_j^2)\),
 with \(M=\sum_i\psi^w_i\psi_i^{w\mathsf T}\) and the ridge parameter \(\mu\) chosen on a path. Members are drawn uniformly in the
 hypercube spanned by the principal directions of the \(\delta_i\), with bounds from their extreme projections, as in Swinburne and
-Perez [2024]. The reference package builds the box only from the rows at or above the median leverage
-(<code>leverage_percentile = 50</code>, its default); the ace-jax port's default keeps every row, which makes the box unphysical
-here (Section 3.7). B2 follows the reference package: the 50 % cut. Section 3.7 reports the other cuts, and checks the port against
-the reference package on the same weighted design. B2 has no calibration step, so it tests a misspecification-aware shape without a
+Perez [2024]. Following the reference package, the box is built only from the rows at or above the median leverage
+(<code>leverage_percentile = 50</code>, its default; every row makes the box unphysical here, Section 3.7). The ridge is selected
+per quantity by the CRPS on a hold-out of the training set, over relative ridges from 10<sup>−2</sup> down to 10<sup>−10</sup> of
+the largest eigenvalue: below that the box is set by roundoff (Section 3.7). We use ace-jax [ace-jax] with the numerical corrections that
+this study prompted (ace-jax pull request 141). B2 has no calibration step, so it tests a misspecification-aware shape without a
 fitted scale.</p>
 <p>The third baseline, B3, is the CR3 covariance with \(\lambda=1\). It isolates the effect of the scale: the difference between B3
 and the headline is entirely the calibration of Section 3.3.</p>
@@ -787,6 +793,28 @@ def _pr_txt():
             "unphysical box of the every-row default is a property of POPS on this design, not of the port. [Draft note: a "
             "box-by-box comparison of the port with the package at B2's settings does not yet agree and is being checked.]")
 pr_txt = _pr_txt()
+import numpy as np
+def sci(x, d=0):
+    """x as a × 10^b in HTML (d decimals on a)."""
+    e = int(np.floor(np.log10(abs(x))))
+    a = x / 10 ** e
+    return (f"10<sup>{e}</sup>" if round(a, d) == 1 else f"{a:.{d}f} × 10<sup>{e}</sup>").replace("-", "−")
+_pc_old = json.load(open(RES / "pops_compare_o3d12_oct31box.json")) if (RES / "pops_compare_o3d12_oct31box.json").exists() else None
+_pcs = {m: json.load(open(RES / f"pops_compare_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"pops_compare_{m}.json").exists()}
+_box = {m: np.load(f"/storage/eng/essswb/projects/ace-jax/runs/si_qoi_uq_blr/fits/{m}/pops/pops_box_lev50.npz") for m in ("o3d12", "o4d20")}
+if _pc_old:
+    _o = _pc_old
+    pc_cond = sci(_o["cond"]["cond_X"])
+    _dz = np.load("/storage/eng/essswb/projects/si-qoi-uq-paper/runs/popsref/design_o3d12.npz")   # analysis/pops_dump.py
+    pc_lamblr = json.loads(str(_dz["meta"]))["lam_blr"] / float(_dz["Lam"].max())
+    pc_old = (f"{_o['b2']['sd_E_meV_atom']:.0f} (the box an earlier version of this study used), {_o['eig']['sd_E_meV_atom']:.1f} (the port's "
+              f"eigendecomposition route), {_o['svd']['sd_E_meV_atom']:.1f} (an SVD of the rows) and {_o['package_beta']['sd_E_meV_atom']:.1f} "
+              f"meV/atom (the reference package's hypercube step)")
+    pc_sweep = ", ".join(f"{r['sd_E_svd']:.3g} meV/atom at {sci(r['ridge_rel'])}" for r in _o["sweep"] if r["ridge_rel"] in (1e-10, 1e-6, 1e-2))
+else:
+    pc_cond = pc_old = pc_sweep = "(pending)"; pc_lamblr = float("nan")
+pc_sel = "; ".join(f"{m}: " + ", ".join(f"{q} {sci(v)}" for q, v in json.loads(str(b["ridge_selected"])).items()) for m, b in _box.items())
+pc_refridge = " and ".join(f"{sci(v['ridge_rel_ref'])} ({m})" for m, v in _pr.items()) if _pr else "(pending)"
 dtrend = json.load(open(RES / "defect_trend.json")) if (RES / "defect_trend.json").exists() else {}
 disc = json.load(open(RES / "discrepancy.json")) if (RES / "discrepancy.json").exists() else {}
 disc_rows = rd("discrepancy.csv")
@@ -816,7 +844,7 @@ k95 = lambda m, meth, sc: (lambda r: f"{int(float(r['k95']))}/{int(float(r['n'])
 sot = lambda m, meth, sc: (lambda r: f"{float(r['median_sigma_over_tol']):.2f}" if r else "?")(get(m, meth, sc))
 tight = (head["o3d12"]["median_sigma_over_tol"] / head["o4d20"]["median_sigma_over_tol"]) if all(head.get(m) for m in ("o3d12", "o4d20")) else float("nan")
 sec("results", "3.4  Coverage and sharpness", f"""
-<div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % credible interval of the coverage probability]) and sharpness, for the four methods of Figures 1 and 1b.</caption>
+<div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % credible interval of the coverage probability]) and sharpness, for the four methods of Figures 1 and 1b. {B2_NOTE}</caption>
 <thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th><th>CRPS/tol</th></tr></thead>
 <tbody>{cov_rows}</tbody></table></div>
 <div class="wrap"><table><caption>Table 3b. Sensitivity of the coverage to the scale and to the committee variant: the CR3 shape
@@ -855,7 +883,7 @@ phase energies, which are strongly nonlinear in θ at λ<sub>F</sub> (Section 3.
 logarithmic beyond, and is shared by all rows. Top row: the headline, CR3 × λ<sub>F</sub>; the larger model's intervals are
 {tight:.1f}× tighter in median σ/tol while its coverage stays comparable. Below it the baselines of Section 2.6: B1, the posterior
 scaled by one conformal quantile; B2, POPS with the 50 % leverage cut (the reference package's default); B3, CR3 without calibration (λ = 1). Each row's legend gives
-its 95 % coverage and median σ/tol.</figcaption></figure>
+its 95 % coverage and median σ/tol. {B2_NOTE}</figcaption></figure>
 <figure><img src="fig2_coverage.png" alt="Coverage per method with binomial intervals"><figcaption>Figure 1b. Fraction of the 20 scored QoIs inside the 68 % and 95 % intervals for the four methods of Figure 1
 (headline, B1, B2 with the 50 % leverage cut, B3), with 95 % credible intervals from the Jeffreys-prior Beta posterior; dashed lines are the nominal levels.</figcaption></figure>
 <h3>3.5 Joint evidence</h3>
@@ -915,16 +943,25 @@ mean model's value and the star DFT.</figcaption></figure>
 calibration, covers only {b3txt} of the QoIs at 95 %: the shape alone is several times too narrow, as the test-split scales of
 Section 3.3 already show. B1, the posterior with one conformal scale, covers {b1txt}. It has a calibrated overall size but the wrong
 shape, so it is too wide for some QoIs and too narrow for others, and its joint evidence is far below the headline's (Table 4).</p>
+<p>{B2_NOTE}</p>
 <p>B2, POPS, needed more care. With the ace-jax port's default, which builds the hypercube from every training row, the members are
 unphysical: the bounds are set by a handful of rows with near-zero leverage, whose corrections are unbounded, and the members spread
 the bulk energy of o3d12 by {pops_sd} meV/atom, so that almost every relaxation fails. Rejecting unphysical members cannot rescue
 this. Every axis of the full box spans 10<sup>6</sup>–10<sup>7</sup> eV/atom of bulk energy, and no member of either model comes within
 5 eV/atom of the mean on rattled diamond cells (0 of 200).</p>
-<p>Dropping the lowest-leverage rows from the box fixes it. A sweep of the cut (the lowest 1, 2, 5, 10, 25 or 50 % of rows, members
-screened on three rattled diamond cells) shows that dropping 1 % already gives physical members. The width then hardly depends on the
-cut for o4d20: the median worst-cell energy change is 0.001–0.003 eV/atom, against 0.017 for CR3 × λ<sub>F</sub>. We ran committees at
-the 50 % cut, the default of the reference package POPSRegression [Swinburne, POPSRegression] and B2, and at 5 % (Table 3b). Their bulk-energy spreads, against the CR3 members at λ = 1 and at
-λ<sub>F</sub>, are {pops_w} meV/atom. B2 covers {pops_cov}. {pr_txt} POPS has no calibration step, so its width is whatever the choice of support rows
+<p>The POPS box is also numerically fragile on these designs. The o3d12 design has a condition number of
+{pc_cond} and its evidence fit puts σ<sub>c</sub> on its upper bound, so the ridge that gives the BLR mean is
+{sci(pc_lamblr)} of the largest eigenvalue. Below a relative ridge of about 10<sup>−11</sup> the box is set by roundoff. At the
+10<sup>−14</sup> that an earlier ridge selection chose, four equivalent evaluations from the same rows, mean and cut give
+bulk-energy spreads of {pc_old}. The POPS step of the reference package POPSRegression [Swinburne, POPSRegression] agrees with the
+stable SVD evaluation there, so the port and the package differ only in these numerics, not in the method. We therefore select
+the ridge from 10<sup>−10</sup> upwards. The selection then takes the smallest ridge it is offered for both models
+({pc_sel}), so in practice the floor sets the box. Within the numerically defined range the box widens with the ridge: for
+o3d12 its bulk-energy spread is {pc_sweep}. The reference package's own default ridge, chosen by evidence, is
+{pc_refridge} of the largest eigenvalue, in the range where the box is not defined, so we do not use it.</p>
+<p>We ran committees at
+the 50 % cut (B2) and at 5 % (Table 3b). Their bulk-energy spreads, against the CR3 members at λ = 1 and at
+λ<sub>F</sub>, are {pops_w} meV/atom. B2 covers {pops_cov}. POPS has no calibration step, so its width is whatever the choice of support rows
 gives: of roughly the right size but in the wrong places for o3d12, and too narrow for o4d20.</p>""", "drafted", level=3)
 
 trend_rows = ""
@@ -1070,7 +1107,7 @@ shape with the propagation's global λ<sub>F</sub> covers {fb("o3d12", "headline
 <figure><img src="fig7_force_calibration.png" alt="Per-atom force uncertainty against observed error for the learned scale, one hold-out quantile and the baselines, and test coverage per configuration type, for each model"><figcaption>Figure 2.
 Top: binned on predicted σ (20 equal-count bins), RMS observed |ΔF| against RMS σ, for the CR3 shape with one hold-out
 quantile (the method) and with the learned scale (ARD fit; σ<sub>F,i</sub> from the 90 % quantile), and for the per-atom σ of the
-propagation's methods on the BLR fit: CR3 × λ<sub>F</sub> (the headline), B1 (posterior × q̂), B2 (POPS, 50 % leverage cut; the
+propagation's methods on the BLR fit: CR3 × λ<sub>F</sub> (the headline), B1 (posterior × q̂), B2 ({B2_NOTE} POPS, 50 % leverage cut; the
 box's uniform variance) and B3 (CR3, λ = 1); the per-atom density behind. Points below the diagonal are conservative.
 Bottom: test coverage of the 90 % region, overall and per GAP-18 configuration type with at least 300 test atoms. Conformal
 regions: one quantile and the learned scale. Gaussian isotropic region |ΔF| ≤ σ (χ<sup>2</sup><sub>3</sub>(0.9)/3)<sup>1/2</sup>:
@@ -1310,6 +1347,7 @@ mjx-container {{ overflow-x: auto; overflow-y: hidden; max-width: 100%; }}
 <h1>Calibrated parameter-space uncertainty for linear ACE, propagated to silicon properties</h1>
 <p class="author">James R. Kermode</p>
 <p class="affil">Warwick Centre for Predictive Modelling, School of Engineering, University of Warwick, Coventry CV4 7AL, United Kingdom</p>
+<p class="affil"><a href="paper.pdf">PDF (J. Chem. Phys. REVTeX build of this version)</a></p>
 
 </header>
 {''.join(S)}

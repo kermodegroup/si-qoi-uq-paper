@@ -9,6 +9,8 @@ is the POPS hypercube covariance.  Writes pops_box.npz (c_star, support, lo, hi,
 
     python -m bench.si_qoi_uq.pops_fit o3d12|o4d20 [--levels 75,90,95,99]
 
+--ridge R: a fixed relative POPS ridge instead of the hold-out selection (the selection is most of the run time on
+o4d20; used to add a box at the ridge a full run selected).
 --levels: only the boxes at these leverage percentiles (both ridges, names pops_box[_blr]_lev{pct}), each screened on
 three rattled diamond cells (a = 5.2, 5.46, 5.8 A; E and F are exact rows) for the members' energy and force spread
 -> pops_screen.json next to the fit.  Without it, the four boxes of the original run.
@@ -32,6 +34,9 @@ def main():
     levels = None
     if "--levels" in args:
         i = args.index("--levels"); levels = [float(x) for x in args[i + 1].split(",")]; del args[i:i + 2]
+    ridge = None                                 # --ridge R: skip the selection, the box at this relative ridge
+    if "--ridge" in args:
+        i = args.index("--ridge"); ridge = args[i + 1]; del args[i:i + 2]
     m = args[0]
     out = RUNS / "fits" / m / ("pops" if levels is None else "pops_sweep")   # the sweep never touches the run boxes
     out.mkdir(parents=True, exist_ok=True)
@@ -49,6 +54,7 @@ def main():
             # with the default QR statistics the final POPS path's c* (and every test prediction) came out NaN
             # on o3d12 while the ridge selection (rows recomputed) ran: the Gram statistics avoid it (RECON)
             "--lml-solver", "cholesky",
+            *(["--pops-ridge", ridge] if ridge else []),
             "--out", str(out)]
     cli.main(argv)
     path, ridge = kept["path"], kept["ridge"]
