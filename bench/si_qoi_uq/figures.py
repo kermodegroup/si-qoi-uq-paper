@@ -370,9 +370,11 @@ def _lj_demo(x):
 
 
 def cr3_schematic(out, seed=0, n=500, noise=0.011, P=10, calib=0.2):
+    X_MIN = -7.5                                                     # r = x/5 + 1.5 > 0
     """Schematic of the CR3 construction on the regression demo's LJ scene (kermodegroup/demos, ?scene=lj-cr3; labels
     nearly noiseless, noise sd 0.011, as for DFT training data):
-    n points uniform in [-10, 10] plus the two end points (x = 10 removed by the demo's filter), noise sd `noise`,
+    n points uniform in [-10, 10] plus the two end points, kept in [-7.5, 10] where r = x/5 + 1.5 > 0 (the demo's filter
+    range with "keep inside"; the LJ test domain stops there too), noise sd `noise`,
     an 80/20 train/calibration split, a degree P - 1 polynomial basis, the evidence-fitted Bayesian ridge, CR3 with one
     point per cluster and lambda the RMS standardised error on the calibration points; the demo's own code path and
     random draws.  (a) data, the full fit, the CR3 band lambda sigma_CR3 and the posterior band; (b) the deletion shifts
@@ -386,7 +388,7 @@ def cr3_schematic(out, seed=0, n=500, noise=0.011, P=10, calib=0.2):
     from sklearn.preprocessing import PolynomialFeatures
     np.random.seed(seed)                                             # the demo's get_data and g, in order
     x = np.append(np.random.uniform(-10, 10, size=n), np.linspace(-10, 10, 2))
-    x = np.sort(x[(x < 10.0) | (x > 10.0)])
+    x = np.sort(x[(x >= X_MIN) & (x <= 10.0)])                       # the demo's filter [-7.5, 10], "keep inside"
     y = _lj_demo(x) + np.random.normal(scale=noise, size=x.shape)
     Xtr, Xc, ytr, yc = train_test_split(x[:, None], y, test_size=calib, random_state=seed)
     pf = PolynomialFeatures(degree=P - 1, include_bias=True)
@@ -394,6 +396,7 @@ def cr3_schematic(out, seed=0, n=500, noise=0.011, P=10, calib=0.2):
     br = BayesianRidge(fit_intercept=False).fit(Ptr, ytr)        # alpha, lambda by evidence, as the demo
     al, la = br.alpha_, br.lambda_
     xg = np.linspace(-10, 10, 1000)
+    xg = xg[xg >= X_MIN]                                             # the demo's LJ test domain, r > 0
     Bg = pf.transform(xg[:, None])
 
     def ridge(Pm, ym):
@@ -429,7 +432,7 @@ def cr3_schematic(out, seed=0, n=500, noise=0.011, P=10, calib=0.2):
     axa.scatter(Xc[:, 0], yc, s=7, color=CAT[2], alpha=0.8, lw=0, label="calibration points", zorder=2)
     axa.plot(xg, _lj_demo(xg), color=INK, lw=1.2, ls="--", label="truth (LJ)")
     axa.plot(xg, fit, color=INK, lw=2, label="fit to all data, θ̂")
-    axa.set_xlim(-10, 10); axa.set_ylim(-1.5, 1.5)
+    axa.set_xlim(X_MIN, 10); axa.set_ylim(-1.5, 1.5)
     axa.set_xlabel("x", color=INK, fontsize=8); axa.set_ylabel("y", color=INK, fontsize=8)
     axa.set_title(f"(a) The demo's LJ scene: a {P - 1}th-order polynomial cannot follow the wall", color=INK, fontsize=9, loc="left")
     axa.legend(fontsize=7, frameon=False, loc="upper right")
