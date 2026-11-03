@@ -4,7 +4,8 @@ analysis/force_calibration.py).  BLR fits (SIQ_RUNS: the BLR run root), the same
 Per test atom, from the fit's force rows F_a (3, p), sigma = sqrt(tr C_a) with C_a the 3x3 force covariance of:
   headline  lam_F^2 F_a L L^T F_a^T, L the CR3 factor, lam_F the global test-split force scale (diag/<m>_scales.json)
   B1        q_b1^2 F_a L_post L_post^T F_a^T (the posterior scaled by one conformal quantile)
-  B2        F_a U diag((hi - lo)^2 / 12) U^T F_a^T, the POPS 5 % leverage-cut box (uniform variance on each axis)
+  B2        F_a U diag((hi - lo)^2 / 12) U^T F_a^T, the POPS box at the reference package's default leverage cut
+            (50 %; uniform variance on each axis)
   B3        F_a L L^T F_a^T (CR3, lam = 1)
 and each atom's Mondrian group from the ARD posterior's group constants (geometry only; ARD_RUNS).
 
@@ -33,7 +34,7 @@ def main():
     lin, linp = lin_for(m, "cr3"), lin_for(m, "kappa")
     sc = json.load(open(RUNS / "diag" / f"{m}_scales.json"))
     lamF, qb1 = float(sc["lam_cr3"]["F"]), float(sc["q_b1"])
-    b = np.load(fit_dir(m, "pops") / "pops_box_lev5.npz")
+    b = np.load(fit_dir(m, "pops") / "pops_box_lev50.npz")          # POPSRegression default (leverage_percentile 50)
     Lp2 = np.asarray(b["support"]) * ((np.asarray(b["hi"]) - np.asarray(b["lo"])) / np.sqrt(12))[None, :]
     facs = {"cr3": jnp.asarray(lin.factor("cr3")), "post": jnp.asarray(linp.factor("posterior")), "pops": jnp.asarray(Lp2)}
     ard = ARDPosterior.load(ARD_RUNS / "fits" / m / "cr3" / "posterior.npz")

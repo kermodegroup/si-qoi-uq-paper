@@ -18,7 +18,7 @@ SURFACE, INK, MUTED, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e4e3df"
 CAT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#6250d6", "#008300"]
 MARK = ["o", "s", "D", "^", "v", "P", "X"]
 PANELS = (("CR3-headline", "lam_F", "CR3 × λ_F (headline)"), ("B1-headline", "q_b1", "B1: posterior × conformal q̂"),
-          ("B2lev5-committee", "lam_1", "B2: POPS (leverage cut 5 %)"), ("B3-headline", "lam_1", "B3: CR3, λ = 1"))
+          ("B2lev50-committee", "lam_1", "B2: POPS (leverage cut 50 %)"), ("B3-headline", "lam_1", "B3: CR3, λ = 1"))
 SHORT = {"diamond_bulk_modulus": "B", "diamond_c11": "C11", "diamond_c12": "C12", "diamond_c44": "C44",
          "vacancy_energy": "vacancy", "dumbbell_interstitial_energy": "dumbbell", "hexagonal_interstitial_energy":
          "hex. int.", "tetrahedral_interstitial_energy": "tet. int.", "surface_100 (J/m2)": "(100) surf.",
@@ -113,7 +113,7 @@ def strip(results, out, models):
 
 def coverage_bars(results, out, models):
     cov = [r for r in csv.DictReader(open(results / "coverage.csv"))]
-    short_lab = {"CR3-headline": "CR3 × λ_F\n(headline)", "B1-headline": "B1: posterior\n× q̂", "B2lev5-committee": "B2: POPS\n(5 % cut)",
+    short_lab = {"CR3-headline": "CR3 × λ_F\n(headline)", "B1-headline": "B1: posterior\n× q̂", "B2lev50-committee": "B2: POPS\n(50 % cut)",
                  "B3-headline": "B3: CR3,\nλ = 1"}
     sel = [(meth, sc, short_lab.get(meth, lab)) for meth, sc, lab in PANELS]        # the same methods as fig6's rows
     fig, axes = plt.subplots(1, len(models), figsize=_size(5.5 * len(models), 4.4), squeeze=False, facecolor=SURFACE)
@@ -249,7 +249,7 @@ def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=Fa
     fig, axes = plt.subplots(len(panels), 1, figsize=_size(11, 4.6 if len(panels) == 1 else 3.3 * len(panels) + 1.3),
                              sharex=True, sharey=True, squeeze=False, facecolor=SURFACE)
     x = np.arange(len(COVER_KEYS))
-    order = [m for m in ("o4d20", "o3d12") if m in models]
+    order = [m for m in ("o3d12", "o4d20") if m in models]
     for ip, (meth_, sc_, title) in enumerate(panels):
         ax = axes[ip, 0]
         _style(ax)
@@ -314,7 +314,7 @@ def force_calibration(results, out, nbins=20, level=0.9, min_atoms=300):
         if pb.exists():
             b = np.load(pb, allow_pickle=True)
             for k, lab, mk, col in (("headline", "CR3 × λ_F (in sample on test)", "s", CAT[1]), ("B1", "B1: posterior × q̂", "^", CAT[2]),
-                                    ("B2", "B2: POPS (5 % cut)", "D", CAT[3]), ("B3", "B3: CR3, λ = 1", "v", CAT[4])):
+                                    ("B2", "B2: POPS (50 % cut)", "D", CAT[3]), ("B3", "B3: CR3, λ = 1", "v", CAT[4])):
                 sd = b[f"sd_{k}"]
                 traces.append((lab, b["err_norm"], sd, b["config_type"], b["err_norm"] <= kq * sd, mk, col))
         allsd = np.concatenate([tr[2] for tr in traces])

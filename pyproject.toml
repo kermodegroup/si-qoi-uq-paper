@@ -17,6 +17,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "popsregression==0.4.0",
     "pypandoc-binary>=1.17",
     "pytest",
     "ruff",

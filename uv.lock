@@ -1267,6 +1267,22 @@ wheels = [
 ]
 
 [[package]]
+name = "popsregression"
+version = "0.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "scikit-learn" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c6/cc/df9dc94b3d485916893af5e0006da019f88ee8242b8b35d0237339aa0317/popsregression-0.4.0.tar.gz", hash = "sha256:4f99efd1a0a58b83729b7b2817612db832012040895314a539af65fcba426f7c", size = 260315, upload-time = "2026-03-16T21:52:34.809Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f0/bf/20d0255ab0667b7659d2a2375143d4b12ea4cd9e486272a26bceaf3bcbaa/popsregression-0.4.0-py3-none-any.whl", hash = "sha256:aa7e3872d061fb35953f34bb57d7c05948a3b8c2969bfc7a63f34b5ed8e205a0", size = 16862, upload-time = "2026-03-16T21:52:33.736Z" },
+]
+
+[[package]]
 name = "pygments"
 version = "2.21.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1665,6 +1681,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "popsregression" },
     { name = "pypandoc-binary" },
     { name = "pytest" },
     { name = "ruff" },
@@ -1683,6 +1700,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "popsregression", specifier = "==0.4.0" },
     { name = "pypandoc-binary", specifier = ">=1.17" },
     { name = "pytest" },
     { name = "ruff" },

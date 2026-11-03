@@ -18,7 +18,7 @@ HERE = pathlib.Path(__file__).parent
 # must not overwrite the headline in this package)
 OUTDIR = pathlib.Path(os.environ["SIQ_RESULTS"]) if os.environ.get("SIQ_RESULTS") else HERE
 RESULTS, FIGURES = OUTDIR / "results", OUTDIR / "figures"
-MODELS = ("o4d20", "o3d12")
+MODELS = ("o3d12", "o4d20")
 K = 200
 SEEDS = {"cr3": 20261031, "posterior": 20261032, "pops": 20261033}     # committee draws (spec §4b, §6)
 

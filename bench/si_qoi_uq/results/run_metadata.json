@@ -1,5 +1,5 @@
 {
- "git": "c2aa3c9e7ea159fbd1629acb5216d361b89cd8ae",
+ "git": "6600f00e6ec47a2ba65fdd5994beffd89b9f43f5",
  "dirty": true,
  "packages": {
   "jax": "0.12.0.1",
@@ -11,7 +11,7 @@
   "phonopy": null
  },
  "python": "3.14.4",
- "host": "lestrade.scrtp.warwick.ac.uk",
+ "host": "mnf148.csc.warwick.ac.uk",
  "seeds": {
   "fit": 0,
   "cr3": 20261031,
@@ -27,14 +27,14 @@
  },
  "runs": "/storage/eng/essswb/projects/ace-jax/runs/si_qoi_uq_blr",
  "wall_s": {
-  "diag/o4d20": 186.79921317100525,
-  "delta/o4d20": 1148.8583528995514,
-  "committee/o4d20/cr3 (cpu-process s)": 20556.470199108124,
-  "committee/o4d20/posterior (cpu-process s)": 20437.454775571823,
   "diag/o3d12": 15.543296575546265,
   "delta/o3d12": 99.34293389320374,
   "committee/o3d12/cr3 (cpu-process s)": 1988.3049068450928,
-  "committee/o3d12/posterior (cpu-process s)": 2030.2561841011047
+  "committee/o3d12/posterior (cpu-process s)": 2030.2561841011047,
+  "diag/o4d20": 186.79921317100525,
+  "delta/o4d20": 1148.8583528995514,
+  "committee/o4d20/cr3 (cpu-process s)": 20556.470199108124,
+  "committee/o4d20/posterior (cpu-process s)": 20437.454775571823
  },
  "hardware": "fits, diagnostics, delta, committees: lestrade (32 cores, 62 GB) and mnf148 (32 cores, 256 GB)"
 }
