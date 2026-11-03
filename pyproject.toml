@@ -12,10 +12,15 @@ dependencies = [
     "numpy",
     "scikit-learn>=1.6",
     "scipy",
+    "seaborn>=0.13.2",
 ]
 
 [dependency-groups]
-dev = ["pytest", "ruff"]
+dev = [
+    "pypandoc-binary>=1.17",
+    "pytest",
+    "ruff",
+]
 
 [tool.uv]
 package = false

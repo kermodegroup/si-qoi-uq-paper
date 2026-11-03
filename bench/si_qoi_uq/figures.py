@@ -2,13 +2,14 @@
 correlation and ellipse figures).  Palette: the dataviz reference categorical order (validated: CVD and
 normal-vision separation pass; two slots sit below 3:1 on the surface, so every method also has its own
 marker and a legend)."""
-import csv, json
+import csv, json, os
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
+import seaborn as sns  # noqa: E402
 
 from .assemble import Z95  # noqa: E402
 from .propagate import COVER_KEYS, KEYS  # noqa: E402
@@ -28,6 +29,34 @@ STRIP = [("CR3-headline", "lam_F", "CR3, λ_F"), ("CR3-headline", "lam_V", "CR3,
          ("B2blr-committee", "lam_1", "B2 (POPS, ridge blr)")]
 
 
+# Figure contexts: seaborn's font and line scaling plus the physical width each figure is drawn at, so the text is at
+# its intended size wherever the figure is used.  "paper": the text width of a two-column article (7.0 in, fonts
+# ~9 pt); "talk": a 16:9 slide (12 in, fonts ~18 pt).  Every font size below is relative ("small", ...), never points.
+WIDTH = {"paper": 7.0, "talk": 12.0}
+CONTEXT = os.environ.get("SIQ_FIG_CONTEXT", "paper")
+
+
+def set_context(context="paper"):
+    """Apply a seaborn context (paper | talk) and the matching figure width to every figure drawn after it."""
+    global CONTEXT
+    CONTEXT = context
+    sns.set_theme(context=context, style="ticks", rc={
+        "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE, "axes.edgecolor": MUTED,
+        "axes.labelcolor": INK, "text.color": INK, "xtick.color": MUTED, "ytick.color": MUTED, "legend.frameon": False,
+        "axes.titlelocation": "left", "axes.titlesize": "medium", "axes.labelsize": "small", "legend.fontsize": "x-small",
+        "xtick.labelsize": "x-small", "ytick.labelsize": "x-small", "pdf.fonttype": 42,
+        "font.family": "sans-serif", "font.sans-serif": ["DejaVu Sans"]})          # has ⁻¹, θ̂, subscript letters
+
+
+def _size(w, h):
+    """(w, h) as drawn originally -> the same aspect at the context's width."""
+    W = WIDTH[CONTEXT]
+    return (W, W * h / w)
+
+
+set_context(CONTEXT)
+
+
 def short(k):
     return SHORT.get(k) or k.replace("dE_", "").replace(" (meV/at)", "")
 
@@ -38,7 +67,7 @@ def _style(ax):
         ax.spines[s].set_visible(False)
     for s in ("left", "bottom"):
         ax.spines[s].set_color(MUTED)
-    ax.tick_params(colors=MUTED, labelcolor=INK, labelsize=8)
+    ax.tick_params(colors=MUTED, labelcolor=INK)
     ax.grid(axis="y", color=GRID, lw=0.6)
     ax.set_axisbelow(True)
 
@@ -46,7 +75,7 @@ def _style(ax):
 def _save(fig, out, name):
     out.mkdir(parents=True, exist_ok=True)
     for ext in ("png", "pdf"):
-        fig.savefig(out / f"{name}.{ext}", dpi=200, bbox_inches="tight", facecolor=SURFACE)
+        fig.savefig(out / f"{name}.{ext}", dpi=300 if CONTEXT == "paper" else 150, bbox_inches="tight", facecolor=SURFACE)
     plt.close(fig)
 
 
@@ -61,7 +90,7 @@ def _rows(results):
 
 def strip(results, out, models):
     rows = _rows(results)
-    fig, axes = plt.subplots(len(models), 1, figsize=(11, 3.4 * len(models)), squeeze=False, facecolor=SURFACE)
+    fig, axes = plt.subplots(len(models), 1, figsize=_size(11, 3.4 * len(models)), squeeze=False, facecolor=SURFACE)
     for ax, m in zip(axes[:, 0], models):
         _style(ax)
         x = np.arange(len(COVER_KEYS))
@@ -75,9 +104,9 @@ def strip(results, out, models):
             ax.scatter(x + (j - 2) * 0.15, np.clip(zz, -8, 8), s=26, marker=MARK[j], color=CAT[j], label=lab,
                        edgecolor=SURFACE, linewidth=0.8, zorder=3)
         ax.set_xticks(x, [short(k) for k in COVER_KEYS], rotation=60, ha="right")
-        ax.set_ylabel("z = (Q̂ − Q_DFT) / σ  (clipped ±8)", color=INK, fontsize=8)
-        ax.set_title(f"{m}: standardised QoI errors (bands ±1, ±2)", color=INK, fontsize=10, loc="left", pad=22)
-        ax.legend(fontsize=7, frameon=False, ncol=5, loc="lower left", bbox_to_anchor=(0, 1.08))
+        ax.set_ylabel("z = (Q̂ − Q_DFT) / σ  (clipped ±8)", color=INK, fontsize="small")
+        ax.set_title(f"{m}: standardised QoI errors (bands ±1, ±2)", color=INK, fontsize="medium", loc="left", pad=22)
+        ax.legend(fontsize="x-small", frameon=False, ncol=5, loc="lower left", bbox_to_anchor=(0, 1.08))
     fig.tight_layout()
     _save(fig, out, "fig1_z_strip")
 
@@ -87,7 +116,7 @@ def coverage_bars(results, out, models):
     short_lab = {"CR3-headline": "CR3 × λ_F\n(headline)", "B1-headline": "B1: posterior\n× q̂", "B2lev5-committee": "B2: POPS\n(5 % cut)",
                  "B3-headline": "B3: CR3,\nλ = 1"}
     sel = [(meth, sc, short_lab.get(meth, lab)) for meth, sc, lab in PANELS]        # the same methods as fig6's rows
-    fig, axes = plt.subplots(1, len(models), figsize=(5.5 * len(models), 3.6), squeeze=False, facecolor=SURFACE)
+    fig, axes = plt.subplots(1, len(models), figsize=_size(5.5 * len(models), 4.4), squeeze=False, facecolor=SURFACE)
     for ax, m in zip(axes[0], models):
         _style(ax)
         n = next((r["n"] for r in cov if r["model"] == m and r["method"] == sel[0][0] and r["scale"] == sel[0][1]), "?")
@@ -102,11 +131,12 @@ def coverage_bars(results, out, models):
                        label=f"{lev}% interval" if i == 0 else None)
                 ax.errorbar(xi, f, yerr=[[f - lo], [hi - f]], color=INK, lw=1, capsize=2)
             ax.axhline(nom, color=CAT[j], lw=1, ls="--")
-        ax.set_xticks(range(len(sel)), [s[2] for s in sel], fontsize=8)
-        ax.set_ylim(0, 1.05)
-        ax.set_ylabel("fraction of QoIs covered (95 % credible interval)", color=INK, fontsize=8)
-        ax.set_title(f"{m}: coverage of DFT, n = {n}", color=INK, fontsize=10, loc="left")
-        ax.legend(fontsize=7, frameon=False)
+        ax.set_xticks(range(len(sel)), [s[2] for s in sel], fontsize="x-small")
+        ax.set_ylim(0, 1.25); ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1.0])
+        ax.set_ylabel("fraction of QoIs covered", color=INK, fontsize="small")      # bars: 95 % credible intervals
+        ax.set_title(f"{m}: coverage of DFT, n = {n}", color=INK, fontsize="medium", loc="left")
+        if ax is axes[0, 0]:
+            ax.legend(fontsize="x-small", frameon=False, ncol=2, loc="upper left")
     fig.tight_layout()
     _save(fig, out, "fig2_coverage")
 
@@ -119,14 +149,14 @@ def correlation(runs, out, m, extra):
     X = C[:, ok]
     X = X[~np.isnan(X).any(1)]
     R = np.corrcoef(X, rowvar=False)
-    fig, ax = plt.subplots(figsize=(7.2, 6.2), facecolor=SURFACE)
+    fig, ax = plt.subplots(figsize=_size(7.2, 6.2), facecolor=SURFACE)
     from matplotlib.colors import LinearSegmentedColormap
     cmap = LinearSegmentedColormap.from_list("div", ["#104281", "#6da7ec", "#f0efec", "#ef8d87", "#8f1d1d"])
     im = ax.imshow(R, cmap=cmap, vmin=-1, vmax=1)
     lab = [short(KEYS[i]) for i in ok]
-    ax.set_xticks(range(len(ok)), lab, rotation=70, ha="right", fontsize=7)
-    ax.set_yticks(range(len(ok)), lab, fontsize=7)
-    ax.set_title(f"{m}: QoI correlation (CR3 committee, K = {len(X)})", color=INK, fontsize=10, loc="left")
+    ax.set_xticks(range(len(ok)), lab, rotation=70, ha="right", fontsize="x-small")
+    ax.set_yticks(range(len(ok)), lab, fontsize="x-small")
+    ax.set_title(f"{m}: QoI correlation (CR3 committee, K = {len(X)})", color=INK, fontsize="medium", loc="left")
     fig.colorbar(im, ax=ax, fraction=0.04, label="correlation")
     _save(fig, out, "fig3_qoi_correlation")
 
@@ -140,7 +170,7 @@ def _ellipse(ax, mu, S, color, ls, label):
 
 def elastic(out, models, extras):
     pairs = (("diamond_c11", "diamond_c12"), ("diamond_c11", "diamond_c44"))
-    fig, axes = plt.subplots(len(models), 2, figsize=(9, 4 * len(models)), squeeze=False, facecolor=SURFACE)
+    fig, axes = plt.subplots(len(models), 2, figsize=_size(9, 4 * len(models)), squeeze=False, facecolor=SURFACE)
     for r, m in enumerate(models):
         ex = extras.get(m)
         if ex is None:
@@ -156,18 +186,18 @@ def elastic(out, models, extras):
                 _ellipse(ax, mu, lam ** 2 * GL @ GL.T, CAT[j], "-" if j == 0 else "--", f"{route} (1σ, λ_F)")
             ax.scatter(*ex["ref"][[ia, ib]], marker="*", s=120, color=INK, label="DFT (CASTEP)", zorder=4)
             ax.scatter(*mu, marker="o", s=24, color=MUTED, label="Q̂", zorder=4)
-            ax.set_xlabel(f"{short(a)} (GPa)", color=INK, fontsize=8)
-            ax.set_ylabel(f"{short(b)} (GPa)", color=INK, fontsize=8)
-            ax.set_title(f"{m}: {short(a)}–{short(b)}", color=INK, fontsize=10, loc="left")
+            ax.set_xlabel(f"{short(a)} (GPa)", color=INK, fontsize="small")
+            ax.set_ylabel(f"{short(b)} (GPa)", color=INK, fontsize="small")
+            ax.set_title(f"{m}: {short(a)}–{short(b)}", color=INK, fontsize="medium", loc="left")
             if r == len(models) - 1 and c == 0:            # one legend, lower left, where it hides no ellipse
-                ax.legend(fontsize=7, frameon=False)
+                ax.legend(fontsize="x-small", frameon=False)
     fig.tight_layout()
     _save(fig, out, "fig4_elastic_ellipses")
 
 
 def scales_fig(results, out, models):
     rows = [r for r in csv.DictReader(open(results / "scale_diagnostics.csv")) if r["factor"] == "cr3"]
-    fig, axes = plt.subplots(len(models), 1, figsize=(11, 3.2 * len(models)), squeeze=False, facecolor=SURFACE)
+    fig, axes = plt.subplots(len(models), 1, figsize=_size(11, 4.6 * len(models)), squeeze=False, facecolor=SURFACE)
     for ax, m in zip(axes[:, 0], models):
         _style(ax)
         labels = sorted({r["label"] for r in rows if r["model"] == m and r["breakdown"] == "config_type"})
@@ -185,10 +215,11 @@ def scales_fig(results, out, models):
         from matplotlib.ticker import FuncFormatter, NullFormatter
         ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}")); ax.yaxis.set_minor_formatter(NullFormatter())
         ax.set_yticks([1, 2, 5, 10, 20]); ax.set_ylim(0.9, 20)
-        ax.set_xticks(range(len(cats)), cats, rotation=60, ha="right")
-        ax.set_ylabel("λ = RMS z (CR3 shape)", color=INK, fontsize=8)
-        ax.set_title(f"{m}: test-split scale per observable and config_type", color=INK, fontsize=10, loc="left")
-        ax.legend(fontsize=7, frameon=False, ncol=3)
+        ax.set_xticks(range(len(cats)), cats, rotation=45, ha="right", rotation_mode="anchor")
+        ax.set_ylabel("λ = RMS z", color=INK, fontsize="small")
+        ax.set_title(f"{m}: test-split scale per observable and configuration type", color=INK, fontsize="medium", loc="left")
+        if ax is axes[0, 0]:
+            ax.legend(fontsize="x-small", frameon=False, ncol=3, loc="lower right", bbox_to_anchor=(1.0, 1.0))
     fig.tight_layout()
     _save(fig, out, "fig5_scale_diagnostics")
 
@@ -215,7 +246,7 @@ def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=Fa
                 cov[(m, meth, sc)] = {"k95": k["k95"], "n": k["n"], "median_sigma_over_tol": k["median_sigma_over_tol"]}
         panels = ((meth, sc, None),)
     panels = [p_ for p_ in panels if any(q["method"] == p_[0] and q["scale"] == p_[1] for q in rows)]
-    fig, axes = plt.subplots(len(panels), 1, figsize=(11, 4.6 if len(panels) == 1 else 3.3 * len(panels) + 1.3),
+    fig, axes = plt.subplots(len(panels), 1, figsize=_size(11, 4.6 if len(panels) == 1 else 3.3 * len(panels) + 1.3),
                              sharex=True, sharey=True, squeeze=False, facecolor=SURFACE)
     x = np.arange(len(COVER_KEYS))
     order = [m for m in ("o4d20", "o3d12") if m in models]
@@ -235,19 +266,20 @@ def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=Fa
                 ax.errorbar((x + (j - 0.5) * 0.28)[sel], e[sel], yerr=h0[sel], fmt="none", ecolor=INK, elinewidth=1.2, capsize=2,
                             zorder=4, label="without the discrepancy term" if j == 0 else None)
             c = cov.get((m, meth_, sc_), {})
-            lab = (f"{m}: {int(float(c.get('k95', 'nan')))}/{int(float(c.get('n', 'nan')))} inside 95 %, median σ/tol "
+            lab = (f"{m}: {int(float(c.get('k95', 'nan')))}/{int(float(c.get('n', 'nan')))}, σ/tol "     # inside 95 %; median
                    f"{float(c.get('median_sigma_over_tol', 'nan')):.2f}") if c else m
             ax.errorbar(x + (j - 0.5) * 0.28, e, yerr=h, fmt=MARK[j], ms=6, color=CAT[j], ecolor=CAT[j], elinewidth=2,
                         capsize=3, mec=SURFACE, mew=0.8, label=lab, zorder=3)
         ax.scatter(x, np.zeros(len(x)), marker="x", s=46, color=INK, linewidths=1.6, label="DFT (CASTEP)", zorder=4)
         ax.set_yscale("symlog", linthresh=1.0)
-        ax.set_ylabel("(Q − Q_DFT) / tol", color=INK, fontsize=8)
+        ax.set_ylabel("(Q − Q_DFT) / tol", color=INK, fontsize="small")
         if title:
-            ax.set_title(title, color=INK, fontsize=9, loc="left")
+            ax.set_title(title, color=INK, fontsize="medium", loc="left")
         hs, ls_ = ax.get_legend_handles_labels()
         keep = [i for i, l_ in enumerate(ls_) if ip == 0 or l_.startswith(tuple(order))]     # shared entries once, on top
-        ax.legend([hs[i] for i in keep], [ls_[i] for i in keep], fontsize=8, frameon=False, ncol=2 if ip == 0 else 1,
-                  loc="lower left" if ip == 0 else "upper right", bbox_to_anchor=(0, 1.08) if ip == 0 else None)
+        ax.legend([hs[i] for i in keep], [ls_[i] for i in keep], fontsize="x-small", frameon=False, ncol=2, columnspacing=1.0,
+                  handletextpad=0.3,
+                  loc="lower left" if ip == 0 else "lower right", bbox_to_anchor=(0, 1.08) if ip == 0 else (1.0, 1.0))
     axes[-1, 0].set_xticks(x, [short(k) for k in COVER_KEYS], rotation=60, ha="right")
     fig.tight_layout()
     _save(fig, out, "fig8_model_compare_disc" if disc else "fig6_model_compare")
@@ -266,7 +298,7 @@ def force_calibration(results, out, nbins=20, level=0.9, min_atoms=300):
     if not ms:
         return
     kq, k3 = np.sqrt(chi2.ppf(level, 3) / 3), chi(3).ppf(level)
-    fig, axes = plt.subplots(2, len(ms), figsize=(5.6 * len(ms), 9.6), squeeze=False, facecolor=SURFACE)
+    fig, axes = plt.subplots(2, len(ms), figsize=_size(5.6 * len(ms), 9.6), squeeze=False, facecolor=SURFACE)
 
     def binned(x, y, key):
         o = np.argsort(key)
@@ -298,10 +330,9 @@ def force_calibration(results, out, nbins=20, level=0.9, min_atoms=300):
             ax.plot(bx, by, marker=mk, color=col, lw=1.8, ms=5, mec=SURFACE, label=lab, zorder=3)
         ax.plot([lo, hi], [lo, hi], color=INK, lw=1, ls="--", label="calibrated")
         ax.set_xscale("log"); ax.set_yscale("log"); ax.set_xlim(lo, hi); ax.set_ylim(lo, hi)
-        ax.set_xlabel("predicted per-atom σ (eV/Å), bin RMS", color=INK, fontsize=8)
-        ax.set_ylabel("observed |ΔF| (eV/Å), bin RMS", color=INK, fontsize=8)
-        ax.set_title(f"{m}: binned on predicted σ ({len(e)} test atoms)", color=INK, fontsize=9, loc="left")
-        ax.legend(fontsize=7, frameon=False, loc="upper left")
+        ax.set_xlabel("predicted per-atom σ (eV/Å), bin RMS", color=INK, fontsize="small")
+        ax.set_ylabel("observed |ΔF| (eV/Å), bin RMS", color=INK, fontsize="small")
+        ax.set_title(f"{m}: binned on predicted σ", color=INK, fontsize="medium", loc="left")
         ax = axes[1, j]
         _style(ax)
         types, cnt = np.unique(t, return_counts=True)
@@ -312,13 +343,13 @@ def force_calibration(results, out, nbins=20, level=0.9, min_atoms=300):
             ax.plot(xs + (k_ - 2.5) * 0.07, y, marker=mk, color=col, lw=1.0, ms=5, mec=SURFACE, label=lab, zorder=3)
         ax.axhline(level, color=INK, lw=1, ls="--", label=f"nominal {level:.0%}")
         ax.axvline(0.5, color=GRID, lw=0.8)
-        ax.set_xticks(xs); ax.set_xticklabels(["all"] + list(types), fontsize=7, rotation=50, ha="right")
+        ax.set_xticks(xs); ax.set_xticklabels(["all"] + list(types), fontsize="x-small", rotation=50, ha="right")
         ax.set_ylim(0, 1.02)
-        ax.set_ylabel(f"test coverage of the {level:.0%} region", color=INK, fontsize=8)
-        ax.set_title(f"{m}: coverage per configuration type (≥ {min_atoms} atoms)", color=INK, fontsize=9, loc="left")
-        if j == 0:
-            ax.legend(fontsize=7, frameon=False, loc="center left", bbox_to_anchor=(0.0, 0.42))
-    fig.tight_layout()
+        ax.set_ylabel(f"test coverage of the {level:.0%} region", color=INK, fontsize="small")
+        ax.set_title(f"{m}: coverage per type", color=INK, fontsize="medium", loc="left")
+    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    hs, ls_ = axes[0, 0].get_legend_handles_labels()                 # one legend for the figure, below the panels
+    fig.legend(hs, ls_, loc="lower center", ncol=4, fontsize="x-small", frameon=False, bbox_to_anchor=(0.5, 0.0))
     _save(fig, out, "fig7_force_calibration")
 
 
@@ -330,12 +361,12 @@ def ace_pareto(results, out, picked=("o3d12", "o4d20"), f_target=0.0825, q_targe
     if not pth.exists():
         return
     P = json.load(open(pth))
-    rows_ = (("cost_cpu", "cost, Sulis CPU node (µs per atom-step, ace-jax C++ kernel in LAMMPS)", (0.1, 0.2, 0.5, 1, 2, 5)),
-             ("cost_gpu", "cost, Sulis A100 (µs per atom-step, ace-jax CUDA kernel in LAMMPS)", (0.03, 0.05, 0.1, 0.2, 0.5, 1, 2)))
-    fig, axes = plt.subplots(len(rows_), 2, figsize=(10.5, 4.0 * len(rows_)), squeeze=False, facecolor=SURFACE)
+    rows_ = (("cost_cpu", "CPU cost (µs / atom-step)", (0.1, 0.2, 0.5, 1, 2, 5)),      # details in the caption
+             ("cost_gpu", "A100 cost (µs / atom-step)", (0.03, 0.05, 0.1, 0.2, 0.5, 1, 2)))
+    fig, axes = plt.subplots(len(rows_), 2, figsize=_size(10.5, 4.0 * len(rows_)), squeeze=False, facecolor=SURFACE)
     for ir, (ck, xlab, xt) in enumerate(rows_):
       for ax, key, lab, tgt in ((axes[ir, 0], "rmse_F", "test force RMSE (eV/Å)", f_target),
-                                (axes[ir, 1], "qoi", "QoI error (geometric mean of |error| / tolerance)", q_target)):
+                                (axes[ir, 1], "qoi", "QoI error (|error| / tol, geom. mean)", q_target)):
         _style(ax)
         pts = [p_ for p_ in P if p_.get(key) is not None and p_.get(ck)]
         x = np.array([p_[ck] for p_ in pts]); y = np.array([p_[key] for p_ in pts])
@@ -346,7 +377,8 @@ def ace_pareto(results, out, picked=("o3d12", "o4d20"), f_target=0.0825, q_targe
             if hot:
                 ax.scatter([xi], [yi], s=150, facecolor="none", edgecolor=CAT[1], linewidth=2.2, zorder=4,
                            label="studied here" if p_["size"] == picked[0] else None)
-            ax.annotate(p_["size"], (xi, yi), xytext=(6, 5), textcoords="offset points", fontsize=8,
+            ax.annotate(p_["size"], (xi, yi), xytext=(-4, -11) if p_["size"] == "o4d12" else (5, 4), textcoords="offset points",
+                        fontsize="x-small", ha="right" if p_["size"] == "o4d12" else "left",
                         color=INK, fontweight="bold" if hot else "normal")
         ax.axhline(tgt, color=MUTED, lw=1, ls="--", zorder=1, label="benchmark target")
         ax.set_xscale("log"); ax.set_yscale("log")
@@ -356,9 +388,9 @@ def ace_pareto(results, out, picked=("o3d12", "o4d20"), f_target=0.0825, q_targe
             axis.set_major_formatter(plain); axis.set_minor_formatter(NullFormatter())
         ax.set_yticks([t for t in ((0.08, 0.1, 0.15, 0.2, 0.25) if key == "rmse_F" else (0.4, 0.5, 0.7, 1, 2, 3))])
         ax.set_xticks(list(xt))
-        ax.set_xlabel(xlab, color=INK, fontsize=8)
-        ax.set_ylabel(lab, color=INK, fontsize=8)
-    axes[0, 0].legend(fontsize=8, frameon=False, loc="upper right")
+        ax.set_xlabel(xlab, color=INK, fontsize="small")
+        ax.set_ylabel(lab, color=INK, fontsize="small")
+    axes[0, 0].legend(fontsize="x-small", frameon=False, loc="upper right")
     fig.tight_layout()
     _save(fig, out, "fig0_ace_pareto")
 
@@ -421,9 +453,9 @@ def cr3_schematic(out, seed=0, n=500, noise=0.011, P=6, calib=0.2):
     lam = float(np.sqrt(np.mean(((yc - Pc @ th) / sd_c(Pc)) ** 2)))
     fit = Bg @ th
     sd_post = np.sqrt(np.einsum("ij,jk,ik->i", Bg, Ai, Bg))
-    fig = plt.figure(figsize=(13.0, 9.6), facecolor=SURFACE)
-    axa = fig.add_axes([0.05, 0.50, 0.50, 0.45]); axb = fig.add_axes([0.64, 0.50, 0.30, 0.45])
-    axc = fig.add_axes([0.0, 0.0, 1.0, 0.40]); axc.axis("off"); axc.set_xlim(0, 1); axc.set_ylim(0, 1)
+    fig = plt.figure(figsize=_size(10.0, 10.0), facecolor=SURFACE)
+    axa = fig.add_axes([0.08, 0.60, 0.50, 0.36]); axb = fig.add_axes([0.70, 0.60, 0.22, 0.36])
+    axc = fig.add_axes([0.0, 0.0, 1.0, 0.50]); axc.axis("off"); axc.set_xlim(0, 1); axc.set_ylim(0, 1)
     _style(axa); _style(axb)
     axa.fill_between(xg, fit - lam * sd_c(Bg), fit + lam * sd_c(Bg), color=CAT[0], alpha=0.20, lw=0,
                      label=f"CR3 band, λ σ (λ = {lam:.1f} from calibration)")
@@ -433,9 +465,9 @@ def cr3_schematic(out, seed=0, n=500, noise=0.011, P=6, calib=0.2):
     axa.plot(xg, _lj_demo(xg), color=INK, lw=1.2, ls="--", label="truth (LJ)")
     axa.plot(xg, fit, color=INK, lw=2, label="fit to all data, θ̂")
     axa.set_xlim(X_MIN, 10); axa.set_ylim(-1.25, 0.6)
-    axa.set_xlabel("x", color=INK, fontsize=8); axa.set_ylabel("y", color=INK, fontsize=8)
-    axa.set_title(f"(a) The demo's LJ scene: a degree-{P - 1} polynomial cannot follow the well", color=INK, fontsize=9, loc="left")
-    axa.legend(fontsize=7, frameon=False, loc="upper right", ncol=2)
+    axa.set_xlabel("x", color=INK, fontsize="small"); axa.set_ylabel("y", color=INK, fontsize="small")
+    axa.set_title(f"(a) LJ demo scene: a degree-{P - 1} polynomial fit", color=INK, fontsize="medium", loc="left")
+    axa.legend(fontsize="x-small", frameon=False, loc="upper right", ncol=2)
     # function space: coordinates along the two leading principal curves of the CR3 covariance of the prediction
     # (RMS over the grid, units of y); coefficient space is the wrong view for a near-degenerate basis
     ng = len(xg)
@@ -445,7 +477,7 @@ def cr3_schematic(out, seed=0, n=500, noise=0.011, P=6, calib=0.2):
     proj = lambda S: U2.T @ (Bg @ S @ Bg.T / ng) @ U2
     pts = -(Bg @ shifts.T).T @ U2 / np.sqrt(ng)                     # prediction of theta_(-k) - theta, projected
     sc = axb.scatter(pts[:, 0], pts[:, 1], c=Xtr[:, 0], cmap="viridis", s=12, lw=0, zorder=3)
-    for S, col, lab, a_ in ((proj(Scr3), CAT[0], "CR3 covariance (1 sd, λ = 1)", 0.22), (proj(Ai), CAT[1], "posterior σ²A⁻¹ (1 sd)", 0.6)):
+    for S, col, lab, a_ in ((proj(Scr3), CAT[0], "CR3, 1 sd (λ = 1)", 0.22), (proj(Ai), CAT[1], "posterior, 1 sd", 0.6)):
         ww, V = np.linalg.eigh(S)
         ang = np.degrees(np.arctan2(V[1, 1], V[0, 1]))
         axb.add_patch(Ellipse((0, 0), 2 * np.sqrt(ww[1]), 2 * np.sqrt(ww[0]), angle=ang, facecolor=col, alpha=a_, edgecolor=col,
@@ -453,14 +485,14 @@ def cr3_schematic(out, seed=0, n=500, noise=0.011, P=6, calib=0.2):
     axb.scatter([0], [0], s=40, color=INK, zorder=4, label="θ̂")
     lim = 1.15 * max(np.abs(pts).max(), np.sqrt(np.linalg.eigvalsh(proj(Scr3)).max()))
     axb.set_xlim(-lim, lim); axb.set_ylim(-lim, lim)
-    axb.set_xlabel("first principal curve of the CR3 covariance (y units)", color=INK, fontsize=8)
-    axb.set_ylabel("second principal curve", color=INK, fontsize=8)
-    axb.set_title("(b) Each dot: the fit's change when one point is left out", color=INK, fontsize=9, loc="left")
-    axb.legend(fontsize=7, frameon=False, loc="lower left")
-    axb.text(0.02, 0.98, f"Σ_CR3 is the sum of the {len(ytr)} shifts' outer\nproducts, so its ellipse is ~√{len(ytr)} × the\nspread of single dots",
-             transform=axb.transAxes, fontsize=7, color=MUTED, va="top")
-    cb = fig.colorbar(sc, ax=axb, fraction=0.05, pad=0.02)
-    cb.set_label("x of the deleted point", color=INK, fontsize=8); cb.ax.tick_params(labelsize=7)
+    axb.set_xlabel("1st principal curve of Σ_CR3", color=INK, fontsize="small")
+    axb.set_ylabel("second principal curve", color=INK, fontsize="small")
+    axb.set_title("(b) Leave-one-out changes", color=INK, fontsize="medium", loc="left")
+    axb.legend(fontsize="x-small", frameon=False, loc="lower left")
+    axb.text(0.03, 0.97, f"Σ_CR3 sums {len(ytr)} outer\nproducts: its ellipse is\n~√{len(ytr)} × the dot spread",
+             transform=axb.transAxes, fontsize="x-small", color=MUTED, va="top")
+    cb = fig.colorbar(sc, cax=fig.add_axes([0.935, 0.60, 0.012, 0.36]))
+    cb.set_label("x of the deleted point", color=INK, fontsize="small"); cb.ax.tick_params(labelsize="x-small")
     steps = [("1  Fit and residuals", [r"$A=\Psi^T\Psi+\Lambda$", r"$\rho_k=\tilde y_k-\Psi_k\hat\theta$"],
               "one fit to all configurations;\nrows Ψₖ of configuration k\n(energy, forces, virial)\nmove together"),
              ("2  Leverage of k", [r"$H_{kk}=\Psi_kA^{-1}\Psi_k^T$"],
@@ -473,35 +505,44 @@ def cr3_schematic(out, seed=0, n=500, noise=0.011, P=6, calib=0.2):
               "how much the fit depends\non which configurations were\nin it: the shape, wide where\nthe model is misspecified"),
              ("6  Use, with one scale λ", [r"$\sigma(b)=\lambda\,\|L^Tb\|$"],
               "λ from held-out data; per\natom the 3×3 force block V;\nQoIs by the delta method\nand committees in θ")]
-    W, Hh, gap, y0 = 0.150, 0.74, 0.0145, 0.06
+    W, Hh, gx, rows_y = 0.315, 0.40, 0.0125, (0.47, 0.02)          # three boxes per row, two rows
     for i, (title, eqs, read) in enumerate(steps):
-        x0 = 0.012 + i * (W + gap)
+        r_, c_ = divmod(i, 3)
+        x0, y0 = 0.012 + c_ * (W + gx), rows_y[r_]
         axc.add_patch(FancyBboxPatch((x0, y0), W, Hh, boxstyle="round,pad=0.006,rounding_size=0.012", facecolor="#f1f0ec",
                                      edgecolor=GRID, lw=1.0, transform=axc.transAxes))
-        axc.text(x0 + 0.008, y0 + Hh - 0.04, title, fontsize=8.6, color=INK, fontweight="bold", va="top", transform=axc.transAxes)
+        axc.text(x0 + 0.012, y0 + Hh - 0.03, title, fontsize="small", color=INK, fontweight="bold", va="top", transform=axc.transAxes)
         for j_, eq in enumerate(eqs):
-            yy = y0 + Hh * (0.62 if len(eqs) == 1 else 0.70 - 0.16 * j_)
-            axc.text(x0 + W / 2, yy, eq, fontsize=8.4, color=INK, ha="center", va="center", transform=axc.transAxes)
-        axc.text(x0 + 0.008, y0 + 0.03, read, fontsize=7.4, color=MUTED, va="bottom", transform=axc.transAxes, linespacing=1.35)
-        if i < len(steps) - 1:
-            axc.add_patch(FancyArrowPatch((x0 + W + 0.001, y0 + Hh / 2), (x0 + W + gap - 0.001, y0 + Hh / 2), arrowstyle="-|>",
-                                          mutation_scale=10, color=MUTED, lw=1.2, transform=axc.transAxes))
-    axc.text(0.012, 0.86, "(c) The CR3 computation: one fit, then closed-form leave-one-configuration-out quantities", fontsize=9,
-             color=INK, transform=axc.transAxes)
+            yy = y0 + Hh * (0.60 if len(eqs) == 1 else 0.68 - 0.17 * j_)
+            axc.text(x0 + W / 2, yy, eq, fontsize="small", color=INK, ha="center", va="center", transform=axc.transAxes)
+        axc.text(x0 + 0.012, y0 + 0.025, read, fontsize="x-small", color=MUTED, va="bottom",
+                 transform=axc.transAxes, linespacing=1.3)
+        if c_ < 2:
+            axc.add_patch(FancyArrowPatch((x0 + W + 0.001, y0 + Hh / 2), (x0 + W + gx - 0.001, y0 + Hh / 2), arrowstyle="-|>",
+                                          mutation_scale=8, color=MUTED, lw=1.0, transform=axc.transAxes))
+    axc.text(0.012, 0.95, "(c) The CR3 computation: one fit, then closed-form leave-one-configuration-out quantities",
+             fontsize="medium", color=INK, transform=axc.transAxes)
     _save(fig, out, "fig9_cr3_schematic")
     return {"lambda": lam, "n_train": int(len(ytr)), "n_calib": int(len(yc))}
 
 
-def all_figures(results, out, runs, models, extras):
-    ace_pareto(results, out)
-    cr3_schematic(out)
-    strip(results, out, models)
-    coverage_bars(results, out, models)
-    m3 = "o4d20" if "o4d20" in extras else models[0]
-    correlation(runs, out, m3, extras[m3])
-    elastic(out, [m for m in models if m in extras], extras)
-    scales_fig(results, out, models)
-    model_compare(results, out, models)
-    model_compare(results, out, models, disc=True)
-    force_calibration(results, out)
-    json.dump({"correlation_model": m3}, open(out / "figures.json", "w"))
+def all_figures(results, out, runs, models, extras, contexts=("paper", "talk")):
+    """Every figure in each context: the paper set in `out` (used by the HTML page and the LaTeX source), the talk set
+    in out / "talk"."""
+    for ctx in contexts:
+        set_context(ctx)
+        o = out if ctx == "paper" else out / ctx
+        ace_pareto(results, o)
+        cr3_schematic(o)
+        strip(results, o, models)
+        coverage_bars(results, o, models)
+        m3 = "o4d20" if "o4d20" in extras else models[0]
+        correlation(runs, o, m3, extras[m3])
+        elastic(o, [m for m in models if m in extras], extras)
+        scales_fig(results, o, models)
+        model_compare(results, o, models)
+        model_compare(results, o, models, disc=True)
+        force_calibration(results, o)
+        json.dump({"correlation_model": m3}, open(o / "figures.json", "w"))
+
+    set_context("paper")
