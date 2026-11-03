@@ -204,6 +204,12 @@ def elastic(out, models, extras):
             ax.set_xlabel(f"{short(a)} (GPa)", color=INK, fontsize="small")
             ax.set_ylabel(f"{short(b)} (GPa)", color=INK, fontsize="small")
             ax.set_title(f"{m}: {short(a)}–{short(b)}", color=INK, fontsize="medium", loc="left")
+    # common limits on every panel (C11 on x everywhere; C12 and C44 on y): the models' widths compare at a glance
+    live = [ax for ax in axes.ravel() if ax.has_data()]
+    for get, put in (("get_xlim", "set_xlim"), ("get_ylim", "set_ylim")):
+        lo = min(getattr(ax, get)()[0] for ax in live); hi = max(getattr(ax, get)()[1] for ax in live)
+        for ax in live:
+            getattr(ax, put)(lo, hi)
     _top_legend(fig, axes[0, 0], ncol=4)
     _save(fig, out, "fig4_elastic_ellipses")
 
