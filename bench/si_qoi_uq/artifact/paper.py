@@ -666,7 +666,8 @@ scores the whole vector of DFT values at once, by the evidence each method's pre
 \(\Delta\) the vector of \((Q_{\text{DFT}}-\hat Q)/\text{tol}_Q\) over the scored QoIs and \(C_Q\) its predicted covariance in the same
 tolerance units (\(\lambda^2G\,LL^{\mathsf T}G^{\mathsf T}\) for the delta method, with \(G\) the QoI rows stacked, or the committee
 covariance),</p>
-\[ \log p(\Delta\mid\text{method})=-\tfrac12\,\Delta^{\mathsf T}(C_Q+\epsilon I)^{-1}\Delta-\tfrac12\log\lvert 2\pi(C_Q+\epsilon I)\rvert , \]
+\[ \log p(\Delta\mid\text{method})=-\tfrac12\,\Delta^{\mathsf T}(C_Q+\epsilon I)^{-1}\Delta
+   -\tfrac12\log\lvert 2\pi(C_Q+\epsilon I)\rvert , \]
 <p>with a small ridge \(\epsilon=10^{-6}\) (a floor of 10<sup>−3</sup> tolerances on σ; 10<sup>−8</sup> and 10<sup>−4</sup> as
 sensitivities). Every method's scale is fixed beforehand, on held-out forces or held-out scores, so no method has a free parameter left,
 and the difference of two methods' log evidence on the same QoIs is a log Bayes factor. The first term rewards predictions whose
