@@ -29,18 +29,18 @@ def f(x, d=2):
 cov, sd, dvc, mw = rd("coverage.csv"), rd("scale_diagnostics.csv"), rd("delta_vs_committee.csv"), rd("member_widths.csv")
 joint = json.load(open(RES / "joint_tests.json"))
 phys = json.load(open(RES / "lamF_physical_filter.json")) if (RES / "lamF_physical_filter.json").exists() else {}
-models = sorted({r["model"] for r in cov}, key=lambda m: ("o4d20", "o3d12").index(m))
+models = sorted({r["model"] for r in cov}, key=lambda m: ("o3d12", "o4d20").index(m))
 get = lambda m, meth, sc: next((r for r in cov if r["model"] == m and r["method"] == meth and r["scale"] == sc), None)
 lam = {m: {r["kind"]: r["rms_z"] for r in sd if r["model"] == m and r["factor"] == "cr3" and r["breakdown"] == "all"}
        for m in models}
 
 # the four methods of Figures 1 and 1b (figures.PANELS), with the same labels; variants in the sensitivity table
 TAB = [("CR3-headline", "lam_F", "CR3 × λ<sub>F</sub> (headline)"), ("B1-headline", "q_b1", "B1: posterior × q̂"),
-       ("B2lev5-committee", "lam_1", "B2: POPS (leverage cut 5 %)"), ("B3-headline", "lam_1", "B3: CR3, λ = 1")]
+       ("B2lev50-committee", "lam_1", "B2: POPS (leverage cut 50 %, the package default)"), ("B3-headline", "lam_1", "B3: CR3, λ = 1")]
 TAB_SENS = [("CR3-headline", "lam_V", "CR3 × λ<sub>V</sub>"), ("CR3-headline", "lam_E", "CR3 × λ<sub>E</sub>"),
             ("CR3-headline", "lam_pool", "CR3 × λ<sub>pool</sub>"),
             ("CR3-committee-lamF-physical", "lam_F", "CR3 at λ<sub>F</sub>, full re-run, physical members"),
-            ("B2lev50-committee", "lam_1", "POPS, leverage cut 50 %")]
+            ("B2lev5-committee", "lam_1", "POPS, leverage cut 5 %")]
 _cov_row = lambda m, lab, r: (
     f"<tr><td>{m}</td><td>{lab}</td><td class=n>{int(r['n'])}</td><td class=n>{int(r['k68'])} [{f(r['ci68_lo'])}, {f(r['ci68_hi'])}]</td>"
     f"<td class=n>{int(r['k95'])} [{f(r['ci95_lo'])}, {f(r['ci95_hi'])}]</td><td class=n>{f(r['rms_z'])}</td>"
@@ -141,7 +141,7 @@ def fb(m, k, level=0.9):
 dcrps = lambda m, meth, sc: f(disc.get(m, {}).get(f"{meth}+disc/{sc}", {}).get("crps_tol"))
 crps = lambda m, meth, sc: f(get(m, meth, sc).get("crps_tol")) if get(m, meth, sc) else "–"
 EV_ROWS = (("CR3/lam_F", "CR3 × λ<sub>F</sub> (headline)"), ("B1/q_b1", "B1: posterior × q̂"),
-           ("B2lev5/lam_1", "B2: POPS (leverage cut 5 %)"), ("B3/lam_1", "B3: CR3, λ = 1"),
+           ("B2lev50/lam_1", "B2: POPS (leverage cut 50 %)"), ("B3/lam_1", "B3: CR3, λ = 1"),
            ("CR3/lam_V", "CR3 × λ<sub>V</sub> (sensitivity)"), ("CR3/lam_F+disc", "CR3 × λ<sub>F</sub> + discrepancy term"),
            ("B1/q_b1+disc", "B1 + discrepancy term"))
 jrows = ""
@@ -231,7 +231,7 @@ Cook and Weisberg 1982]. The per-atom 3×3 block of the covariance gives anisotr
 <p>The scale comes from split conformal prediction [Vovk, Gammerman and Shafer 2005], which turns the scores of held-out
 calibration points into a quantile that covers a new point with a guaranteed probability. One quantile serves every atom: the
 jackknife shape already carries the dependence of the error on the environment. A scale learned from the site descriptor
-(normalised conformal prediction [Papadopoulos et al. 2008; Lei et al. 2018]) makes the coverage more even across environments
+(normalised conformal prediction [Papadopoulos et al. 2008; Lei et al. 2018; Ho, Ortner and Wang 2026]) makes the coverage more even across environments
 represented in the training data, but transfers less well to environments left out of it, so we report it as a refinement,
 not as the method. The scores come from a stratified hold-out of the training set, and a fitted transfer exponent carries them to
 the fit on all the data. The open-source ace-jax package [ace-jax] provides the shape, the hold-out scores and the transfer;
@@ -251,6 +251,14 @@ to the GAP-18 database [Bartók et al. 2018]. The propagation uses implicit diff
 of the lattice constant, and is cross-checked by committees run through the unmodified benchmark protocol. We test the intervals
 against DFT, one QoI at a time and jointly, and compare them with two baselines: the posterior with one conformal scale, and
 pointwise optimal parameter sets (POPS) [Swinburne and Perez 2024].</p>
+<p>Misspecification-aware parameter uncertainty has been propagated to material properties before. Perez et al. [2025] propagate
+POPS hypercube ensembles of a quadratic SNAP potential for tungsten to phase, elastic, defect and surface properties, re-relaxing
+each member, and use the implicit derivative of a relaxed minimum with respect to the parameters [Maliyov, Grigorev and Swinburne
+2025] to predict volumes and a vacancy-migration barrier; the DFT values lie inside the ensemble's envelope without a calibration
+step. We differ in three ways: the shape is the CR3 covariance with one scale calibrated on held-out data, so its size does not
+depend on which training rows define a box; the intervals are tested against DFT one QoI at a time and jointly, by coverage, CRPS
+and evidence; and the committees run through an unmodified benchmark protocol, beside implicit differentiation of every
+relaxation.</p>
 <p>We also show where calibrated parameter-space uncertainty fails, and why. A bias that all training configurations of one kind
 share is invisible to any delete-one jackknife; in the GAP-18 database [Bartók et al. 2018] every defect cell is a hot molecular-dynamics snapshot. We
 diagnose this bias, measure it from the training labels alone, and add it to the defect QoIs as a discrepancy term, which
@@ -259,20 +267,61 @@ leaves the fit unchanged.</p>
 (2.5), the baselines (2.6) and the propagation to QoIs (2.7). Section 3 gives the validation statistics and the results: the per-atom forces first, then the global scale that the
 propagation uses, then the QoIs. Section 4 discusses them and Section 5 concludes.</p>""", "draft")
 
+QOI_ROWS = (  # (key, name, unit, tolerance text): the benchmark's QoIs and tolerances (ace-jax bench/si_qoi/score.py)
+    *[(k, n, "GPa", "10 %") for k, n in (("diamond_c11", "C<sub>11</sub>"), ("diamond_c12", "C<sub>12</sub>"),
+                                         ("diamond_c44", "C<sub>44</sub>"), ("diamond_bulk_modulus", "bulk modulus B"))],
+    *[(f"dE_{p} (meV/at)", f"E({lab}) − E(diamond)", "meV/atom", "10 meV/atom") for p, lab in
+      (("hex_diamond", "hexagonal diamond"), ("bc8", "bc8"), ("st12", "st12"), ("beta-Sn", "β-Sn"), ("sh", "simple hexagonal"),
+       ("hcp", "hcp"), ("bcc", "bcc"), ("fcc", "fcc"))],
+    *[(k, n, "eV", "0.1 eV") for k, n in (("vacancy_energy", "vacancy formation"),
+                                          ("tetrahedral_interstitial_energy", "tetrahedral interstitial formation"),
+                                          ("hexagonal_interstitial_energy", "hexagonal interstitial formation"),
+                                          ("dumbbell_interstitial_energy", "dumbbell interstitial formation"))],
+    ("surface_100 (J/m2)", "(100) surface energy, relaxed", "J/m<sup>2</sup>", "5 %"),
+    ("gamma_us glide (J/m2)", "unstable stacking fault, glide", "J/m<sup>2</sup>", "10 %"),
+    ("gamma_us shuffle (J/m2)", "unstable stacking fault, shuffle", "J/m<sup>2</sup>", "10 %"),
+    ("decohesion_max_stress", "maximum (100) decohesion stress, unrelaxed", "eV/Å<sup>3</sup>", "10 %"),
+    ("phonon_f rms vs DFT (THz)", "phonon frequencies, RMS against DFT", "THz", "0.2 THz"))
+_qv = {(r["model"], r["qoi"]): r for r in rd("qoi_uq.csv") if r["method"] == "CR3-headline" and r["scale"] == "lam_F"}
+_QDIG = {"eV": 3, "J/m<sup>2</sup>": 3, "eV/Å<sup>3</sup>": 3, "THz": 3}
+def _qoi_table():
+    rows = ""
+    for k, name, unit, tol in QOI_ROWS:
+        rs = [_qv.get((m, k)) for m in ("o3d12", "o4d20")]
+        if not all(rs):
+            continue
+        d, phon = _QDIG.get(unit, 1), k.startswith("phonon")
+        cells = ""
+        for r in rs:
+            err = "–" if phon else f"{float(r['mean']) - float(r['dft']):+.{d}f}"
+            cells += f"<td class=n>{float(r['mean']):.{d}f}</td><td class=n>{err}</td>"
+        dft = "–" if phon else f"{float(rs[0]['dft']):.{d}f}"
+        rows += f"<tr><td>{name}</td><td class=n>{dft}</td><td>{unit}</td><td class=n>{tol}</td>{cells}</tr>"
+    return ("<div class=\"wrap\"><table><caption>Table 0. The silicon QoIs: DFT (CASTEP) reference value, unit, benchmark tolerance, "
+            "and the value and error (model − DFT) of the two ACE models. A tolerance in % is relative to the DFT value. "
+            "The phonon entry is the RMS difference of the phonon frequencies from DFT, so it has no DFT value or error and is not "
+            "scored for coverage.</caption><thead><tr><th rowspan=2>QoI</th><th rowspan=2>DFT</th><th rowspan=2>unit</th>"
+            "<th rowspan=2>tolerance</th><th colspan=2>ACE o3d12</th><th colspan=2>ACE o4d20</th></tr>"
+            "<tr><th>value</th><th>error</th><th>value</th><th>error</th></tr></thead>"
+            f"<tbody>{rows}</tbody></table></div>")
+qoi_table = _qoi_table()
 _par = {p_["size"]: p_ for p_ in json.load(open(RES / "ace_pareto.json"))} if (RES / "ace_pareto.json").exists() else {}
 if {"o3d12", "o4d20", "o4d12", "o4d14"} <= set(_par):
     _a, _b = _par["o3d12"], _par["o4d20"]
     pareto_par = f"""<p><b>The two models.</b> We study two members of the linear ACE ladder of the ace-jax silicon accuracy–cost benchmark,
 fitted to the GAP-18 database [Bartók et al. 2018] (Figure 0). A model oNdM has correlation order N and total polynomial degree M.
-o4d20 ({_b['n_params']} coefficients) is the only size of the ladder that meets both of the benchmark's targets, a test force RMSE
-no larger than GAP-18's 0.0825 eV/Å on this split (o4d20: {_b['rmse_F']:.4f} eV/Å) and a QoI error, the geometric mean of
-|error|/tolerance over the silicon QoIs, below 0.5 (o4d20: {_b['qoi']:.2f}). o3d12 ({_a['n_params']} coefficients) is {_b['cost_cpu'] / _a['cost_cpu']:.0f}× cheaper on a CPU node and
-{_b['cost_gpu'] / _a['cost_gpu']:.0f}× cheaper on an A100, with
-about twice the force error ({_a['rmse_F']:.3f} eV/Å) and a typical QoI error of one tolerance ({_a['qoi']:.2f}). The pair spans
-the useful range of the ladder: an accurate model whose intervals should be narrow, and a cheap one whose intervals must be wide to
-be honest. The two columns of Figure 0 also rank the sizes differently: o4d12 has a larger force error than o4d14 but a smaller QoI
+Table 0 lists the silicon QoIs, their DFT (CASTEP) values and the benchmark's tolerances: 10 % of the DFT value for the elastic
+constants, the bulk modulus, the unstable stacking-fault energies and the decohesion stress; 5 % for the (100) surface energy;
+10 meV/atom for the phase energies; 0.1 eV for the point-defect formation energies; and 0.2 THz for the phonon RMS. The QoI error
+of a model is the geometric mean of |error|/tolerance over these QoIs. o3d12 ({_a['n_params']} coefficients) is the cheaper model, with a
+test force RMSE of {_a['rmse_F']:.3f} eV/Å and a typical QoI error of one tolerance ({_a['qoi']:.2f}). o4d20 ({_b['n_params']} coefficients)
+is the only size of the ladder that meets both of the benchmark's targets, a test force RMSE no larger than GAP-18's 0.0825 eV/Å
+on this split ({_b['rmse_F']:.4f} eV/Å) and a QoI error below 0.5 ({_b['qoi']:.2f}); o3d12 is {_b['cost_cpu'] / _a['cost_cpu']:.0f}× cheaper on a
+CPU node and {_b['cost_gpu'] / _a['cost_gpu']:.0f}× cheaper on an A100. The pair spans the useful range of the ladder: a cheap model
+whose intervals must be wide to be honest, and an accurate one whose intervals should be narrow. The two columns of Figure 0 also rank the sizes differently: o4d12 has a larger force error than o4d14 but a smaller QoI
 error ({_par['o4d12']['qoi']:.2f} against {_par['o4d14']['qoi']:.2f}). Force accuracy alone does not predict QoI accuracy, which is why the
 uncertainty is propagated to the QoIs themselves.</p>
+{qoi_table}
 <figure><img src="fig0_ace_pareto.png" alt="Test force RMSE and QoI error against CPU cost for the linear ACE ladder, o3d12 and o4d20 circled"><figcaption>Figure 0.
 The linear ACE ladder of the ace-jax silicon accuracy–cost benchmark: test force RMSE (left) and QoI error (right; the geometric
 mean over the silicon QoIs of |error|/tolerance against CASTEP) against cost in LAMMPS, float64: on a Sulis CPU node with the
@@ -358,8 +407,8 @@ is flagged as degenerate and refused.</p>
 test-split λ<sub>F</sub>; and the propagated CR3 × λ<sub>F</sub> coverage of the 20 scored QoIs.</caption>
 <thead>{ard_head}</thead>
 <tbody>{ard_rows}</tbody></table></div>
-<p>Neither fit is degenerate. For o4d20 every \(a_k\) is interior, and for o3d12 only the two-body precision sits on
-the floor. ARD weakens the prior relative to the BLR's single \(\sigma_c\) on most body orders (on all of them for o3d12; for
+<p>Neither fit is degenerate. For o3d12 only the two-body precision sits on the floor, and for o4d20 every \(a_k\) is
+interior. ARD weakens the prior relative to the BLR's single \(\sigma_c\) on most body orders (on all of them for o3d12; for
 o4d20 only the 5-body block is held more tightly), yet the means match the BLR fits on the held-out test split, and the test-split
 scales and the propagated coverage agree. The QoI results below use the BLR fits, which are the
 benchmark models; ARD gives the same coverage (Table 1), and it provides the per-atom force calibration of
@@ -428,7 +477,7 @@ calibrated on held-out data (Section 3.3). The CR3 covariance measures how much 
 prediction depends on which configurations were in the fit: large where the fit leans on configurations it reproduces
 poorly. It is a parameter variance used as a proxy for approximation error, which is why it needs a scale.</p>
 <h3>2.5 Calibrated per-atom forces: the CR3 shape and one conformal quantile</h3>
-<p>This section describes the per-atom force uncertainty introduced in this work (Contribution A). Every predicted force gets
+<p>This section describes the per-atom force uncertainty introduced in this work. Every predicted force gets
 a calibrated uncertainty: a shape times one scale. The shape is the per-atom 3×3 block of the CR3
 covariance, \(V(x)_{\alpha\beta}=u_\alpha^{\mathsf T}RR^{\mathsf T}u_\beta\) with \(u_\alpha=D^{-1}B_{F,i\alpha}^{\mathsf T}\) built
 from the atom's three force rows (\(\alpha\in\{x,y,z\}\)), and \(v=\operatorname{tr}V\). The scale is one conformal quantile
@@ -454,14 +503,19 @@ exchangeability of the calibration and target configurations it covers a new ato
 Gaussian reading is the force standard deviation \(\sigma_{F,i}=(q/\chi_3^{-1}(1-\alpha))\sqrt v\), with \(\chi_3^{-1}\) the
 \(\chi_3\) quantile function, and covariance \(\sigma_{F,i}^2V/v\).</p>
 <p><b>A learned scale, as a refinement.</b> The CR3 shape is a quadratic form in the atom's force rows, so it already grows with
-the distance of the environment from the training descriptors. A scale that depends on the environment should therefore model the
+the distance of the environment from the training descriptors. In that it is related to the D-optimality extrapolation grade
+used to select training data for linear potentials [Podryabinkin and Shapeev 2017; Lysogorskiy et al. 2023], a leverage of the
+atom's descriptor against the training set; the CR3 shape weights that leverage by the residuals the fit leaves, configuration by
+configuration, and the quantile calibrates it to a coverage. A scale that depends on the environment should therefore model the
 ratio of the error to the shape, the score \(s\), not novelty itself. We test one learned from the site descriptor (normalised
 conformal prediction [Papadopoulos et al. 2008; Lei et al. 2018]). Let \(\phi_i\) be atom \(i\)'s whitened principal components
 of the normalised site descriptor, from a PCA of training atoms only. On one half of the \(T_{\text{val}}\) configurations a ridge
 regression \(f(\phi)=\beta_0+\beta^{\mathsf T}\phi+\gamma^{\mathsf T}\phi^{2}\) of \(\log s_i^2\) is fitted (each configuration
 weighted once, the ridge by five-fold cross-validation over configurations) and clipped to the range it takes on the
 calibration atoms. On the other half the normalised scores \(s_i\,e^{-f(\phi_i)/2}\) give one quantile \(q_f\), and the region is
-\(s\le q_f\,e^{f(\phi)/2}\). The split is repeated over five seeds.</p>
+\(s\le q_f\,e^{f(\phi)/2}\). The split is repeated over five seeds. Ho, Ortner and Wang [2026] learn an
+environment-dependent scale in the same spirit: a neural network of MACE descriptors that multiplies a last-layer uncertainty,
+fitted with a weighted absolute-error loss rather than as a conformal quantile.</p>
 <p><b>Why the propagation does not use this scale.</b> The conformal quantile tempers force <em>outputs</em> atom by
 atom. It does not define a covariance in θ, and a QoI depends on every atom and on relaxed geometries. Propagation therefore uses one
 global λ (Section 3.3). Section 3.2 tests the per-atom force uncertainties directly. Energy and virial uncertainties use the unscaled posterior
@@ -480,9 +534,11 @@ package POPSRegression [Swinburne, POPSRegression]. For each training row \(i\) 
 row weights but no noise scale, \(r_i\) is the row's residual at the ridge solution, and \(A_\mu=M+\mu\operatorname{diag}(\Gamma_j^2)\),
 with \(M=\sum_i\psi^w_i\psi_i^{w\mathsf T}\) and the ridge parameter \(\mu\) chosen on a path. Members are drawn uniformly in the
 hypercube spanned by the principal directions of the \(\delta_i\), with bounds from their extreme projections, as in Swinburne and
-Perez [2024]. The ace-jax default builds the box from every row. Section 3.7 also reports boxes built only from rows above a
-leverage percentile, because the low-leverage rows make the default box unphysical. B2 has no calibration step, so it tests a
-misspecification-aware shape without a fitted scale.</p>
+Perez [2024]. The reference package builds the box only from the rows at or above the median leverage
+(<code>leverage_percentile = 50</code>, its default); the ace-jax port's default keeps every row, which makes the box unphysical
+here (Section 3.7). B2 follows the reference package: the 50 % cut. Section 3.7 reports the other cuts, and checks the port against
+the reference package on the same weighted design. B2 has no calibration step, so it tests a misspecification-aware shape without a
+fitted scale.</p>
 <p>The third baseline, B3, is the CR3 covariance with \(\lambda=1\). It isolates the effect of the scale: the difference between B3
 and the headline is entirely the calibration of Section 3.3.</p>
 <p>Fisher et al. [2026] take the conformal step further. They calibrate joint conformal sets for energies, forces and virials
@@ -501,7 +557,7 @@ scale for observable type \(q\in\{E,F,V\}\) is \(\lambda_q=\operatorname{RMS}(z_
 and V equally within a configuration and configurations equally. As in Section 3.2, rows that vanish by site symmetry
 (\(\lVert L^{\mathsf T}b\rVert\lt 10^{-3}\) of the median of their kind) are dropped. No QoI, and no DFT QoI value, enters any scale.
 The headline uses \(\lambda_F\): forces are most of the training rows, and they are the quantity calibrated per atom in Section 3.2.
-In Figure 7, \(\lambda_F\) gives the headline line.</p>
+In Figure 2, \(\lambda_F\) gives the headline line.</p>
 <p>A single scale is a compromise. Figure 5 breaks the test-split scale down by configuration type: it ranges from about 1 to 15
 across types and observables, largest for the virials of the bt cells, the vacancy and interstitial cells and, for o3d12, the
 hexagonal-diamond forces, and smallest for the energies of the crystal phases. The ratios of the global scales (Table 2) show the same at the level of observables.</p>
@@ -545,7 +601,9 @@ decohesion stress; the glide and shuffle unstable stacking-fault energies; the p
 from the model's own relaxed diamond cell, so no QoI is linear in θ. The phonon RMS is a distance to DFT and has no DFT
 value: it is left out of coverage (n = 20).</p>
 <h4>2.7.2 Delta method by implicit differentiation</h4>
-<p>Write the energy of a structure with coordinates \(x\) (positions, and cell where relaxed) as \(E=b_E(x)\cdot\theta+E^0(x)\), with
+<p>Implicit differentiation of a relaxed minimum with respect to the parameters of an interatomic potential is the method of
+Maliyov, Grigorev and Swinburne [2025]; here it is applied to every relaxation of the benchmark, the lattice constant included.
+Write the energy of a structure with coordinates \(x\) (positions, and cell where relaxed) as \(E=b_E(x)\cdot\theta+E^0(x)\), with
 \(b_E(x)\) its energy row (Section 2.1) and \(E^0(x)\) the reference energies. A QoI \(Q(\theta)\) is computed at a relaxed geometry
 \(x^*(\theta)\) solving \(\nabla_xE=0\), so</p>
 \[ \frac{dx^*}{d\theta}=-\mathcal H^{-1}\frac{\partial\nabla_xE}{\partial\theta}=-\mathcal H^{-1}\Big(\frac{\partial b_E}{\partial x}\Big)^{\mathsf T},\qquad
@@ -600,14 +658,15 @@ def _rank1():
                 and r["cov"] != "cr3" and r["qoi"] in _INT]
         fr = [float(r["sigma_bias"]) / rs for r in rows]
         out[m] = {"lo": min(fr), "hi": max(fr), "rs": rs, "sig": j["synthetic_rows"]["interstitial"]["cr3_sigma_lamF_eV"],
-                  "k95": sorted(j[f"cr3+bias_{c}/lam_F"]["k95"] for c in ("cr3", "post")), "k0": j["cr3/lam_F"]["k95"]}
+                  "k95": sorted(j[f"cr3+bias_{c}/lam_F"]["k95"] for c in ("cr3", "post")), "k0": j["cr3/lam_F"]["k95"],
+                  "n": j["cr3/lam_F"]["n"]}
     return out
 rk1 = _rank1()
 rk1_txt = ("; ".join(f"{m}: {v['lo']:.1f}–{v['hi']:.1f} of r* = {v['rs']:.2f} eV" for m, v in rk1.items()) if rk1 else "(pending)")
-rk1_cov = (", ".join(f"{m} {v['k0']} → {v['k95'][0]}–{v['k95'][1]} of 20" for m, v in rk1.items()) if rk1 else "(pending)")
+rk1_cov = (", ".join(f"{m} {v['k0']} → {v['k95'][0]}–{v['k95'][1]} of {v['n']}" for m, v in rk1.items()) if rk1 else "(pending)")
 rk1_sig = (" and ".join(f"{v['sig']:.2f} eV against r* = {v['rs']:.2f} eV ({m})" for m, v in rk1.items()) if rk1 else "(pending)")
 
-sec("method-disc", "Measuring the bias: a discrepancy term", r"""
+sec("method-disc", "2.7.4 Measuring the bias: a discrepancy term", r"""
 <p>A bias shared by every training configuration of a kind is invisible to any delete-one jackknife: deleting one
 configuration does not move the fit along it. The defect formation energies expose such a bias. Every training interstitial,
 vacancy and divacancy cell is a hot MD snapshot, while the QoIs are relaxed defects.</p>
@@ -640,12 +699,14 @@ uses training labels only, as for the interstitials.</p>
 propagated covariance (the POPS construction applied to the synthetic row, in the CR3 or posterior metric), added as
 \(\Sigma\mathrel{+}=\delta_t\delta_t^{\mathsf T}\), carries part of the bias to the relaxed defects, but unevenly: the projected σ on the three
 interstitial QoIs is """ + rk1_txt + r""" (both metrics). The hot-snapshot contrast and the relaxed defect's formation row point
-in different directions in θ, so the transfer depends on the QoI. Coverage at 95 % with λ<sub>F</sub> becomes """ + rk1_cov + r""",
+in different directions in θ, so the transfer depends on the QoI. Coverage at 95 % with λ<sub>F</sub>, over the """ + str(next(iter(rk1.values()))["n"] if rk1 else "?") + r""" QoIs the delta method gives, becomes """ + rk1_cov + r""",
 short of the observable-space term below.</p>
 <p><b>Discrepancy term.</b> For the QoIs of defect class \(t\), the variance becomes
 \(\sigma_Q^2=\sigma_{Q,\text{method}}^2+r^{*2}_t+s^{*2}_t\), with \(\sigma_{Q,\text{method}}\) the σ of the UQ method without the term (interstitial class for the three interstitials; vacancy class for the
 vacancy). Every other QoI is unchanged. This leaves the pure parameter-space propagation for these QoIs and is reported as a
-separate, labelled method.</p>
+separate, labelled method. The term widens σ but leaves the prediction at the potential's own value, on purpose: the uncertainty
+describes the potential that is run. Subtracting \(r^*_t\) from the prediction would correct the potential, a different object
+and one that no longer has a parameter vector; Table 8 gives the errors of that corrected prediction for reference.</p>
 <p>Nothing in this analysis is specific to the CR3 propagation. The bias r*<sub>t</sub> and its standard error come from the
 training labels and the fitted mean alone, so the same term can be added to the σ<sub>Q</sub> of any method that shares that mean,
 the baselines included.</p>""", "", level=4)
@@ -654,11 +715,11 @@ sec("method-valid", "3  Results", r"""
 <h3>3.1 Validation statistics</h3>
 <p>Section 2 ends with a σ for every prediction we test: a per-atom force covariance and conformal region (Section 2.5), a
 scaled CR3 covariance in θ (Section 2.4), and from it a σ<sub>Q</sub> for each QoI by the delta method or by committees, with or
-without the discrepancy term (Sections 2.7 and 2.8). The same few statistics judge all of them against held-out data or DFT. None
+without the discrepancy term (Sections 2.7 and 2.7.4). The same few statistics judge all of them against held-out data or DFT. None
 of them is used to fit any scale.</p>
 <p>For the per-atom forces (Section 3.2), the test is the coverage of the conformal regions on the 248 test configurations,
 overall and per configuration type, together with the RMS of the observed force error over the predicted σ<sub>F,i</sub>, which is
-1 for a calibrated Gaussian reading. For the QoIs (Sections 3.4–3.11), each prediction gives a standardised error
+1 for a calibrated Gaussian reading. For the QoIs (Sections 3.4–3.8), each prediction gives a standardised error
 \(z_Q=(\hat Q-Q_{\text{DFT}})/\sigma_Q\), with \(\hat Q\) the mean model's value. We count how many of the 20 scored QoIs fall inside
 the Gaussian 68 % and 95 % intervals. Each count k of n gives a posterior for the coverage probability, Beta(k + ½, n − k + ½) from
 the Jeffreys prior, and we quote its 95 % credible interval and the posterior probability that the coverage reaches its nominal value.
@@ -708,6 +769,24 @@ pops_cov = "; ".join(f"{m}: {int(float(_pc[(m, f'B2lev{c}-committee')]['k95']))}
                      f"with the {c} % cut (RMS z {float(_pc[(m, f'B2lev{c}-committee')]['rms_z']):.1f}, median σ/tol "
                      f"{float(_pc[(m, f'B2lev{c}-committee')]['median_sigma_over_tol']):.2f})"
                      for m in ("o3d12", "o4d20") for c in (5, 50) if (m, f"B2lev{c}-committee") in _pc)
+_pr = {m: json.load(open(RES / f"pops_reference_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"pops_reference_{m}.json").exists()}
+def _pr_txt():
+    """The reference package on the port's own rows (analysis/pops_reference.py): its defaults and every row.  The
+    box-by-box parity at B2's settings is not yet reconciled (results/pops_reference_<m>.json "parity"), so it is
+    not reported as agreement."""
+    if not _pr:
+        return "(Reference-package comparison pending.)"
+    v0 = next(iter(_pr.values()))
+    rid = " and ".join(f"{v['ridge_rel_ref']:.0e} ({m})" for m, v in _pr.items())
+    dft = "; ".join(f"{m}: {v['reference_default']['sd_E_meV_atom']:.3g} meV/atom, with {v['reference_default']['pass_tight']} of {v['K']} "
+                    f"members within 0.05 eV/atom and 1 eV/Å of the mean on the rattled cells" for m, v in _pr.items())
+    allr = "; ".join(f"{m}: {v['reference_every_row']['sd_E_meV_atom']:.3g} meV/atom" for m, v in _pr.items())
+    return (f"We also fitted the reference package POPSRegression {v0['popsregression']} to the port's own loss-weighted rows. "
+            f"Its ridge, chosen by evidence, is {rid} of the largest eigenvalue, so its fit is in effect unregularised. With "
+            f"its default 50 % cut the members spread the bulk energy by {dft}. With every row they spread it by {allr}: the "
+            "unphysical box of the every-row default is a property of POPS on this design, not of the port. [Draft note: a "
+            "box-by-box comparison of the port with the package at B2's settings does not yet agree and is being checked.]")
+pr_txt = _pr_txt()
 dtrend = json.load(open(RES / "defect_trend.json")) if (RES / "defect_trend.json").exists() else {}
 disc = json.load(open(RES / "discrepancy.json")) if (RES / "discrepancy.json").exists() else {}
 disc_rows = rd("discrepancy.csv")
@@ -752,33 +831,33 @@ P(coverage ≥ 0.95) = {pcov("o3d12")} for o3d12 and {pcov("o4d20")} for o4d20: 
 models, are the subject of Section 3.8: they share a bias that a delete-one jackknife cannot see, not a scale that is too small.
 Elsewhere the 95 % intervals reach DFT, and the 68 % counts ({int(float(get("o3d12", "CR3-headline", "lam_F")["k68"]))} and
 {int(float(get("o4d20", "CR3-headline", "lam_F")["k68"]))} of 20, against a nominal 13.6) are close to nominal.</p>
-<p>The intervals follow the accuracy of the model. The median σ/tol is {sot("o4d20", "CR3-headline", "lam_F")} for o4d20 and
-{sot("o3d12", "CR3-headline", "lam_F")} for o3d12, {tight:.1f}× wider: o4d20's intervals are mostly inside the benchmark tolerance, and
-o3d12's are wider than it, as they should be for a model whose typical QoI error is about one tolerance (Figure 0). So one scale fitted
+<p>The intervals follow the accuracy of the model. The median σ/tol is {sot("o3d12", "CR3-headline", "lam_F")} for o3d12 and
+{sot("o4d20", "CR3-headline", "lam_F")} for o4d20, {tight:.1f}× narrower: o3d12's intervals are wider than the benchmark tolerance, as they
+should be for a model whose typical QoI error is about one tolerance (Figure 0), and o4d20's are mostly inside it. So one scale fitted
 to held-out forces gives similar coverage for both models while the intervals shrink with model quality. The CRPS, which weighs
 calibration and sharpness in one score, ranks the headline first among the four methods for both models:
-{crps("o4d20", "CR3-headline", "lam_F")} for o4d20 and {crps("o3d12", "CR3-headline", "lam_F")} for o3d12, against
-{crps("o4d20", "B1-headline", "q_b1")} / {crps("o3d12", "B1-headline", "q_b1")} for B1,
-{crps("o4d20", "B2lev5-committee", "lam_1")} / {crps("o3d12", "B2lev5-committee", "lam_1")} for B2 and
-{crps("o4d20", "B3-headline", "lam_1")} / {crps("o3d12", "B3-headline", "lam_1")} for B3 (Table 3). The margins are small
+{crps("o3d12", "CR3-headline", "lam_F")} for o3d12 and {crps("o4d20", "CR3-headline", "lam_F")} for o4d20, against
+{crps("o3d12", "B1-headline", "q_b1")} / {crps("o4d20", "B1-headline", "q_b1")} for B1,
+{crps("o3d12", "B2lev50-committee", "lam_1")} / {crps("o4d20", "B2lev50-committee", "lam_1")} for B2 and
+{crps("o3d12", "B3-headline", "lam_1")} / {crps("o4d20", "B3-headline", "lam_1")} for B3 (o3d12 / o4d20; Table 3). The margins are small
 because the mean is dominated by the QoIs with the largest errors, which no width can fix: for o3d12 the three interstitials
 are 12–17 tolerances off, so its CRPS/tol is near 3 for every method.</p>
 <p>The baselines (Section 3.7) cover fewer QoIs at comparable or smaller widths. The sensitivity table (Table 3b) shows that the choice of
 scale matters at the margin. The virial scale λ<sub>V</sub>, larger than λ<sub>F</sub> by about a third, covers
-{k95("o3d12", "CR3-headline", "lam_V")} and {k95("o4d20", "CR3-headline", "lam_V")} at the price of wider intervals (median σ/tol
-{sot("o3d12", "CR3-headline", "lam_V")} and {sot("o4d20", "CR3-headline", "lam_V")}); λ<sub>E</sub> and λ<sub>pool</sub> give about the
+{k95("o3d12", "CR3-headline", "lam_V")} (o3d12) and {k95("o4d20", "CR3-headline", "lam_V")} (o4d20) at the price of wider intervals
+(median σ/tol {sot("o3d12", "CR3-headline", "lam_V")} for o3d12 and {sot("o4d20", "CR3-headline", "lam_V")} for o4d20); λ<sub>E</sub> and λ<sub>pool</sub> give about the
 same as λ<sub>F</sub>. The full committee re-run at λ<sub>F</sub>, keeping only physical members, covers
-{k95("o3d12", "CR3-committee-lamF-physical", "lam_F")} and {k95("o4d20", "CR3-committee-lamF-physical", "lam_F")}, against
-{k95("o3d12", "CR3-headline", "lam_F")} and {k95("o4d20", "CR3-headline", "lam_F")} for the headline. The differences come mainly from the
+{k95("o3d12", "CR3-committee-lamF-physical", "lam_F")} for o3d12 and {k95("o4d20", "CR3-committee-lamF-physical", "lam_F")} for o4d20,
+against {k95("o3d12", "CR3-headline", "lam_F")} and {k95("o4d20", "CR3-headline", "lam_F")} for the headline. The differences come mainly from the
 phase energies, which are strongly nonlinear in θ at λ<sub>F</sub> (Section 3.6).</p>
-<figure><img src="fig6_model_compare.png" alt="Per QoI, error over tolerance with 95 percent intervals for o4d20 and o3d12, DFT as crosses at zero; one row each for the headline and the three baselines"><figcaption>Figure 1. Model prediction minus DFT, in units of the benchmark tolerance, with the 95 % interval, for o4d20
-(circles) and o3d12 (squares); DFT is the cross at 0 and the shaded band is ± 1 tolerance. The axis is linear within ± 1 and
+<figure><img src="fig6_model_compare.png" alt="Per QoI, error over tolerance with 95 percent intervals for o3d12 and o4d20, DFT as crosses at zero; one row each for the headline and the three baselines"><figcaption>Figure 1. Model prediction minus DFT, in units of the benchmark tolerance, with the 95 % interval, for o3d12
+(circles) and o4d20 (squares); DFT is the cross at 0 and the shaded band is ± 1 tolerance. The axis is linear within ± 1 and
 logarithmic beyond, and is shared by all rows. Top row: the headline, CR3 × λ<sub>F</sub>; the larger model's intervals are
 {tight:.1f}× tighter in median σ/tol while its coverage stays comparable. Below it the baselines of Section 2.6: B1, the posterior
-scaled by one conformal quantile; B2, POPS with the 5 % leverage cut; B3, CR3 without calibration (λ = 1). Each row's legend gives
+scaled by one conformal quantile; B2, POPS with the 50 % leverage cut (the reference package's default); B3, CR3 without calibration (λ = 1). Each row's legend gives
 its 95 % coverage and median σ/tol.</figcaption></figure>
 <figure><img src="fig2_coverage.png" alt="Coverage per method with binomial intervals"><figcaption>Figure 1b. Fraction of the 20 scored QoIs inside the 68 % and 95 % intervals for the four methods of Figure 1
-(headline, B1, B2 with the 5 % leverage cut, B3), with 95 % credible intervals from the Jeffreys-prior Beta posterior; dashed lines are the nominal levels.</figcaption></figure>
+(headline, B1, B2 with the 50 % leverage cut, B3), with 95 % credible intervals from the Jeffreys-prior Beta posterior; dashed lines are the nominal levels.</figcaption></figure>
 <h3>3.5 Joint evidence</h3>
 <div class="wrap"><table><caption>Table 4. Log evidence of the 20 scored DFT values (17 with the delta method) under each method's
 predictive distribution, in tolerance units (ε = 10<sup>−6</sup>), and the log Bayes factor against the headline with the same
@@ -790,16 +869,16 @@ correlations form blocks: the elastic constants with each other and with the β-
 diamond-like structures; and the four point defects with each other (0.3–0.8), most strongly the three interstitials. Most other pairs
 are only weakly correlated.</p>
 <p>Table 4 compares the methods by their evidence. For both models the headline is far ahead of every baseline: by log Bayes factors
-of {lbf_txt("o4d20", "B1/q_b1")} (B1), {lbf_txt("o4d20", "B2lev5/lam_1")} (B2) and {lbf_txt("o4d20", "B3/lam_1")} (B3) for o4d20, and
-{lbf_txt("o3d12", "B1/q_b1")}, {lbf_txt("o3d12", "B2lev5/lam_1")} and {lbf_txt("o3d12", "B3/lam_1")} for o3d12, with the committee
+of {lbf_txt("o3d12", "B1/q_b1")} (B1), {lbf_txt("o3d12", "B2lev50/lam_1")} (B2) and {lbf_txt("o3d12", "B3/lam_1")} (B3) for o3d12, and
+{lbf_txt("o4d20", "B1/q_b1")}, {lbf_txt("o4d20", "B2lev50/lam_1")} and {lbf_txt("o4d20", "B3/lam_1")} for o4d20, with the committee
 covariance. On the scale of Kass and Raftery [1995] a log Bayes factor beyond about 3 is strong evidence and beyond 5 very strong. B3 and B2 for o4d20
 lose through the misfit term, with intervals far too narrow for their errors. B1 loses less, because its overall size is calibrated,
-but its shape puts the width in the wrong places. B2 for o3d12, which covers 15 of 20 QoIs one at a time, is still behind the headline
-({lbf_txt("o3d12", "B2lev5/lam_1")}): per-QoI coverage alone does not show that a covariance is right. The correlations also matter in
+but its shape puts the width in the wrong places. B2 for o3d12, which covers {k95("o3d12", "B2lev50-committee", "lam_1")} QoIs one at a time, is still behind the headline
+({lbf_txt("o3d12", "B2lev50/lam_1")}): per-QoI coverage alone does not show that a covariance is right. The correlations also matter in
 the other direction. o4d20's headline misses five QoIs one at a time, but three of the five are the interstitials, which its covariance
 expects to move together, so jointly they cost less than three independent misses.</p>
-<p>The virial scale is about as good as the force scale for o4d20 ({lbf_txt("o4d20", "CR3/lam_V")}) and better for o3d12
-({lbf_txt("o3d12", "CR3/lam_V")}), whose QoI errors are larger relative to its force errors. The discrepancy term of Section 3.8 is
+<p>The virial scale is better than the force scale for o3d12 ({lbf_txt("o3d12", "CR3/lam_V")}), whose QoI errors are larger
+relative to its force errors, and about as good for o4d20 ({lbf_txt("o4d20", "CR3/lam_V")}). The discrepancy term of Section 3.8 is
 strongly supported for o3d12 ({lbf_txt("o3d12", "CR3/lam_F+disc")} with the committee covariance,
 {lbf_txt("o3d12", "CR3/lam_F+disc", "delta")} with the delta method), and roughly neutral for o4d20
 ({lbf_txt("o4d20", "CR3/lam_F+disc")} and {lbf_txt("o4d20", "CR3/lam_F+disc", "delta")}): o4d20's defect bias is small, so the term's
@@ -809,34 +888,34 @@ methods is the same for ε from 10<sup>−8</sup> to 10<sup>−4</sup>.</p>
 between the QoIs in the CR3 committee for o4d20 (K = 200 members).</figcaption></figure>
 <h3>3.6 Delta method, committees and nonlinearity</h3>
 <p>The two routes to σ<sub>Q</sub> agree where both apply. At λ = 1, the delta-method σ is within 10 % of the committee's for all but
-{nflag["o4d20"]} of the {ncmp["o4d20"]} QoIs of o4d20 and {nflag["o3d12"]} of the {ncmp["o3d12"]} of o3d12; the ratio ranges from
-{dvc_rng["o4d20"][0]:.2f} to {dvc_rng["o4d20"][1]:.2f} for o4d20 and from {dvc_rng["o3d12"][0]:.2f} to {dvc_rng["o3d12"][1]:.2f} for o3d12.
-The flagged QoIs ({", ".join(_qn(k) for k in dvc_flag["o4d20"])} for o4d20; {", ".join(_qn(k) for k in dvc_flag["o3d12"])} for o3d12)
+{nflag["o3d12"]} of the {ncmp["o3d12"]} QoIs of o3d12 and {nflag["o4d20"]} of the {ncmp["o4d20"]} of o4d20; the ratio ranges from
+{dvc_rng["o3d12"][0]:.2f} to {dvc_rng["o3d12"][1]:.2f} for o3d12 and from {dvc_rng["o4d20"][0]:.2f} to {dvc_rng["o4d20"][1]:.2f} for o4d20.
+The flagged QoIs ({", ".join(_qn(k) for k in dvc_flag["o3d12"])} for o3d12; {", ".join(_qn(k) for k in dvc_flag["o4d20"])} for o4d20)
 are taken from the committee, as Section 2.7.3 prescribes. The implicit differentiation through each relaxation, including that of the
 lattice constant, is therefore accurate at the size of the CR3 distribution itself. The elastic constants are a stricter check,
 because they can be computed by two routes, from the stress or from the curvature of the energy. Figure 4 shows that the two give
-nearly the same covariance ellipses for both models, and that the DFT values lie inside the 1σ ellipses for o4d20 but well outside
-them for o3d12, whose C<sub>11</sub> is about 15 % too low.</p>
+nearly the same covariance ellipses for both models, and that the DFT values lie well outside the 1σ ellipses for o3d12, whose
+C<sub>11</sub> is about 15 % too low, but inside them for o4d20.</p>
 <p>At λ<sub>F</sub> the distribution is several times wider, and the linear rescaling of the λ = 1 committee,
 Q<sub>k</sub>(λ) = Q̂ + λ(Q<sub>k</sub> − Q̂), can fail. The full re-run at λ<sub>F</sub> tests it. Of its 200 members,
-{phys["o4d20"]["accepted"]} (o4d20) and {phys["o3d12"]["accepted"]} (o3d12) pass the physicality rule fixed beforehand; the rest
-collapse ({phys["o4d20"]["rejected_collapse"]} and {phys["o3d12"]["rejected_collapse"]}), and none fails a test. Outside the phase
-energies, the σ of the physical members is {min(nonphase["o4d20"]):.2f}–{max(nonphase["o4d20"]):.2f}× the rescaled σ for o4d20 and
-{min(nonphase["o3d12"]):.2f}–{max(nonphase["o3d12"]):.2f}× for o3d12, so the rescaling holds for the elastic constants, defects and
-surfaces. The phase energies are different: for o4d20 {_phase_names("o4d20", 10)} the rescaled σ, and for o3d12
-{_phase_names("o3d12", 10)} it. These are the phases furthest from diamond, whose structures relax into other phases when θ moves far
+{phys["o3d12"]["accepted"]} (o3d12) and {phys["o4d20"]["accepted"]} (o4d20) pass the physicality rule fixed beforehand; the rest
+collapse ({phys["o3d12"]["rejected_collapse"]} and {phys["o4d20"]["rejected_collapse"]}), and none fails a test. Outside the phase
+energies, the σ of the physical members is {min(nonphase["o3d12"]):.2f}–{max(nonphase["o3d12"]):.2f}× the rescaled σ for o3d12 and
+{min(nonphase["o4d20"]):.2f}–{max(nonphase["o4d20"]):.2f}× for o4d20, so the rescaling holds for the elastic constants, defects and
+surfaces. The phase energies are different: for o3d12 {_phase_names("o3d12", 10)} the rescaled σ, and for o4d20
+{_phase_names("o4d20", 10)} it. These are the phases furthest from diamond, whose structures relax into other phases when θ moves far
 enough, so the phase-energy σ at λ<sub>F</sub> is a property of that relaxation path rather than of a Gaussian in θ. The headline
 keeps the rescaled σ, and Table 3b reports the full re-run as a sensitivity.</p>
 <figure><img src="fig4_elastic_ellipses.png" alt="Elastic constant covariance ellipses from the stress and energy routes, both models"><figcaption>Figure 4.
 Elastic constants: the 1σ covariance ellipses of (C<sub>11</sub>, C<sub>12</sub>) and (C<sub>11</sub>, C<sub>44</sub>) at λ<sub>F</sub> from
-the delta method, by the stress route (solid) and the energy route (dashed), for o4d20 (top) and o3d12 (bottom); the dot is the
+the delta method, by the stress route (solid) and the energy route (dashed), for o3d12 (top) and o4d20 (bottom); the dot is the
 mean model's value and the star DFT.</figcaption></figure>
 <h3>3.7 Baselines</h3>
 <p>The three baselines of Section 2.6 each fall short in a different way (Figure 1, Figure 1b and Table 3). B3, the CR3 shape without
 calibration, covers only {b3txt} of the QoIs at 95 %: the shape alone is several times too narrow, as the test-split scales of
 Section 3.3 already show. B1, the posterior with one conformal scale, covers {b1txt}. It has a calibrated overall size but the wrong
 shape, so it is too wide for some QoIs and too narrow for others, and its joint evidence is far below the headline's (Table 4).</p>
-<p>B2, POPS, needed more care. With ace-jax's default, which builds the hypercube from every training row, the members are
+<p>B2, POPS, needed more care. With the ace-jax port's default, which builds the hypercube from every training row, the members are
 unphysical: the bounds are set by a handful of rows with near-zero leverage, whose corrections are unbounded, and the members spread
 the bulk energy of o3d12 by {pops_sd} meV/atom, so that almost every relaxation fails. Rejecting unphysical members cannot rescue
 this. Every axis of the full box spans 10<sup>6</sup>–10<sup>7</sup> eV/atom of bulk energy, and no member of either model comes within
@@ -844,9 +923,9 @@ this. Every axis of the full box spans 10<sup>6</sup>–10<sup>7</sup> eV/atom o
 <p>Dropping the lowest-leverage rows from the box fixes it. A sweep of the cut (the lowest 1, 2, 5, 10, 25 or 50 % of rows, members
 screened on three rattled diamond cells) shows that dropping 1 % already gives physical members. The width then hardly depends on the
 cut for o4d20: the median worst-cell energy change is 0.001–0.003 eV/atom, against 0.017 for CR3 × λ<sub>F</sub>. We ran committees at
-the 5 % cut, the closest to POPS's own default, and at 50 % (Table 3b). Their bulk-energy spreads, against the CR3 members at λ = 1 and at
-λ<sub>F</sub>, are {pops_w} meV/atom. B2 covers {pops_cov}. POPS has no calibration step, so its width is whatever the choice of support rows
-gives: too narrow for o4d20, and of roughly the right size but in the wrong places for o3d12.</p>""", "drafted", level=3)
+the 50 % cut, the default of the reference package POPSRegression [Swinburne, POPSRegression] and B2, and at 5 % (Table 3b). Their bulk-energy spreads, against the CR3 members at λ = 1 and at
+λ<sub>F</sub>, are {pops_w} meV/atom. B2 covers {pops_cov}. {pr_txt} POPS has no calibration step, so its width is whatever the choice of support rows
+gives: of roughly the right size but in the wrong places for o3d12, and too narrow for o4d20.</p>""", "drafted", level=3)
 
 trend_rows = ""
 for m in ("o3d12", "o4d20"):
@@ -858,7 +937,7 @@ for m in ("o3d12", "o4d20"):
                        f"<td class=n>{qerrs}</td>"
                        f"<td class=n>{tr_['defect_mean_eV']:+.2f}</td></tr>")
 dcov_rows = ""
-for m in ("o4d20", "o3d12"):
+for m in ("o3d12", "o4d20"):
     for meth, sc, lab in (("CR3-headline", "lam_F", "CR3 × λ<sub>F</sub>"), ("CR3-headline", "lam_V", "CR3 × λ<sub>V</sub>"),
                           ("B1-headline", "q_b1", "B1: posterior × q̂")):
         r0, r1 = get(m, meth, sc), disc.get(m, {}).get(f"{meth}+disc/{sc}")
@@ -867,8 +946,10 @@ for m in ("o4d20", "o3d12"):
                           f"<td class=n>{r1['k95']}/{r1['n']} [{r1['ci95'][0]:.2f}, {r1['ci95'][1]:.2f}]</td>"
                           f"<td class=n>{int(r0['k68'])} → {r1['k68']}</td><td class=n>{f(r1['median_sigma_over_tol'])}</td>"
                           f"<td class=n>{f(r0.get('crps_tol'))} → {f(r1.get('crps_tol'))}</td></tr>")
+_rs = lambda m, q: disc.get(m, {}).get("r_star", {}).get("vacancy" if q == "vacancy_energy" else "interstitial", {}).get("r_star_eV", float("nan"))
 dz_rows = "".join(
     f"<tr><td>{r['model']}</td><td>{dict(DEF_Q)[r['qoi']]}</td><td class=n>{r['dft'] - r['mean']:+.3f}</td>"
+    f"<td class=n>{r['dft'] - r['mean'] - _rs(r['model'], r['qoi']):+.3f}</td>"
     f"<td class=n>{r['sigma_method']:.3f}</td><td class=n>{r['sigma']:.3f}</td><td class=n>{r['z_without']:+.2f} → {r['z']:+.2f}</td></tr>"
     for r in disc_rows if r["qoi"] in dict(DEF_Q) and r["method"] == "CR3-headline+disc" and r["scale"] == "lam_F")
 models_disc = ", ".join(sorted(k for k in disc if k != "estimator")) or "none yet"
@@ -924,16 +1005,16 @@ sec("results-defects2", "", f"""
 <thead><tr><th>model</th><th>method</th><th>95 % without</th><th>95 % with [credible interval]</th><th>68 %</th><th>median σ/tol</th><th>CRPS/tol without → with</th></tr></thead>
 <tbody>{dcov_rows}</tbody></table></div>
 <p>The term lowers the CRPS of every method (Table 7), most for o3d12, whose interstitial errors dominate its score. With the
-term, B1 and CR3 × λ<sub>F</sub> score almost the same ({dcrps("o4d20", "B1-headline", "q_b1")} against
-{dcrps("o4d20", "CR3-headline", "lam_F")} for o4d20, {dcrps("o3d12", "B1-headline", "q_b1")} against
-{dcrps("o3d12", "CR3-headline", "lam_F")} for o3d12, B1 marginally lower). Once the defects carry the term, the remaining
+term, B1 and CR3 × λ<sub>F</sub> score almost the same ({dcrps("o3d12", "B1-headline", "q_b1")} against
+{dcrps("o3d12", "CR3-headline", "lam_F")} for o3d12, {dcrps("o4d20", "B1-headline", "q_b1")} against
+{dcrps("o4d20", "CR3-headline", "lam_F")} for o4d20, B1 marginally lower). Once the defects carry the term, the remaining
 difference between the two shapes is small on this score, while CR3 still covers more QoIs.</p>
 <p>The interstitial estimator agrees well with the observed interstitial errors. That agreement was seen before the
 nearest-bulk reference was rejected on training data (above), so the choice was not made blind, although the
 reasons for it use no DFT QoI value.</p>
-<div class="wrap"><table><caption>Table 8. Defect QoIs, CR3 × λ<sub>F</sub>: error, σ without and with the discrepancy term
-(eV), and z.</caption>
-<thead><tr><th>model</th><th>QoI</th><th>DFT − model</th><th>σ</th><th>σ with term</th><th>z</th></tr></thead>
+<div class="wrap"><table><caption>Table 8. Defect QoIs, CR3 × λ<sub>F</sub>: error, error of the prediction corrected by r* (for
+reference; not used), σ without and with the discrepancy term (eV), and z.</caption>
+<thead><tr><th>model</th><th>QoI</th><th>DFT − model</th><th>DFT − (model + r*)</th><th>σ</th><th>σ with term</th><th>z</th></tr></thead>
 <tbody>{dz_rows}</tbody></table></div>""", "", level=0)
 
 sec("results-vacancy", "The vacancy", f"""
@@ -965,10 +1046,10 @@ interstitials and the size-model average for the vacancy. Thin black bars: the s
 Only the four defect QoIs change.</figcaption></figure>""", "", level=4)
 
 sec("results-forces", "3.2  Calibrated per-atom forces", f"""
-<p>Figure 2 and Table 2 test the per-atom force uncertainty of Section 2.5 on the 248 test configurations, with the ARD fits;
+<p>Figure 2 and Table 2p test the per-atom force uncertainty of Section 2.5 on the 248 test configurations, with the ARD fits;
 atoms whose force rows vanish by site symmetry are dropped by the rule of Section 3.3. At a nominal 90 %, the CR3 shape with one
-hold-out quantile covers {lm("o3d12", "one_group")} of the test atoms for o3d12 and {lm("o4d20", "one_group")} for o4d20. o4d20 is at
-nominal; o3d12 is slightly below it, which points to the transfer from the hold-out fit to the full fit as the remaining
+hold-out quantile covers {lm("o3d12", "one_group")} of the test atoms for o3d12 and {lm("o4d20", "one_group")} for o4d20. o3d12 is slightly
+below nominal and o4d20 at it; which points to the transfer from the hold-out fit to the full fit as the remaining
 approximation for the smaller model. The shape carries most of the dependence of the error on the environment: one quantile
 reaches the nominal level overall with no environment-dependent scale.</p>
 <p>The coverage is not even across environments, though. The point-defect cells are under-covered and the liquid and surface
@@ -978,7 +1059,7 @@ overall (ranges over the five hold-out splits {lm_seeds("o3d12")} and {lm_seeds(
 ({lm_rad("o3d12", "learned")} against {lm_rad("o3d12", "one_group")} for o3d12, {lm_rad("o4d20", "learned")} against
 {lm_rad("o4d20", "one_group")} for o4d20, in units of the score), and the RMS deviation of the per-type coverage from 0.90 falls
 from {evdev("o3d12", "test", "one_group")} to {evdev("o3d12", "test", "learned")} for o3d12 and from {evdev("o4d20", "test", "one_group")} to
-{evdev("o4d20", "test", "learned")} for o4d20 (Table 2; for o3d12 the amorphous cells are the exception). Out of distribution it is
+{evdev("o4d20", "test", "learned")} for o4d20 (Table 2p; for o3d12 the amorphous cells are the exception). Out of distribution it is
 less robust, as the next test shows.</p>
 <p>How the quantile weights the calibration atoms matters more than either scale. A quantile that counts each calibration
 configuration once in total is about 12 % smaller and covers only {lm("o3d12", "one_group_cfgq")} and
@@ -989,12 +1070,12 @@ shape with the propagation's global λ<sub>F</sub> covers {fb("o3d12", "headline
 <figure><img src="fig7_force_calibration.png" alt="Per-atom force uncertainty against observed error for the learned scale, one hold-out quantile and the baselines, and test coverage per configuration type, for each model"><figcaption>Figure 2.
 Top: binned on predicted σ (20 equal-count bins), RMS observed |ΔF| against RMS σ, for the CR3 shape with one hold-out
 quantile (the method) and with the learned scale (ARD fit; σ<sub>F,i</sub> from the 90 % quantile), and for the per-atom σ of the
-propagation's methods on the BLR fit: CR3 × λ<sub>F</sub> (the headline), B1 (posterior × q̂), B2 (POPS, 5 % leverage cut; the
+propagation's methods on the BLR fit: CR3 × λ<sub>F</sub> (the headline), B1 (posterior × q̂), B2 (POPS, 50 % leverage cut; the
 box's uniform variance) and B3 (CR3, λ = 1); the per-atom density behind. Points below the diagonal are conservative.
 Bottom: test coverage of the 90 % region, overall and per GAP-18 configuration type with at least 300 test atoms. Conformal
 regions: one quantile and the learned scale. Gaussian isotropic region |ΔF| ≤ σ (χ<sup>2</sup><sub>3</sub>(0.9)/3)<sup>1/2</sup>:
 the others. The headline's λ<sub>F</sub> is fitted on the test split itself, so its per-atom coverage here is in sample.</figcaption></figure>
-<div class="wrap"><table><caption>Table 2. Test coverage of the 90 % per-atom force region per GAP-18 configuration type (types
+<div class="wrap"><table><caption>Table 2p. Test coverage of the 90 % per-atom force region per GAP-18 configuration type (types
 with at least 300 test atoms): one hold-out quantile against the learned scale (mean over five hold-out splits), and the RMS
 deviation of the per-type coverage from nominal.</caption>
 <thead><tr><th>model</th><th>configuration type</th><th>atoms</th><th>configs</th><th>one quantile</th><th>learned scale</th></tr></thead>
@@ -1016,6 +1097,10 @@ training counterparts the model reproduces well, mostly near-bulk ones; atoms at
 those in descriptor space but carry larger errors, so the learned scale narrows exactly where it should not. One quantile cannot
 do that, which is why it is the method here: the learned scale is the better choice only when the target environments are
 represented in the training data.</p>
+<p>Ho, Ortner and Wang [2026] reach a more favourable verdict on their learned scale out of distribution, on compositions and
+exchange-correlation functionals outside the calibration set. Their test is the correlation of the predicted uncertainty with the
+error; ours is coverage. The two are not in conflict, since a scale can rank errors better and still be too narrow where the model
+extrapolates, but they show that a learned scale should be checked for coverage on environments left out of its calibration.</p>
 <div class="wrap"><table><caption>Table 2c. Out-of-distribution per-atom force coverage at nominal 90 %: ARD refits without
 cracks and screw dislocations, scored on them (90 % intervals from a bootstrap over configurations). "ID test": the same
 refit's coverage on the in-distribution test split.</caption>
@@ -1023,16 +1108,17 @@ refit's coverage on the in-distribution test split.</caption>
 <tbody>{ood_rows}</tbody></table></div>
 <p>Figure 2 also shows the per-atom forces of the baselines, to which the QoI comparison of Section 3.4 applies. B3 is
 about λ<sub>F</sub> times too narrow everywhere. B1, the posterior shape with one scale, under-covers
-({fb("o3d12", "B1")} for o3d12, {fb("o4d20", "B1")} for o4d20), most in the amorphous, point-defect and surface cells. B2 is
-close for o3d12 ({fb("o3d12", "B2")}) and far too narrow for o4d20 ({fb("o4d20", "B2")}), as its QoI widths are.</p>""", "drafted", level=3)
+({fb("o3d12", "B1")} for o3d12, {fb("o4d20", "B1")} for o4d20), most in the amorphous, point-defect and surface cells. B2
+under-covers for o3d12 ({fb("o3d12", "B2")}), most in the liquid and surface cells, and is far too narrow for o4d20
+({fb("o4d20", "B2")}), as its QoI widths are.</p>""", "drafted", level=3)
 
 dk95 = lambda m: (lambda d_: f"{d_['k95']}/{d_['n']}" if d_ else "?")(disc.get(m, {}).get("CR3-headline+disc/lam_F"))
 sec("discussion", "4  Discussion", f"""
 <p>A single parameter covariance, the CR3 jackknife scaled once to held-out forces, gives usable uncertainties for derived
 properties that the fit never saw. For both models most QoIs fall inside their 95 % intervals ({k95("o3d12", "CR3-headline", "lam_F")}
 for o3d12, {k95("o4d20", "CR3-headline", "lam_F")} for o4d20), and the intervals scale with the model: the median σ/tol is
-{sot("o4d20", "CR3-headline", "lam_F")} for the accurate o4d20, whose intervals are mostly inside the benchmark tolerance, and
-{sot("o3d12", "CR3-headline", "lam_F")} for o3d12. The scale is fitted once, on forces of held-out configurations, and never on a QoI.
+{sot("o3d12", "CR3-headline", "lam_F")} for o3d12 and {sot("o4d20", "CR3-headline", "lam_F")} for the accurate o4d20, whose
+intervals are mostly inside the benchmark tolerance. The scale is fitted once, on forces of held-out configurations, and never on a QoI.
 The same CR3 shape serves per-atom forces, with one conformal quantile (Section 3.2), and relaxed QoIs, with one global
 scale. The second use is what a distribution over θ buys: one draw gives energies, forces, stresses and every QoI together,
 consistently.</p>
@@ -1043,7 +1129,7 @@ noise in the labels, not the approximation error of a misspecified model. POPS (
 set by which training rows define the hypercube, and with no calibration step it is too narrow for the larger model. The CR3 shape,
 which measures how far the fit moves when each configuration is left out, is the one that transfers, provided it is scaled.</p>
 <p>The scale is not unique. The virial scale is about a third larger than the force scale, and using it covers
-{k95("o3d12", "CR3-headline", "lam_V")} and {k95("o4d20", "CR3-headline", "lam_V")} QoIs with wider intervals; its joint evidence is about equal to the force scale's for o4d20 and higher for o3d12. Misspecification depends on the observable, and one could choose the scale by the QoI's physics, the virial scale
+{k95("o3d12", "CR3-headline", "lam_V")} QoIs for o3d12 and {k95("o4d20", "CR3-headline", "lam_V")} for o4d20 with wider intervals; its joint evidence is higher than the force scale's for o3d12 and about equal for o4d20. Misspecification depends on the observable, and one could choose the scale by the QoI's physics, the virial scale
 for stress-like QoIs such as elastic constants, or report both. A single scale is also a compromise across configuration types
 (Figure 5), which a per-type scale in θ could relax. A learned per-atom scale cannot be used for this directly: it rescales
 force outputs atom by atom and defines no covariance in θ; a θ-space analogue would need a shape that depends on the
@@ -1089,6 +1175,16 @@ computed by a Python 3 port of the silicon test framework of Bartók et al. [201
 tolerance of 10<sup>−3</sup> eV/Å for the elastic constants. Committees use 200 members drawn with fixed seeds. The fits, committees and analyses ran on
 workstations of the University of Warwick's Scientific Computing Research Technology Platform, and the cost timings of Figure 0 on
 the Sulis Tier 2 HPC platform.</p>
+<p><b>What was fixed in advance.</b> The specification of the study, committed before any QoI was computed (repository below),
+fixed the 21 QoIs and their tolerances, the four candidate scales λ<sub>F</sub>, λ<sub>E</sub>, λ<sub>V</sub> and
+λ<sub>pool</sub>, the three baselines, the committee size and the 10 % rule that picks the delta method or the committee. λ<sub>F</sub>
+was chosen as the headline before any QoI coverage was seen; the specification lists the four scales but does not record that
+choice. Decided later, after QoI results had been seen: the POPS leverage cut (the specification's ace-jax default gave unphysical
+members, Section 3.7; B2 now follows the reference package's default), the member-rejection rule of the λ<sub>F</sub> re-run (fixed
+before that re-run), the discrepancy term and its estimators (Section 2.7.4), the per-atom force method (Section 2.5, chosen after
+comparing it with a learned scale on the test split and on the out-of-distribution set), and Bayesian model comparison in place of
+the specification's fixed [0.8, 1.25] band on λ<sub>V</sub>/λ<sub>F</sub>. None of these uses a DFT QoI value as an input, but
+they were not made blind.</p>
 <p><b>Code and data availability.</b> The uncertainty methods are part of ace-jax version 0.5.1 (MIT licence,
 https://github.com/ACEsuit/ace-jax). The analysis code, the results behind every table and figure, the generator of this paper and
 the original specification of the study are at https://github.com/kermodegroup/si-qoi-uq-paper [archived on Zenodo, DOI to be
@@ -1121,6 +1217,7 @@ sec("refs", "References", """<p class="note">Checked against publisher or reposi
 <li>T. Gneiting, A. E. Raftery, Strictly proper scoring rules, prediction, and estimation, J. Am. Stat. Assoc. 102, 359–378 (2007).</li>
 <li>A. Grossfield, D. M. Zuckerman, Quantifying uncertainty and sampling quality in biomolecular simulations, in Annual Reports in Computational Chemistry, Vol. 5, Elsevier (2009).</li>
 <li>K. Fisher, M. Herbst, J. Kermode, Y. Marzouk, Multivariate conformal uncertainty propagation in multitask atomistic simulation: successes and pitfalls, arXiv:2609.31384 (2026).</li>
+<li>C. H. Ho, C. Ortner, Y. Wang, Flexible uncertainty calibration for machine-learned interatomic potentials, npj Comput. Mater. 12, 225 (2026).</li>
 <li>R. E. Kass, A. E. Raftery, Bayes factors, J. Am. Stat. Assoc. 90, 773–795 (1995).</li>
 <li>J. A. Hoeting, D. Madigan, A. E. Raftery, C. T. Volinsky, Bayesian model averaging: a tutorial, Stat. Sci. 14, 382–417 (1999).</li>
 <li>P. J. Huber, The behavior of maximum likelihood estimates under nonstandard conditions, Proc. Fifth Berkeley Symp. Math. Stat. Probab. 1, 221–233 (1967).</li>
@@ -1129,10 +1226,14 @@ sec("refs", "References", """<p class="note">Checked against publisher or reposi
 <li>B. J. K. Kleijn, A. W. van der Vaart, The Bernstein–von Mises theorem under misspecification, Electron. J. Stat. 6, 354–381 (2012).</li>
 <li>T. Lelièvre, M. Rousset, G. Stoltz, Free Energy Computations: A Mathematical Perspective, Imperial College Press (2010).</li>
 <li>J. Lei, M. G'Sell, A. Rinaldo, R. J. Tibshirani, L. Wasserman, Distribution-free predictive inference for regression, J. Am. Stat. Assoc. 113, 1094–1111 (2018).</li>
+<li>Y. Lysogorskiy, A. Bochkarev, M. Mrovec, R. Drautz, Active learning strategies for atomic cluster expansion models, Phys. Rev. Mater. 7, 043801 (2023).</li>
+<li>I. Maliyov, P. Grigorev, T. D. Swinburne, Exploring parameter dependence of atomic minima with implicit differentiation, npj Comput. Mater. 11, 22 (2025).</li>
 <li>J. G. MacKinnon, M. Ø. Nielsen, M. D. Webb, Cluster-robust inference: a guide to empirical practice, J. Econometrics 232, 272–299 (2023).</li>
 <li>J. G. MacKinnon, H. White, Some heteroskedasticity-consistent covariance matrix estimators with improved finite sample properties, J. Econometrics 29, 305–325 (1985).</li>
 <li>U. K. Müller, Risk of Bayesian inference in misspecified models, and the sandwich covariance matrix, Econometrica 81, 1805–1849 (2013).</li>
 <li>F. Musil, M. J. Willatt, M. A. Langovoy, M. Ceriotti, Fast and accurate uncertainty estimation in chemical machine learning, J. Chem. Theory Comput. 15, 906–915 (2019).</li>
+<li>D. Perez, A. P. A. Subramanyam, I. Maliyov, T. D. Swinburne, Uncertainty quantification for misspecified machine learned interatomic potentials, arXiv:2502.07104 (2025).</li>
+<li>E. V. Podryabinkin, A. V. Shapeev, Active learning of linearly parametrized interatomic potentials, Comput. Mater. Sci. 140, 171–180 (2017).</li>
 <li>H. Papadopoulos, V. Vovk, A. Gammerman, Normalized nonconformity measures for regression conformal prediction, Proc. IASTED Int. Conf. Artificial Intelligence and Applications, 64–69 (2008).</li>
 <li>J. E. Pustejovsky, E. Tipton, Small-sample methods for cluster-robust variance estimation and hypothesis testing in fixed effects models, J. Bus. Econ. Stat. 36, 672–683 (2018).</li>
 <li>G. Simmons, T. Hudson, T. D. Swinburne, J. R. Kermode, review of uncertainty quantification for machine-learned interatomic potentials, in preparation.</li>
@@ -1217,7 +1318,11 @@ _num = {}
 for _kind, _pat in (("Table", r"<caption>Table ([0-9]+[a-z]?)\."), ("Figure", r"<figcaption>Figure ([0-9]+[a-z]?)\.")):
     for _n, _lab in enumerate(dict.fromkeys(_re.findall(_pat, page)), 1):
         _num[(_kind, _lab)] = str(_n)
-page = _re.sub(r"\b(Table|Figure) ([0-9]+[a-z]?)\b", lambda m: f"{m.group(1)} {_num.get((m.group(1), m.group(2)), m.group(2))}", page)
+_ref = lambda kind, lab: _num.get((kind, lab), lab)
+page = _re.sub(r"\b(Table|Figure)(s?) ([0-9]+[a-z]?(?:(?:, | and |–)[0-9]+[a-z]?)*)\b",
+               lambda m: m.group(1) + m.group(2) + " " + _re.sub(r"[0-9]+[a-z]?", lambda n: _ref(m.group(1), n.group(0)), m.group(3)), page)
+_bad = [m.group(0) for m in _re.finditer(r"\b(?:Tables?|Figures?) [0-9]+[a-z]\b", page)]
+assert not _bad, f"unnumbered table/figure references: {_bad}"
 (OUT / "index.html").write_text(page)
 for p in FIG.glob("*.png"):
     shutil.copy(p, OUT / p.name)

@@ -5,8 +5,10 @@ The ace-jax POPS (pops_fit.py, ace_jax.fit.predict.PopsRidgePath) minimises sum_
 X, which is what POPSRegression (a BayesianRidge) fits; its ridge rho = lambda_/alpha_ is chosen by evidence.  The rows
 are ace-jax's own cached loss-weighted rows (stats.HostRows: w*phi, w*y), so the design is identical.
 
-  parity    the port at the reference's ridge and leverage cut, with the mean unpinned (the port pins the BLR mean by
-            default; the package uses its own ridge solution): coefficients, leverages, and the box's member spread.
+  parity    B2's own settings (the port's selected ridge, the BLR mean, the 50 % cut) put through the package's POPS step
+            (its corrections, leverages and hypercube): leverages, box covariance and member spread against the B2 box.
+            (The package's evidence ridge is ~1e-21 of max eigenvalue here, where no solve is meaningful, so the port is
+            not compared at that ridge.)
   defaults  the package's own default (evidence ridge, leverage_percentile 50) and every row (0): members screened on
             three rattled diamond cells (pops_fit.member_screen) and the bulk-energy spread of the members.
 
@@ -43,7 +45,6 @@ def main():
     from popsregression import POPSRegression
     from ace_jax import cli
     from ace_jax.fit.pipeline import predict as ppred
-    from ace_jax.fit.pops import hypercube_support
     from ace_jax.fit.stats import HostRows
     from ..pops_fit import BASIS, DATA, member_screen
     from ..run import RESULTS, SEEDS, fit_dir
@@ -80,39 +81,57 @@ def main():
     assert np.all(np.isfinite(c_ref)), "reference coefficients not finite"
     res = {"model": m, "popsregression": popsregression.__version__, "design": list(X.shape), "ridge_abs_ref": rho,
            "ridge_rel_ref": ridge_rel, "ridge_port_selected": kept["ridge"], "K": K}
-    # --- parity: the port at the reference ridge, own mean, same cut
-    path.use_mean(None)
-    c_port = np.asarray(path.c_star_at(ridge_rel))
-    res["port_cholesky_finite"] = bool(np.all(np.isfinite(c_port)))
-    if not res["port_cholesky_finite"]:      # the port's Cholesky mean fails at a tiny ridge: use its eigendecomposition
-        from ace_jax.fit.predict import _rkey
-        c_port = np.asarray(path.A(ridge_rel) @ (path._Db / path.Dinv))
-        path._means[_rkey(ridge_rel)] = jnp_(c_port)
-    print(f"ridge rel {ridge_rel:.3e} (abs {rho:.3e}); port Cholesky mean finite: {res['port_cholesky_finite']}", flush=True)
-    assert np.all(np.isfinite(c_port)), "port coefficients not finite at the reference ridge"
-    res["parity"] = {"coef_rel_diff": float(np.linalg.norm(c_port - c_ref) / np.linalg.norm(c_ref))}
-    for lev in (50.0, 0.0):
+    # --- the package's own defaults: its evidence ridge, the 50 % cut and every row
+    for lev, key in ((50.0, "reference_default"), (0.0, "reference_every_row")):
         if lev != 50.0:                                   # the same fit, only the member mask changes (as fit() sets it)
             ref._leverage_mask = ref._leverage_scores >= np.percentile(ref._leverage_scores, lev)
             ref.posterior_samples_, ref.misspecification_sigma_ = ref._build_posterior()
-        P_ref, (lo_r, hi_r) = ref._hypercube_support, ref._hypercube_bounds
-        A, coef, keepm = path._coef(ridge_rel, lev)
-        W, _ = rows.moment_sums(coef)
-        S = hypercube_support(A @ W @ A, 1.0e-8)
-        lo_p, hi_p = rows.projection_bounds(coef, keepm, A @ S)
-        h_port = np.asarray(rows.leverage_residual(jnp_(c_port), A)[0]).ravel()[: rows.n_rows]
-        tag = f"lev{lev:g}"
-        dr = box_members(c_ref, Dinv[:, None] * P_ref, lo_r, hi_r, SEEDS["pops"])[1]
-        dp = box_members(c_port, np.asarray(S), np.asarray(lo_p), np.asarray(hi_p), SEEDS["pops"])[1]
-        res["parity"][tag] = {
-            "n_modes_ref": int(P_ref.shape[1]), "n_modes_port": int(np.asarray(S).shape[1]),
-            "n_members_ref": int(ref._leverage_mask.sum()), "n_members_port": int(np.asarray(keepm).sum()),
-            "leverage_max_rel_diff": float(np.max(np.abs(h_port - ref._leverage_scores)) / np.max(ref._leverage_scores)),
-            "sd_E_meV_atom_ref": spread(m, c_ref, dr), "sd_E_meV_atom_port": spread(m, c_port, dp)}
-        res["reference_default" if lev == 50.0 else "reference_every_row"] = {
-            "leverage_pct": lev, "sd_E_meV_atom": res["parity"][tag]["sd_E_meV_atom_ref"],
-            **member_screen(m, c_ref, Dinv[:, None] * P_ref, lo_r, hi_r, K=K)}
-        print(tag, res["parity"][tag], flush=True)
+        P, (lo, hi) = ref._hypercube_support, ref._hypercube_bounds
+        res[key] = {"leverage_pct": lev, "n_modes": int(P.shape[1]), "n_members": int(ref._leverage_mask.sum()),
+                    "sd_E_meV_atom": spread(m, c_ref, box_members(c_ref, Dinv[:, None] * P, lo, hi, SEEDS["pops"])[1]),
+                    **member_screen(m, c_ref, Dinv[:, None] * P, lo, hi, K=K)}
+        print(key, res[key], flush=True)
+    # --- parity at B2's own settings: the port's selected ridge, the BLR mean (POPS_MEAN), the 50 % cut.  The package's
+    # POPS step is run on the port's regression: coef_ = D c, alpha_ sigma_ = D A D (= (X^T X + lam)^-1 on X), then the
+    # corrections and leverages exactly as POPSRegression.fit computes them after its BayesianRidge step (popsregression
+    # 0.4.0 _pops.py, fit: errors, pointwise_correction, leverage_scores, leverage_mask) and its own _fit_hypercube.
+    rF = kept["ridge"]["F"] if isinstance(kept["ridge"], dict) else kept["ridge"]
+    box = np.load(fit_dir(m, "pops") / "pops_box_lev50.npz")            # the B2 box the committees used
+    path.use_mean(ppred.POPS_MEAN)
+    c_now = np.asarray(path.c_star)                 # this ace-jax's BLR mean (its Cholesky can fail here: recorded only)
+    c_port = np.asarray(box["c_star"])                                  # B2's own mean, stored with its box
+    D = 1.0 / Dinv
+    G = X.T @ X                                    # = D^-1 M D^-1, the port's scaled Gram, from the same rows
+    ev, U = np.linalg.eigh(G)
+    lam = float(rF) * float(ev.max())              # the port's relative ridge (PopsRidgePath.ridge_abs)
+    Sb = (U / (np.maximum(ev, 0.0) + lam)) @ U.T   # (X^T X + lam)^-1 = D A D
+    diag = {"port_gram_finite": bool(np.all(np.isfinite(np.asarray(path._Ms)))),
+            "port_A_finite": bool(np.all(np.isfinite(np.asarray(path.A(rF))))),
+            "gram_rel_diff_vs_port": float(np.linalg.norm(G - np.asarray(path._Ms)) / np.linalg.norm(G))}
+    print("diagnostics", diag, flush=True)
+    pc = X @ Sb
+    h = np.sum(pc * X, axis=1)
+    pc *= ((y - X @ (D * c_port)) / np.where(h > 0, h, np.inf))[:, None]
+    keep = h >= np.percentile(h, 50.0)
+    pk = POPSRegression(fit_intercept=False, leverage_percentile=50.0)
+    P, (lo, hi) = pk._fit_hypercube(pc[keep])
+    S_p, lo_p, hi_p = np.asarray(box["support"]), np.asarray(box["lo"]), np.asarray(box["hi"])
+    cov = lambda S, a, b: S @ (np.diag((b - a) ** 2 / 12) + np.outer((a + b) / 2, (a + b) / 2)) @ S.T
+    C_ref, C_port = cov(Dinv[:, None] * P, lo, hi), cov(S_p, lo_p, hi_p)
+    # the same corrections in theta = D^-1 beta, the coordinates the port takes its box axes in: a box is not invariant
+    # under the non-orthogonal D, so the package's box (axes from PCA in its input coordinates beta) and the port's differ
+    P_t, (lo_t, hi_t) = pk._fit_hypercube((pc * Dinv[None, :])[keep])
+    C_t = cov(P_t, lo_t, hi_t)
+    res["parity"] = {
+        "ridge_rel": float(rF), "mean": ppred.POPS_MEAN, "current_blr_mean_finite": bool(np.all(np.isfinite(c_now))),
+        "n_modes_package": int(P.shape[1]), "n_modes_port": int(S_p.shape[1]), "n_members_package": int(keep.sum()),
+        **diag,
+        "box_cov_rel_diff": float(np.linalg.norm(C_ref - C_port) / np.linalg.norm(C_port)),
+        "sd_E_meV_atom_package": spread(m, c_port, box_members(c_port, Dinv[:, None] * P, lo, hi, SEEDS["pops"])[1]),
+        "sd_E_meV_atom_port": spread(m, c_port, box_members(c_port, S_p, lo_p, hi_p, SEEDS["pops"])[1]),
+        "theta_axes": {"n_modes": int(P_t.shape[1]), "box_cov_rel_diff": float(np.linalg.norm(C_t - C_port) / np.linalg.norm(C_port)),
+                       "sd_E_meV_atom_package": spread(m, c_port, box_members(c_port, P_t, lo_t, hi_t, SEEDS["pops"])[1])}}
+    print("parity", res["parity"], flush=True)
     path.use_mean(ppred.POPS_MEAN)
     print(json.dumps({k: v for k, v in res.items() if k != "parity"}, indent=1))
     json.dump(res, open(RESULTS / f"pops_reference_{m}.json", "w"), indent=1)

@@ -1,0 +1,57 @@
+{
+ "model": "o3d12",
+ "popsregression": "0.4.0",
+ "design": [
+  474799,
+  223
+ ],
+ "ridge_abs_ref": 1.0509652490283987e-09,
+ "ridge_rel_ref": 4.442295939984462e-21,
+ "ridge_port_selected": {
+  "E": 0.01,
+  "F": 0.01,
+  "V": 0.01
+ },
+ "K": 200,
+ "reference_default": {
+  "leverage_pct": 50.0,
+  "n_modes": 100,
+  "n_members": 237400,
+  "sd_E_meV_atom": 37.082491128502426,
+  "median_dE_eV_atom": 0.2577740436551017,
+  "median_dF_eV_A": 1.393070023356327,
+  "pass_tight": 0,
+  "pass_loose": 200,
+  "K": 200
+ },
+ "reference_every_row": {
+  "leverage_pct": 0.0,
+  "n_modes": 16,
+  "n_members": 474799,
+  "sd_E_meV_atom": 3463419.327621786,
+  "median_dE_eV_atom": 121256.77035754919,
+  "median_dF_eV_A": 11229721.271448815,
+  "pass_tight": 0,
+  "pass_loose": 0,
+  "K": 200
+ },
+ "parity": {
+  "ridge_rel": 0.01,
+  "mean": "blr",
+  "current_blr_mean_finite": false,
+  "n_modes_package": 140,
+  "n_modes_port": 190,
+  "n_members_package": 237400,
+  "port_gram_finite": true,
+  "port_A_finite": true,
+  "gram_rel_diff_vs_port": 1.2654209459994637e-15,
+  "box_cov_rel_diff": 0.9984673507449966,
+  "sd_E_meV_atom_package": 223.6995698292489,
+  "sd_E_meV_atom_port": 73.21472113891795,
+  "theta_axes": {
+   "n_modes": 50,
+   "box_cov_rel_diff": 0.9979188259872702,
+   "sd_E_meV_atom_package": 275.8376710280398
+  }
+ }
+}
