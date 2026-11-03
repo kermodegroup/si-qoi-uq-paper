@@ -33,6 +33,7 @@ STRIP = [("CR3-headline", "lam_F", "CR3, λ_F"), ("CR3-headline", "lam_V", "CR3,
 # its intended size wherever the figure is used.  "paper": the text width of a two-column article (7.0 in, fonts
 # ~9 pt); "talk": a 16:9 slide (12 in, fonts ~18 pt).  Every font size below is relative ("small", ...), never points.
 WIDTH = {"paper": 7.0, "talk": 12.0}
+COLUMN = 3.37            # one REVTeX two-column column (in): single-column figures are drawn at it, not shrunk to it
 CONTEXT = os.environ.get("SIQ_FIG_CONTEXT", "paper")
 
 
@@ -158,15 +159,20 @@ def correlation(runs, out, m, extra):
     X = C[:, ok]
     X = X[~np.isnan(X).any(1)]
     R = np.corrcoef(X, rowvar=False)
-    fig, ax = plt.subplots(figsize=_size(7.2, 6.2), facecolor=SURFACE)
+    col = CONTEXT == "paper"                                   # a single-column figure in the paper
+    fig, ax = plt.subplots(figsize=(COLUMN, 0.97 * COLUMN) if col else _size(7.2, 6.2), facecolor=SURFACE)
+    tick = "small" if col else "x-small"
     from matplotlib.colors import LinearSegmentedColormap
     cmap = LinearSegmentedColormap.from_list("div", ["#104281", "#6da7ec", "#f0efec", "#ef8d87", "#8f1d1d"])
     im = ax.imshow(R, cmap=cmap, vmin=-1, vmax=1)
     lab = [short(KEYS[i]) for i in ok]
-    ax.set_xticks(range(len(ok)), lab, rotation=70, ha="right", fontsize="x-small")
-    ax.set_yticks(range(len(ok)), lab, fontsize="x-small")
-    ax.set_title(f"{m}: QoI correlation (CR3 committee, K = {len(X)})", color=INK, fontsize="medium", loc="left")
-    fig.colorbar(im, ax=ax, fraction=0.04, label="correlation")
+    ax.set_xticks(range(len(ok)), lab, rotation=70, ha="right", rotation_mode="anchor", fontsize=tick)
+    ax.set_yticks(range(len(ok)), lab, fontsize=tick)
+    ax.tick_params(length=2 if col else 3.5, pad=1.5 if col else 3.5)
+    ax.set_title(f"{m}: QoI correlation (CR3, K = {len(X)})" if col else f"{m}: QoI correlation (CR3 committee, K = {len(X)})",
+                 color=INK, fontsize="small" if col else "medium", loc="left")
+    cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
+    cb.set_label("correlation", fontsize=tick); cb.ax.tick_params(labelsize=tick)
     _save(fig, out, "fig3_qoi_correlation")
 
 

@@ -27,6 +27,8 @@ PAGE = HERE.parent / "artifact" / "paper" / "index.html"
 FIG = HERE.parent / "figures"
 BUILD = HERE / "build"
 
+SINGLE_COLUMN = ("fig3_qoi_correlation",)
+
 CITE = {
     "Allen 1974": "allen1974", "Cook and Weisberg 1982": "cook1982", "Bartók et al. 2018": "bartok2018",
     "Bigi et al. 2024": "bigi2024", "Drautz 2019": "drautz2019", "Gneiting and Raftery 2007": "gneiting2007",
@@ -200,11 +202,16 @@ def main():
     left = re.findall(r"\[[A-Z][^\]]{0,60}\d{4}\]", tex)
     if left:
         sys.exit(f"unmapped citations: {sorted(set(left))[:10]}")
-    # figures: the paper-context PDFs at the full text width (figure*), labelled from the page's caption number
+    # figures: the paper-context PDFs at the full text width (figure*), height-capped, labelled from the page's caption number
     tex = re.sub(r"\\pandocbounded\{\\includegraphics\[[^\]]*\]\{([^}]+)\.png\}\}",
-                 lambda m: rf"\includegraphics[width=\textwidth]{{figures/{m.group(1)}.pdf}}", tex)
+                 lambda m: rf"\includegraphics[width=\textwidth,height=0.8\textheight,keepaspectratio]{{figures/{m.group(1)}.pdf}}", tex)
+    # (a tall figure, e.g. the four-row QoI comparison, is narrowed to fit the page with its caption)
     tex = tex.replace("\\begin{figure}", "\\begin{figure*}[tbp]").replace("\\end{figure}", "\\end{figure*}")
-    tex = re.sub(r"\\caption\{Figure (\w+)\.\s*(.*?)\}\n(?=\\end\{figure\*\})",
+    for f in SINGLE_COLUMN:                     # drawn at one column's width (figures.COLUMN): a column float
+        tex = re.sub(r"\\begin\{figure\*\}\[tbp\](\s*\\centering)?(\s*)\\includegraphics\[[^\]]*\]\{figures/" + f + r"\.pdf\}(.*?)\\end\{figure\*\}",
+                     lambda m: "\\begin{figure}[tbp]" + (m.group(1) or "") + m.group(2) + rf"\includegraphics[width=\columnwidth]{{figures/{f}.pdf}}"
+                     + m.group(3) + "\\end{figure}", tex, flags=re.S)
+    tex = re.sub(r"\\caption\{Figure (\w+)\.\s*(.*?)\}\n(?=\\end\{figure\*?\})",
                  lambda m: rf"\caption{{{m.group(2)}}}\label{{fig:{m.group(1)}}}" + "\n", tex, flags=re.S)
     tex = _tables(tex)
     labels = set(re.findall(r"\\label\{((?:fig|tab):\w+)\}", tex))
