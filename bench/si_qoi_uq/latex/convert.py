@@ -132,11 +132,11 @@ def _math(html, tok):
         inner = _h.unescape(m.group(1))
         if re.search(r",\s*\\q?quad", inner):                         # side-by-side equations: one per line in a
             inner = re.sub(r",\s*\\q?quad\s*", lambda _: ",\\\\\n", inner)  # two-column page
-            return new("\\begin{gather*}" + inner.strip() + "\n\\end{gather*}")
+            return new("\\begin{gather}" + inner.strip() + "\n\\end{gather}")
         if "\n" in inner.strip() and len(inner) > 80:                     # a long equation broken in the source:
             a_, b_ = inner.strip().split("\n", 1)                       # break it there (multline)
-            return new("\\begin{multline*}" + a_.strip() + "\\\\\n" + b_.strip() + "\n\\end{multline*}")
-        return new("\\[" + inner + "\\]")
+            return new("\\begin{multline}" + a_.strip() + "\\\\\n" + b_.strip() + "\n\\end{multline}")
+        return new("\\begin{equation}" + inner + "\\end{equation}")
     html = re.sub(r"\\\[(.*?)\\\]", display, html, flags=re.S)
     html = re.sub(r"\\\((.*?)\\\)", lambda m: new("\\(" + _h.unescape(m.group(1)) + "\\)"), html, flags=re.S)
     return html
