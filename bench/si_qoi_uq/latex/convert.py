@@ -44,6 +44,7 @@ CITE = {
     "Pustejovsky and Tipton 2018": "pustejovsky2018", "Perez et al. 2025": "perez2025",
     "Maliyov, Grigorev and Swinburne 2025": "maliyov2025", "Ho, Ortner and Wang 2026": "ho2026",
     "Podryabinkin and Shapeev 2017": "podryabinkin2017", "Lysogorskiy et al. 2023": "lysogorskiy2023",
+    "Shanks et al. 2026": "shanks2026",
 }
 
 UNICODE = {

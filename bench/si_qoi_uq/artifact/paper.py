@@ -1099,7 +1099,7 @@ do that, which is why it is the method here: the learned scale is the better cho
 represented in the training data.</p>
 <p>Ho, Ortner and Wang [2026] reach a more favourable verdict on their learned scale out of distribution, on compositions and
 exchange-correlation functionals outside the calibration set. Their test is the correlation of the predicted uncertainty with the
-error; ours is coverage. The two are not in conflict, since a scale can rank errors better and still be too narrow where the model
+error; ours is coverage. These are different properties [Shanks et al. 2026]. The two results are not in conflict, since a scale can rank errors better and still be too narrow where the model
 extrapolates, but they show that a learned scale should be checked for coverage on environments left out of its calibration.</p>
 <div class="wrap"><table><caption>Table 2c. Out-of-distribution per-atom force coverage at nominal 90 %: ARD refits without
 cracks and screw dislocations, scored on them (90 % intervals from a bootstrap over configurations). "ID test": the same
@@ -1125,7 +1125,9 @@ consistently.</p>
 <p>The baselines show which ingredient matters. The CR3 shape without a scale (B3) is far too narrow, so calibration is essential,
 as expected for a parameter variance that shrinks with the amount of data. The Bayesian posterior with a calibrated scale (B1)
 has the right overall size but the wrong shape: it under-covers the QoIs and its joint evidence is far lower, because the posterior describes
-noise in the labels, not the approximation error of a misspecified model. POPS (B2) targets that error directly, but its width is
+noise in the labels, not the approximation error of a misspecified model. Shanks et al. [2026] find the same split between
+accuracy and uncertainty for argon: MACE committees and seed ensembles predict accurately but cover far fewer errors than their
+intervals claim, and calibration, sharpness and the ranking of errors need not improve together. POPS (B2) targets that error directly, but its width is
 set by which training rows define the hypercube, and with no calibration step it is too narrow for the larger model. The CR3 shape,
 which measures how far the fit moves when each configuration is left out, is the one that transfers, provided it is scaled.</p>
 <p>The scale is not unique. The virial scale is about a third larger than the force scale, and using it covers
@@ -1236,6 +1238,7 @@ sec("refs", "References", """<p class="note">Checked against publisher or reposi
 <li>E. V. Podryabinkin, A. V. Shapeev, Active learning of linearly parametrized interatomic potentials, Comput. Mater. Sci. 140, 171–180 (2017).</li>
 <li>H. Papadopoulos, V. Vovk, A. Gammerman, Normalized nonconformity measures for regression conformal prediction, Proc. IASTED Int. Conf. Artificial Intelligence and Applications, 64–69 (2008).</li>
 <li>J. E. Pustejovsky, E. Tipton, Small-sample methods for cluster-robust variance estimation and hypothesis testing in fixed effects models, J. Bus. Econ. Stat. 36, 672–683 (2018).</li>
+<li>B. L. Shanks, G. Simmons, A. P. Bartók, J. R. Kermode, Uncertainty quantification design principles for machine learning interatomic potentials: lessons learned from hierarchical Bayesian inference, arXiv:2206.08744v2 (2026).</li>
 <li>G. Simmons, T. Hudson, T. D. Swinburne, J. R. Kermode, review of uncertainty quantification for machine-learned interatomic potentials, in preparation.</li>
 <li>T. D. Swinburne, D. Perez, Parameter uncertainties for imperfect surrogate models in the low-noise regime, Mach. Learn.: Sci. Technol. 6, 015008 (2024).</li>
 <li>T. D. Swinburne, POPSRegression: Bayesian regression for low-noise data with misspecification uncertainty, Python package, https://pypi.org/project/popsregression/.</li>
