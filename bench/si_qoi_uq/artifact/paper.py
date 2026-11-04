@@ -304,11 +304,9 @@ Sections 2.5 and 3.2 describe and test the scale.</p>
 on every atom and on relaxed geometries. A QoI's uncertainty has two parts [Simmons, Hudson, Swinburne and Kermode, in prep.]. The
 aleatoric part is the sampling error of the simulation that computes the QoI, assessed with statistical convergence tests
 [Grossfield and Zuckerman 2009; Lelièvre, Rousset and Stoltz 2010, Sec. 2.3]. The epistemic part comes from the uncertainty in the
-fit. It is most widely estimated with a committee of \\(n\\) potentials, an idea long established in statistics [Hoeting et al.
-1999]. If member \\(i\\) predicts \\(D_i\\sim\\mathcal N(\\mu_i,\\sigma_i^2)\\), independently, the predictive variance
-\\(\\tfrac1n\\sum_i\\sigma_i^2+\\tfrac1{n-1}\\sum_i(\\mu_i-\\bar\\mu)^2\\) is the mean aleatoric variance plus the committee's spread of
-means, the epistemic part. The QoIs here come from relaxations and static calculations, so their aleatoric part is zero and their
-uncertainty is purely epistemic. For a linear model the consistent object is then a distribution over the coefficients θ: one draw
+fit. It is most widely estimated with a committee of potentials, an idea long established in statistics [Hoeting et al.
+1999]. The QoIs here come from relaxations and static calculations, so they have no aleatoric part and their uncertainty is
+purely epistemic. For a linear model the consistent object is then a distribution over the coefficients θ: one draw
 gives energies, forces and stresses together, and every QoI follows from it.</p>
 <p>We propagate the same CR3 distribution, with one scale fitted to held-out forces, to 21 QoIs of silicon, for potentials fitted
 to the GAP-18 database [Bartók et al. 2018]. The propagation uses implicit differentiation through every relaxation, including that
