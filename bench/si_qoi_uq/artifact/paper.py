@@ -590,7 +590,7 @@ row weights but no noise scale, \(r_i\) is the row's residual at the ridge solut
 with \(M=\sum_i\psi^w_i\psi_i^{w\mathsf T}\) and the ridge parameter \(\mu\) chosen on a path. Members are drawn uniformly in the
 hypercube spanned by the principal directions of the \(\delta_i\), with bounds from their extreme projections, as in Swinburne and
 Perez [2024]. Following the reference package, the box is built only from the rows at or above the median leverage
-(<code>leverage_percentile = 50</code>, its default; every row makes the box unphysical here, Section 3.7). The ridge is selected
+(<code>leverage_percentile = 50</code>, its default; a box from every row is unphysical here, Section 3.7). The ridge is selected
 per quantity by the CRPS on a hold-out of the training set, over relative ridges from 10<sup>−2</sup> down to 10<sup>−10</sup> of
 the largest eigenvalue: below that the box is set by roundoff (Section 3.7). We use ace-jax [ace-jax] version 0.5.2, which includes the
 numerical corrections that this study prompted. B2 has no calibration step, so it tests a misspecification-aware shape without a
@@ -839,9 +839,8 @@ def _pr_txt():
     allr = "; ".join(f"{m}: {v['reference_every_row']['sd_E_meV_atom']:.3g} meV/atom" for m, v in _pr.items())
     return (f"We also fitted the reference package POPSRegression {v0['popsregression']} to the port's own loss-weighted rows. "
             f"Its ridge, chosen by evidence, is {rid} of the largest eigenvalue, so its fit is in effect unregularised. With "
-            f"its default 50 % cut the members spread the bulk energy by {dft}. With every row they spread it by {allr}: the "
-            "unphysical box of the every-row default is a property of POPS on this design, not of the port. [Draft note: a "
-            "box-by-box comparison of the port with the package at B2's settings does not yet agree and is being checked.]")
+            f"its default 50 % cut the members spread the bulk energy by {dft}. With every row they spread it by {allr}: "
+            "a box from every row is unphysical on this design whichever code builds it.")
 pr_txt = _pr_txt()
 _pc_old = json.load(open(RES / "pops_compare_o3d12_oct31box.json")) if (RES / "pops_compare_o3d12_oct31box.json").exists() else None
 _pcs = {m: json.load(open(RES / f"pops_compare_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"pops_compare_{m}.json").exists()}
@@ -1003,8 +1002,8 @@ mean model's value and the star DFT.</figcaption></figure>
 calibration, covers only {b3txt} of the QoIs at 95 %: the shape alone is several times too narrow, as the test-split scales of
 Section 3.3 already show. B1, the posterior with one conformal scale, covers {b1txt}. It has a calibrated overall size but the wrong
 shape, so it is too wide for some QoIs and too narrow for others, and its joint evidence is far below the headline's (Table 4).</p>
-<p>B2, POPS, needed more care. With the ace-jax port's default, which builds the hypercube from every training row, the members are
-unphysical: the bounds are set by a handful of rows with near-zero leverage, whose corrections are unbounded, and the members spread
+<p>B2, POPS, needed more care. A hypercube built from every training row, instead of the reference package's 50 % cut, gives
+unphysical members: the bounds are set by a handful of rows with near-zero leverage, whose corrections are unbounded, and the members spread
 the bulk energy of o3d12 by {pops_sd} meV/atom. Rejecting unphysical members cannot rescue a box of that size.</p>
 <p>The POPS box is also numerically fragile on these designs. The o3d12 design has a condition number of
 {pc_cond} and its evidence fit puts σ<sub>c</sub> on its upper bound, so the ridge that gives the BLR mean is
@@ -1246,7 +1245,7 @@ well posed.</p>
 <p>Three properties of the distribution make the difference. First, its size is one scale, fitted to held-out errors and
 interpretable as such. The size of the POPS box is set instead by the ridge and the leverage cut: across the numerically defined
 ridges the o3d12 box's bulk-energy spread changes by a factor of about 60, the held-out selection put the o3d12 ridge at the floor,
-and the every-row default is unphysical. Second, a covariance is a sum over configurations, and it is formed here through its
+and a box built from every row is unphysical. Second, a covariance is a sum over configurations, and it is formed here through its
 factor L, never as an ill-conditioned quadratic form. A hypercube is bounded by the extreme projections of single rows: on the same
 rows, mean and cut, equivalent evaluations of one box gave {pc_old_short}, and the box exists only above a ridge floor. Third, a
 covariance transforms consistently under a linear change of parameters, and a box does not: with the axes taken in θ or in the
@@ -1311,8 +1310,8 @@ the Sulis Tier 2 HPC platform.</p>
 fixed the 21 QoIs and their tolerances, the four candidate scales λ<sub>F</sub>, λ<sub>E</sub>, λ<sub>V</sub> and
 λ<sub>pool</sub>, the three baselines, the committee size and the 10 % rule that picks the delta method or the committee. λ<sub>F</sub>
 was chosen as the headline before any QoI coverage was seen; the specification lists the four scales but does not record that
-choice. Decided later, after QoI results had been seen: the POPS leverage cut (the specification's ace-jax default gave unphysical
-members, Section 3.7; B2 now follows the reference package's default) and its ridge floor (set by where the box is numerically
+choice. Decided later, after QoI results had been seen: the POPS leverage cut (the box was first built from every row, which gave unphysical
+members, Section 3.7; B2 follows the reference package's default, the 50 % cut) and its ridge floor (set by where the box is numerically
 defined, Section 3.7), the member-rejection rule of the λ<sub>F</sub> re-run (fixed
 before that re-run), the discrepancy term and its estimators (Section 2.7.4), the per-atom force method (Section 2.5, chosen after
 comparing it with a learned scale on the test split and on the out-of-distribution set), and Bayesian model comparison in place of
