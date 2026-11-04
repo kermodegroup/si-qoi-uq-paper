@@ -250,9 +250,9 @@ of the fit. With one scale fitted to held-out forces,
 the same parameter distribution is propagated to 21 properties of silicon, from elastic constants to defect and surface energies,
 by implicit differentiation through each relaxation and by committees, and is tested against DFT without tuning on any property.
 For a smaller and a larger model the intervals cover most properties, and the larger model's are about {tight_ratio:.0f} times
-tighter. The Bayesian posterior scaled the same way has the wrong shape: it covers fewer properties and has far lower joint
+tighter. The Bayesian posterior with one calibrated scale has the wrong shape: it covers fewer properties and has far lower joint
 evidence. POPS, once its hypercube is numerically defined, performs comparably on the properties, but its per-atom force
-regions are not calibrated to a target ({fb("o3d12", "B2")} and {fb("o4d20", "B2")} at a nominal 0.90). The exceptions are relaxed point defects, whose training cells are all hot snapshots: a bias that every configuration
+regions are not calibrated to a target ({fb("o3d12", "B2")} and {fb("o4d20", "B2")} at a nominal 0.90). Where the jackknife fails is relaxed point defects, whose training cells are all hot snapshots: a bias that every configuration
 shares is invisible to a jackknife, but it can be measured from the training labels, and as a discrepancy term it restores
 coverage.</p>""", "draft")
 
