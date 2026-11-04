@@ -28,6 +28,8 @@ FIG = HERE.parent / "figures"
 BUILD = HERE / "build"
 
 SINGLE_COLUMN = ("fig3_qoi_correlation",)
+FULL_PAGE = {"fig6_model_compare": 0.8}   # height caps (x textheight): 0.6 lets a full-width figure share its page with text;
+                                         # the four-row QoI comparison keeps a page of its own, legible
 
 CITE = {
     "Allen 1974": "allen1974", "Cook and Weisberg 1982": "cook1982", "Bartók et al. 2018": "bartok2018",
@@ -204,7 +206,7 @@ def main():
         sys.exit(f"unmapped citations: {sorted(set(left))[:10]}")
     # figures: the paper-context PDFs at the full text width (figure*), height-capped, labelled from the page's caption number
     tex = re.sub(r"\\pandocbounded\{\\includegraphics\[[^\]]*\]\{([^}]+)\.png\}\}",
-                 lambda m: rf"\includegraphics[width=\textwidth,height=0.8\textheight,keepaspectratio]{{figures/{m.group(1)}.pdf}}", tex)
+                 lambda m: rf"\includegraphics[width=\textwidth,height={FULL_PAGE.get(m.group(1), 0.6)}\textheight,keepaspectratio]{{figures/{m.group(1)}.pdf}}", tex)
     # (a tall figure, e.g. the four-row QoI comparison, is narrowed to fit the page with its caption)
     tex = tex.replace("\\begin{figure}", "\\begin{figure*}[tbp]").replace("\\end{figure}", "\\end{figure*}")
     for f in SINGLE_COLUMN:                     # drawn at one column's width (figures.COLUMN): a column float
@@ -246,6 +248,9 @@ def main():
 \usepackage[hidelinks]{{hyperref}}
 \providecommand{{\tightlist}}{{\setlength{{\itemsep}}{{0pt}}\setlength{{\parskip}}{{0pt}}}}
 \newcommand{{\real}}[1]{{#1}}
+\renewcommand{{\topfraction}}{{0.9}}\renewcommand{{\dbltopfraction}}{{0.9}}   % let large floats share a page with text
+\renewcommand{{\textfraction}}{{0.07}}\renewcommand{{\floatpagefraction}}{{0.8}}\renewcommand{{\dblfloatpagefraction}}{{0.8}}
+\setcounter{{topnumber}}{{3}}\setcounter{{dbltopnumber}}{{3}}\setcounter{{totalnumber}}{{5}}
 \setcounter{{secnumdepth}}{{0}}                       % headings carry the page's own numbers
 \providecommand{{\lt}}{{<}}\providecommand{{\gt}}{{>}}  % MathJax spellings used in the page
 \newsavebox{{\fitbox}}                               % a table at its natural width, or scaled to the line width
