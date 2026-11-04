@@ -1,139 +1,139 @@
 {
  "model": "o3d12",
- "ridge_rel": 1e-14,
+ "ridge_rel": 1e-10,
  "leverage_pct": 50.0,
  "n_rows": 474799,
  "n_par": 223,
  "b2": {
-  "n_modes": 190,
-  "sd_E_meV_atom": 77.5885891988516
+  "n_modes": 161,
+  "sd_E_meV_atom": 4.5340301174187
  },
  "cond": {
   "cond_X": 5.229617864581988e+16,
-  "cond_G_plus_lam": 100000000000001.0,
+  "cond_G_plus_lam": 10000000000.999998,
   "eig_min_rel": -1.907687385528315e-19,
   "n_neg_eig": 4,
-  "lam_abs": 0.0023658154774624817,
+  "lam_abs": 23.65815477462482,
   "s2_min_rel": 3.6564537877465263e-34
  },
  "leverage": {
-  "eig_vs_svd_max_rel": 0.00502707516550833,
+  "eig_vs_svd_max_rel": 5.3302631143635224e-08,
   "eig_negative": 0,
-  "median_svd": 8.452777802833929e-05,
+  "median_svd": 3.389832299117705e-05,
   "min_svd": 0.0
  },
  "eig": {
   "n_members": 237400,
-  "n_modes": 173,
-  "sd_E_meV_atom": 1.5776756103461878,
-  "cov_rel_diff_vs_b2": 4.292813948839153
+  "n_modes": 161,
+  "sd_E_meV_atom": 4.532972011938393,
+  "cov_rel_diff_vs_b2": 0.000701893661065756
  },
  "svd": {
   "n_members": 237400,
-  "n_modes": 188,
-  "sd_E_meV_atom": 2.127322375377971,
-  "cov_rel_diff_vs_b2": 0.24880274285895548
+  "n_modes": 161,
+  "sd_E_meV_atom": 4.533250083979553,
+  "cov_rel_diff_vs_b2": 0.0007011555252166868
  },
  "package_beta": {
-  "n_modes": 199,
-  "sd_E_meV_atom": 2.1842606758074448,
-  "cov_rel_diff_vs_b2": 0.42547303892700394
+  "n_modes": 206,
+  "sd_E_meV_atom": 5.500096235297754,
+  "cov_rel_diff_vs_b2": 0.7530776576822654
  },
  "package_theta": {
-  "n_modes": 188,
-  "sd_E_meV_atom": 2.1273223923475086,
-  "cov_rel_diff_vs_b2": 0.24880274285895562
+  "n_modes": 161,
+  "sd_E_meV_atom": 4.533250084063712,
+  "cov_rel_diff_vs_b2": 0.0007011555252181843
  },
  "sweep": [
   {
    "ridge_rel": 1e-14,
-   "sd_E_eig": 1.5776756103461878,
+   "sd_E_eig": 1.5839001113019693,
    "modes_eig": 173,
-   "sd_E_svd": 2.127322375377971,
+   "sd_E_svd": 2.1268154524983576,
    "modes_svd": 188
   },
   {
    "ridge_rel": 1e-13,
-   "sd_E_eig": 2.3037801756772844,
+   "sd_E_eig": 2.295599366986527,
    "modes_eig": 186,
-   "sd_E_svd": 2.4498400410157526,
+   "sd_E_svd": 2.453440027236312,
    "modes_svd": 187
   },
   {
    "ridge_rel": 1e-12,
-   "sd_E_eig": 2.8448888353226067,
+   "sd_E_eig": 2.8440716715967884,
    "modes_eig": 181,
-   "sd_E_svd": 2.7921801690261234,
+   "sd_E_svd": 2.787988932599691,
    "modes_svd": 181
   },
   {
    "ridge_rel": 1e-11,
-   "sd_E_eig": 3.536096820025938,
+   "sd_E_eig": 3.566803812368186,
    "modes_eig": 172,
-   "sd_E_svd": 3.536572845084559,
+   "sd_E_svd": 3.5843149164972705,
    "modes_svd": 172
   },
   {
    "ridge_rel": 1e-10,
-   "sd_E_eig": 4.5395254719192035,
+   "sd_E_eig": 4.532972011938393,
    "modes_eig": 161,
-   "sd_E_svd": 4.539829180587816,
+   "sd_E_svd": 4.533250083979553,
    "modes_svd": 161
   },
   {
    "ridge_rel": 1e-09,
-   "sd_E_eig": 6.253221371954634,
+   "sd_E_eig": 6.204575282894624,
    "modes_eig": 153,
-   "sd_E_svd": 6.253204945839976,
+   "sd_E_svd": 6.204543428847517,
    "modes_svd": 153
   },
   {
    "ridge_rel": 1e-08,
-   "sd_E_eig": 11.920160731006423,
+   "sd_E_eig": 11.882838688749178,
    "modes_eig": 129,
-   "sd_E_svd": 11.920161582809808,
+   "sd_E_svd": 11.882839889060241,
    "modes_svd": 129
   },
   {
    "ridge_rel": 1e-07,
-   "sd_E_eig": 19.67795797092819,
+   "sd_E_eig": 19.712054792320505,
    "modes_eig": 100,
-   "sd_E_svd": 19.677958070717903,
+   "sd_E_svd": 19.712054904952343,
    "modes_svd": 100
   },
   {
    "ridge_rel": 1e-06,
-   "sd_E_eig": 30.96379729944791,
+   "sd_E_eig": 30.827160960126502,
    "modes_eig": 77,
-   "sd_E_svd": 30.963797311899423,
+   "sd_E_svd": 30.8271609694725,
    "modes_svd": 77
   },
   {
    "ridge_rel": 1e-05,
-   "sd_E_eig": 49.85306090007818,
+   "sd_E_eig": 49.710674531865095,
    "modes_eig": 67,
-   "sd_E_svd": 49.853060899092476,
+   "sd_E_svd": 49.71067453116585,
    "modes_svd": 67
   },
   {
    "ridge_rel": 0.0001,
-   "sd_E_eig": 94.24378435748496,
+   "sd_E_eig": 93.80778154264954,
    "modes_eig": 59,
-   "sd_E_svd": 94.24378435731506,
+   "sd_E_svd": 93.80778154284839,
    "modes_svd": 59
   },
   {
    "ridge_rel": 0.001,
-   "sd_E_eig": 214.11255954821536,
+   "sd_E_eig": 214.0417663523433,
    "modes_eig": 52,
-   "sd_E_svd": 214.11255954857054,
+   "sd_E_svd": 214.0417663523839,
    "modes_svd": 52
   },
   {
    "ridge_rel": 0.01,
-   "sd_E_eig": 263.16409834919864,
+   "sd_E_eig": 262.51598813616255,
    "modes_eig": 50,
-   "sd_E_svd": 263.1640983490649,
+   "sd_E_svd": 262.5159881368726,
    "modes_svd": 50
   }
  ]

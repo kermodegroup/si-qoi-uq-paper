@@ -834,10 +834,12 @@ else:
     pc_cond = pc_old = pc_sweep = "(pending)"; pc_lamblr = float("nan")
 pc_old_short = (f"bulk-energy spreads from {_o['eig']['sd_E_meV_atom']:.1f} to {_o['b2']['sd_E_meV_atom']:.0f} meV/atom at a relative "
                 f"ridge of 10<sup>−14</sup>") if _pc_old else "(pending)"
-_prp = _pr.get("o3d12", {}).get("parity", {})
-pc_axes = (f"{_prp['theta_axes']['n_modes']} and {_prp['n_modes_package']} modes and bulk-energy spreads of "
-           f"{_prp['theta_axes']['sd_E_meV_atom_package']:.0f} and {_prp['sd_E_meV_atom_package']:.0f} meV/atom (o3d12, relative ridge "
-           f"{sci(_prp['ridge_rel'])})") if "theta_axes" in _prp else "(pending)"
+# the rebuilt B2 boxes against four evaluations from the same rows, mean, ridge and cut (analysis/pops_compare.py)
+pc_parity = " and ".join(f"{sci(max(v[k]['cov_rel_diff_vs_b2'] for k in ('eig', 'svd', 'package_theta')))} ({m})" for m, v in _pcs.items()) \
+    if len(_pcs) == 2 else "(pending)"
+pc_axes = (" and ".join(f"{v['package_theta']['n_modes']} against {v['package_beta']['n_modes']} modes, "
+                        f"{v['package_theta']['sd_E_meV_atom']:.2f} against {v['package_beta']['sd_E_meV_atom']:.2f} meV/atom ({m})"
+                        for m, v in _pcs.items()) + " in θ against Γθ, at the selected ridges") if len(_pcs) == 2 else "(pending)"
 pc_sel = "; ".join(f"{m}: " + ", ".join(f"{q} {sci(v)}" for q, v in json.loads(str(b["ridge_selected"])).items()) for m, b in _box.items())
 pc_refridge = " and ".join(f"{sci(v['ridge_rel_ref'])} ({m})" for m, v in _pr.items()) if _pr else "(pending)"
 dtrend = json.load(open(RES / "defect_trend.json")) if (RES / "defect_trend.json").exists() else {}
@@ -986,7 +988,10 @@ the bulk energy of o3d12 by {pops_sd} meV/atom. Rejecting unphysical members can
 bulk-energy spreads of {pc_old}. The POPS step of the reference package POPSRegression [Swinburne, POPSRegression] agrees with the
 stable SVD evaluation there, so the port and the package differ only in these numerics, not in the method. We therefore select
 the ridge from 10<sup>−10</sup> upwards ({pc_sel}). For o3d12 the selection takes the smallest ridge it is offered, so the
-floor sets the box; for o4d20 it chooses inside the grid. Within the numerically defined range the box widens with the ridge: for
+floor sets the box; for o4d20 it chooses inside the grid. At these ridges the box is reproduced: the stored B2 box, the
+eigendecomposition route, the SVD and the reference package's hypercube step on the same corrections agree in covariance to
+{pc_parity}, relative. The package takes its axes in the coordinates it is given, here the prior-scaled Γθ; in those its box
+differs ({pc_axes}). Within the numerically defined range the box widens with the ridge: for
 o3d12 its bulk-energy spread is {pc_sweep}. The reference package's own default ridge, chosen by evidence, is
 {pc_refridge} of the largest eigenvalue, in the range where the box is not defined, so we do not use it.</p>
 <p>We ran committees at
@@ -1208,7 +1213,7 @@ and the every-row default is unphysical. Second, a covariance is a sum over conf
 factor L, never as an ill-conditioned quadratic form. A hypercube is bounded by the extreme projections of single rows: on the same
 rows, mean and cut, equivalent evaluations of one box gave {pc_old_short}, and the box exists only above a ridge floor. Third, a
 covariance transforms consistently under a linear change of parameters, and a box does not: with the axes taken in θ or in the
-prior-scaled coefficients Γθ, the same corrections give boxes of {pc_axes}. For forces the calibration is explicit. One conformal
+prior-scaled coefficients Γθ, the same corrections give different boxes ({pc_axes}). For forces the calibration is explicit. One conformal
 quantile on the CR3 shape covers {lm("o3d12", "one_group")} and {lm("o4d20", "one_group")} of the test atoms against a nominal 0.90, and
 holds out of distribution on the cracks. The POPS box covers {fb("o3d12", "B2")} (o3d12) and {fb("o4d20", "B2")} (o4d20), the latter
 unevenly (per type {fb_types("o4d20", "B2")}), and nothing in its construction aims at a target coverage. Two costs of CR3 remain. It is a sampling variance, so it needs held-out data and a
