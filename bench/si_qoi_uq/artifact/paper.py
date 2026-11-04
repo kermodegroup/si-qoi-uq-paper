@@ -93,6 +93,15 @@ _ood = {m: json.load(open(RES / f"ood_mondrian_{m}.json")) for m in ("o3d12", "o
 _lso = {m: json.load(open(RES / f"learned_scale_ood_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"learned_scale_ood_{m}.json").exists()}
 _lsm = {m: json.load(open(RES / f"learned_scale_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"learned_scale_{m}.json").exists()}
 _evn = json.load(open(RES / "evenness.json")) if (RES / "evenness.json").exists() else {}
+# Models whose per-atom stage (hold-out quantile, transfer, learned scale, out-of-distribution refit) has not yet been rerun on
+# the BLR posterior: their results/ files still hold the ARD run, so every number drawn from them prints as PEND.
+PENDING = {"o4d20"}
+PEND = '<b class="pending">[o4d20 pending]</b>'
+_ard_lsm = {m: json.load(open(RES / "ard_sensitivity" / f"learned_scale_{m}.json")) for m in ("o3d12", "o4d20")
+            if (RES / "ard_sensitivity" / f"learned_scale_{m}.json").exists()}   # the per-atom stage on the ARD fits (sensitivity)
+ard_lm = lambda m, k="one_group": "–" if m not in _ard_lsm else f"{_ard_lsm[m]['sets']['test']['all'][k]:.2f}"
+_par_blr = json.load(open(RES / "blrcal_parity.json")) if (RES / "blrcal_parity.json").exists() else {}
+par_txt = lambda m, k: PEND if m not in _par_blr else sci(_par_blr[m][k], 0)
 OOD_COLS = (("all", "all held out"), ("crack_110_1-10", "crack (110)"), ("crack_111_1-10", "crack (111)"), ("screw_disloc", "screw dislocation"))
 OOD_METH = (("one_group", "one hold-out quantile"), ("learned", "learned scale"), ("global", "global scale (ID test)"))
 def _ood_get(m, k, c="all", ci=False):
@@ -112,24 +121,29 @@ def _ood_id(m, k):
         return _ood[m]["in_distribution"]["global"] if m in _ood else None
     return _lso[m]["sets"]["id_test"]["all"][k] if m in _lso else None
 def _ood_cell(m, k, c):
+    if m in PENDING:
+        return PEND
     v, ci = _ood_get(m, k, c), _ood_get(m, k, c, ci=True)
     return "–" if v is None else f"{v:.2f}" + (f" [{ci[0]:.2f}, {ci[1]:.2f}]" if ci else "")
-ood_rows = "".join(f"<tr><td>{m}</td><td>{lab}</td><td class=n>{f(_ood_id(m, k))}</td>" + "".join(
+ood_rows = "".join(f"<tr><td>{m}</td><td>{lab}</td><td class=n>{PEND if m in PENDING else f(_ood_id(m, k))}</td>" + "".join(
     f"<td class=n>{_ood_cell(m, k, c)}</td>" for c, _ in OOD_COLS) + "</tr>" for m in ("o3d12", "o4d20") if m in _lso for k, lab in OOD_METH)
 ood_n = lambda m: f"{_ood[m]['all']['atoms']} atoms in {_ood[m]['all']['configs']} configurations" if m in _ood else "–"
-ood_v = lambda m, k, c="all": "–" if _ood_get(m, k, c) is None else f"{_ood_get(m, k, c):.2f}"
+ood_v = lambda m, k, c="all": PEND if m in PENDING else "–" if _ood_get(m, k, c) is None else f"{_ood_get(m, k, c):.2f}"
 _atr = json.loads((RES / "ard_transfer.json").read_text()) if (RES / "ard_transfer.json").exists() else {}
-atr = lambda m, k, fmt=".2f": format(_atr[m][k], fmt).replace("-", "−") if m in _atr else "–"   # hold-out -> full transfer (analysis/ard_transfer.py)
-atr_pct = lambda m: f"{100 * (_atr[m]['test_q_over_q_one'] - 1):.1f} %" if m in _atr else "–"
-lm = lambda m, k: "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all'][k]:.2f}"
-lm_seeds = lambda m: "–" if m not in _lsm else "–".join(f"{x:.2f}" for x in _lsm[m]["sets"]["test"]["all"]["learned_seed_range"])
-lm_rad = lambda m, k: "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all']['median_radius'][k]:.1f}"
-lm_rms = lambda m: "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all']['rms_e_over_sigma_learned']:.2f}"
-lm_med = lambda m: "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all'].get('median_e_over_sigma_learned', float('nan')):.2f}"
-evdev = lambda tag, st, k: "–" if tag not in _evn else f"{_evn[tag][st][k]['rms_dev']:.3f}"
+atr = lambda m, k, fmt=".2f": PEND if m in PENDING else format(_atr[m][k], fmt).replace("-", "−") if m in _atr else "–"   # hold-out -> full transfer (analysis/ard_transfer.py)
+atr_pct = lambda m: PEND if m in PENDING else f"{100 * (_atr[m]['test_q_over_q_one'] - 1):.1f} %" if m in _atr else "–"
+lm = lambda m, k: PEND if m in PENDING else "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all'][k]:.2f}"
+lm_seeds = lambda m: PEND if m in PENDING else "–" if m not in _lsm else "–".join(f"{x:.2f}" for x in _lsm[m]["sets"]["test"]["all"]["learned_seed_range"])
+lm_rad = lambda m, k: PEND if m in PENDING else "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all']['median_radius'][k]:.1f}"
+lm_rms = lambda m: PEND if m in PENDING else "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all']['rms_e_over_sigma_learned']:.2f}"
+lm_med = lambda m: PEND if m in PENDING else "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all'].get('median_e_over_sigma_learned', float('nan')):.2f}"
+evdev = lambda tag, st, k: PEND if tag.replace("ood_", "") in PENDING else "–" if tag not in _evn else f"{_evn[tag][st][k]['rms_dev']:.3f}"
 def _type_rows():
     rows = ""
     for m in ("o3d12", "o4d20"):
+        if m in PENDING:
+            rows += f"<tr><td>{m}</td><td>{PEND}</td><td></td><td></td><td></td><td></td></tr>"
+            continue
         if m not in _evn or m not in _lsm:
             continue
         e_ = _evn[m]["test"]
@@ -313,7 +327,7 @@ relaxation.</p>
 share is invisible to any delete-one jackknife; in the GAP-18 database [Bartók et al. 2018] every defect cell is a hot molecular-dynamics snapshot. We
 diagnose this bias, measure it from the training labels alone, and add it to the defect QoIs as a discrepancy term, which
 leaves the fit unchanged.</p>
-<p>Section 2 sets out the methodology: the linear ACE fit and ARD (2.1–2.3), the CR3 shape (2.4), the per-atom force calibration
+<p>Section 2 sets out the methodology: the linear ACE fit (2.1–2.2), automatic relevance determination as a check on the prior (2.3), the CR3 shape (2.4), the per-atom force calibration
 (2.5), the baselines (2.6) and the propagation to QoIs (2.7). Section 3 gives the validation statistics and the results: the per-atom forces first, then the global scale that the
 propagation uses, then the QoIs. Section 4 discusses them and Section 5 concludes.</p>""", "draft")
 
@@ -445,7 +459,7 @@ ard_head = ("<tr><th rowspan=2>model</th>" + f"<th colspan={len(ard_orders)}>ARD
             "<th rowspan=2>ARD floor</th><th rowspan=2>BLR a</th><th colspan=2>E RMSE (meV/atom)</th><th colspan=2>F RMSE (eV/Å)</th>"
             "<th colspan=2>V RMSE (meV/atom)</th><th colspan=2>test-split λ<sub>F</sub></th><th colspan=2>coverage, 95 % (68 %)</th></tr>"
             "<tr>" + "".join(f"<th>{o}</th>" for o in ard_orders) + "<th>ARD</th><th>BLR</th>" * 5 + "</tr>")
-sec("theory-ard", "2.3  Automatic relevance determination", rf"""
+sec("theory-ard", "2.3  Sensitivity to the prior: automatic relevance determination", rf"""
 <p>ARD replaces the single \(\sigma_c\) by one log-precision per body order, \(\Lambda=\operatorname{{diag}}(\Gamma_j^2e^{{a_{{k(j)}}}})\), with \(k(j)\) the body order of basis function \(j\), fitted by
 type-II maximum likelihood in the prior-scaled system \(S=D^{{-1}}AD^{{-1}}\), \(D=\operatorname{{diag}}\Gamma\). The BLR fit is ARD at
 \(a_k=-2\log\sigma_c\) for every \(k\). In sequential mode, used here, the noise scale \(\sigma\) stays at the BLR fit's value and only the
@@ -465,9 +479,10 @@ test-split λ<sub>F</sub>; and the propagated CR3 × λ<sub>F</sub> coverage of 
 <p>Neither fit is degenerate. For o3d12 only the two-body precision sits on the floor, and for o4d20 every \(a_k\) is
 interior. ARD weakens the prior relative to the BLR's single \(\sigma_c\) on most body orders (on all of them for o3d12; for
 o4d20 only the 5-body block is held more tightly), yet the means match the BLR fits on the held-out test split, and the test-split
-scales and the propagated coverage agree. The QoI results below use the BLR fits, which are the
-benchmark models; ARD gives the same coverage (Table 1), and it provides the per-atom force calibration of
-Section 3.2.</p>""", "drafted", level=3)
+scales and the propagated coverage agree. Every result in this paper, per-atom and QoI, therefore uses one posterior per model:
+the BLR fit, which is the benchmark model. ARD is reported only as this check. The per-atom calibration of Section 2.5 run on
+the ARD fits covers {ard_lm("o3d12")} (o3d12) and {ard_lm("o4d20")} (o4d20) of the test atoms at a nominal 0.90, against
+{lm("o3d12", "one_group")} and {lm("o4d20", "one_group")} on the BLR fits (Section 3.2).</p>""", "drafted", level=3)
 
 sec("theory-cr3", "2.4  Misspecification-robust shape: the CR3 jackknife", r"""
 <p><b>POPS.</b> The closest existing approach for linear potentials is POPS [Swinburne and Perez 2024]. For each training row
@@ -539,7 +554,8 @@ from the atom's three force rows (\(\alpha\in\{x,y,z\}\)), and \(v=\operatorname
 of scores on held-out training configurations.</p>
 <p><b>Hold-out.</b> Training configurations are split 80/20 into \(T_{\text{fit}}\) and \(T_{\text{val}}\), stratified so that
 rare, strongly distorted or off-coordinated environments appear in both parts (the ace-jax default). The posterior
-\(P_{\text{fit}}\) on \(T_{\text{fit}}\), with its own CR3 shape \(V_{\text{fit}}\), predicts \(T_{\text{val}}\), so both the force
+\(P_{\text{fit}}\) on \(T_{\text{fit}}\) keeps the prior and noise scale of the full BLR fit (they are not refitted on
+\(T_{\text{fit}}\)), so it differs from the final posterior only in its data. It has its own CR3 shape \(V_{\text{fit}}\), predicts \(T_{\text{val}}\), so both the force
 error \(e_i=F_i^{\text{DFT}}-F_i^{\text{fit}}\in\mathbb R^3\) and the shape are out of sample. The anisotropic score is</p>
 \[ s_i=\sqrt{e_i^{\mathsf T}\big(V_{\text{fit}}(x_i)+\epsilon_i I\big)^{-1}e_i},\qquad \epsilon_i=10^{-3}\,\tfrac13\operatorname{tr}V_{\text{fit}}(x_i), \]
 <p>and \(s/\lambda\sim\chi_3\) (the chi distribution with three degrees of freedom) under \(e\sim\mathcal N(0,\lambda^2V)\).</p>
@@ -549,6 +565,11 @@ error \(e_i=F_i^{\text{DFT}}-F_i^{\text{fit}}\in\mathbb R^3\) and the shape are 
 configurations behind the final, first and second fits, and \(\lambda_1,\lambda_2\) the RMS scores of \(P_{\text{fit}}\) and \(P_{\text{fit2}}\),
 \(\beta=\operatorname{clip}\big(\log(\lambda_1/\lambda_2)/\log(N_{\text{fit}}/N_{\text{fit2}}),0,\tfrac12\big)\) and every score is
 multiplied by \(f_{\text{tr}}=(N/N_{\text{fit}})^\beta\). \(\beta=0\) is the variance-dominated limit and \(\tfrac12\) the bias-dominated one.</p>
+<p><b>One posterior.</b> The final posterior of this stage is the BLR posterior that the QoI propagation uses (Section 2.7): ace-jax
+computes the stage at fixed hyperparameters (<code>--ard-prior fixed</code>, ARD at the BLR's single \(a=-2\log\sigma_c\),
+Section 2.3) and the QR solver. Against the CR3 posterior built independently at the BLR fit, its mean differs by
+""" + f"""{par_txt("o3d12", "mean_rel_diff")} (o3d12) and {par_txt("o4d20", "mean_rel_diff")} (o4d20) in relative norm, and its CR3 covariance by
+{par_txt("o3d12", "cr3_cov_rel_diff")} and {par_txt("o4d20", "cr3_cov_rel_diff")}.</p>""" + r"""
 <p><b>The scale.</b> The conformal quantile \(q\) is the \(\lceil(n+1)(1-\alpha)\rceil/n\) empirical quantile of the \(n\) scores
 \(s_i\) of the \(T_{\text{val}}\) atoms, at level \(1-\alpha\) (default \(\alpha=0.1\)). It is atom-weighted: a quantile that counts
 each configuration once in total is dominated by the many small, well-predicted cells and under-covers (Section 3.2).</p>
@@ -606,8 +627,8 @@ it with the CR3 shape is left to future work.</p>""", "drafted from docs", level
 sec("method-calib", "3.3  One global scale for propagation", r"""
 <p>The per-atom scale of Section 3.2 calibrates force outputs atom by atom, but it does not define a covariance in θ
 (Section 2.5). Propagation needs a single scale \(\lambda\) for the CR3 distribution \(\theta\sim\mathcal N(\hat\theta,\lambda^2LL^{\mathsf T})\).
-We fit it on the same 248 held-out test configurations as Section 3.2, with the same CR3 shape, but on the BLR fits that the QoI
-benchmark uses and over all rows of a type at once. Every row \(b\) gives a standardised score
+We fit it on the same 248 held-out test configurations as Section 3.2, with the same fit and CR3 shape, but over all rows of a
+type at once. Every row \(b\) gives a standardised score
 \(z=(y-\hat y)/\lVert L^{\mathsf T}b\rVert\), with \(\hat y=b\cdot\hat\theta\) (energies per atom, force components, virial components). The
 scale for observable type \(q\in\{E,F,V\}\) is \(\lambda_q=\operatorname{RMS}(z_q)\) over that type's rows; \(\lambda_{\text{pool}}\) weights E, F
 and V equally within a configuration and configurations equally. As in Section 3.2, rows that vanish by site symmetry
@@ -1143,10 +1164,13 @@ interstitials and the size-model average for the vacancy. Thin black bars: the s
 Only the four defect QoIs change.</figcaption></figure>""", "", level=4)
 
 sec("results-forces", "3.2  Calibrated per-atom forces", f"""
-<p>Figure 2 and Table 2p test the per-atom force uncertainty of Section 2.5 on the 248 test configurations, with the ARD fits;
-atoms whose force rows vanish by site symmetry are dropped by the rule of Section 3.3. At a nominal 90 %, the CR3 shape with one
-hold-out quantile covers {lm("o3d12", "one_group")} of the test atoms for o3d12 and {lm("o4d20", "one_group")} for o4d20. o4d20 is at nominal; o3d12 is below
-it, and the cause is the transfer from the hold-out fit to the full fit. The calibration scores come from the hold-out posterior,
+<p><b>[Draft: the o4d20 per-atom stage (hold-out quantile, transfer, learned scale and out-of-distribution refit) is being
+rerun on the BLR posterior. Its numbers print as {PEND}; qualitative statements about o4d20 in this section describe the
+earlier ARD run and are to be checked. The CR3 × λ<sub>F</sub> and baseline coverages are final for both models.]</b></p>
+<p>Figure 2 and Table 2p test the per-atom force uncertainty of Section 2.5 on the 248 test configurations, with the BLR fits
+whose CR3 posteriors the QoIs use; atoms whose force rows vanish by site symmetry are dropped by the rule of Section 3.3. At a
+nominal 90 %, the CR3 shape with one hold-out quantile covers {lm("o3d12", "one_group")} of the test atoms for o3d12 and
+{lm("o4d20", "one_group")} for o4d20. o3d12 is below nominal, and the cause is the transfer from the hold-out fit to the full fit. The calibration scores come from the hold-out posterior,
 fitted on {atr("o3d12", "N_fit", "d")} of the {atr("o3d12", "N", "d")} training configurations, and are carried to the full posterior by
 (N/N<sub>fit</sub>)<sup>β</sup>, with β estimated from a second, smaller hold-out fit ({atr("o3d12", "N_fit2", "d")} configurations) and
 clipped to [0, 1/2] (Section 2.5). For o4d20 that estimate gave β = {atr("o4d20", "beta")}, a factor {atr("o4d20", "factor", ".3f")}, and the
@@ -1168,29 +1192,30 @@ less robust, as the next test shows.</p>
 <p>How the quantile weights the calibration atoms matters more than either scale. A quantile that counts each calibration
 configuration once in total is about 12 % smaller and covers only {lm("o3d12", "one_group_cfgq")} and
 {lm("o4d20", "one_group_cfgq")}, because the many small, well-predicted cells then dominate it; the quantiles here are
-atom-weighted. The CR3
-shape of the BLR fit with the propagation's global λ<sub>F</sub> covers {fb("o3d12", "headline")} and {fb("o4d20", "headline")}, below the
+atom-weighted. The same CR3
+shape with the propagation's global λ<sub>F</sub> covers {fb("o3d12", "headline")} and {fb("o4d20", "headline")}, below the
 one quantile for both models and with the same pattern across configuration types, even though λ<sub>F</sub> is fitted on these test
-configurations (in sample). λ<sub>F</sub> is an RMS over force components, not a quantile of the 3-D score, and the BLR
+configurations (in sample). λ<sub>F</sub> is an RMS over force components, not a quantile of the 3-D score, and the CR3
 shape is strongly anisotropic, so errors along its thin directions leave the ellipsoid. All regions in Figure 2 are
 ellipsoids of the method's own 3×3 covariance; an isotropic ball |ΔF| ≤ σ(χ<sup>2</sup><sub>3</sub>(0.9)/3)<sup>1/2</sup> of the same
 σ = (tr C)<sup>1/2</sup> is larger along those directions and covers more ({fb_iso("o3d12", "headline")} and {fb_iso("o4d20", "headline")} for
 λ<sub>F</sub>); compared that way, λ<sub>F</sub> would look better calibrated than the one quantile, but only because its region is larger. Increasing the regulariser ε of the ellipsoid tenfold changes no coverage by more than {fb_eps_max()}.</p>
 <figure><img src="fig7_force_calibration.png" alt="Per-atom force uncertainty against observed error for the learned scale, one hold-out quantile and the baselines, and test coverage per configuration type, for each model"><figcaption>Figure 2.
 Top: binned on predicted σ (20 equal-count bins), RMS observed |ΔF| against RMS σ, for the CR3 shape with one hold-out
-quantile (the method) and with the learned scale (ARD fit; σ<sub>F,i</sub> from the 90 % quantile), and for the per-atom σ of the
-propagation's methods on the BLR fit: CR3 × λ<sub>F</sub> (the headline), B1 (posterior × q̂), B2 (POPS, 50 % leverage cut; the
+quantile (the method) and with the learned scale (σ<sub>F,i</sub> from the 90 % quantile), and for the per-atom σ of the
+propagation's methods: CR3 × λ<sub>F</sub> (the headline), B1 (posterior × q̂), B2 (POPS, 50 % leverage cut; the
 box's uniform variance) and B3 (CR3, λ = 1); the per-atom density behind. Points below the diagonal are conservative.
 Bottom: test coverage of the 90 % region, overall and per GAP-18 configuration type with at least 300 test atoms. Every
 method's region is the same kind: the ellipsoid of its own 3×3 force covariance, e<sup>T</sup>C<sup>−1</sup>e ≤ χ<sup>2</sup><sub>3</sub>(0.9)
-(for the one quantile and the learned scale this is their conformal region). The headline's λ<sub>F</sub> is fitted on the test split itself, so its per-atom coverage here is in sample.</figcaption></figure>
+(for the one quantile and the learned scale this is their conformal region). The headline's λ<sub>F</sub> is fitted on the test split itself, so its per-atom coverage here is in sample.
+<b>[Draft: the o4d20 panels' one-quantile and learned-scale traces are from the ARD run and will be replaced.]</b></figcaption></figure>
 <div class="wrap"><table><caption>Table 2p. Test coverage of the 90 % per-atom force region per GAP-18 configuration type (types
 with at least 300 test atoms): one hold-out quantile against the learned scale (mean over five hold-out splits), and the RMS
 deviation of the per-type coverage from nominal.</caption>
 <thead><tr><th>model</th><th>configuration type</th><th>atoms</th><th>configs</th><th>one quantile</th><th>learned scale</th></tr></thead>
 <tbody>{type_rows}</tbody></table></div>
-<p>An out-of-distribution test asks whether this holds for environments absent from the fit. We refitted both ARD models
-with GAP-18's cracks ((111) and (110) cleavage, 1-10 front) and screw dislocations removed from training, from the
+<p>An out-of-distribution test asks whether this holds for environments absent from the fit. We refitted both models (BLR,
+evidence-optimised on the reduced training set) with GAP-18's cracks ((111) and (110) cleavage, 1-10 front) and screw dislocations removed from training, from the
 calibration hold-out and from the test file, and scored the {ood_n("o3d12")} that were removed (Table 2c). The design follows
 the big-cell check of an alloy model in the ace-jax development tests (unpublished). The global scale is fitted on the
 in-distribution test split, so it is out of sample here, like the conformal ones. Over all held-out atoms one quantile covers
@@ -1210,7 +1235,7 @@ represented in the training data.</p>
 exchange-correlation functionals outside the calibration set. Their test is the correlation of the predicted uncertainty with the
 error; ours is coverage. These are different properties [Shanks et al. 2026]. The two results are not in conflict, since a scale can rank errors better and still be too narrow where the model
 extrapolates, but they show that a learned scale should be checked for coverage on environments left out of its calibration.</p>
-<div class="wrap"><table><caption>Table 2c. Out-of-distribution per-atom force coverage at nominal 90 %: ARD refits without
+<div class="wrap"><table><caption>Table 2c. Out-of-distribution per-atom force coverage at nominal 90 %: BLR refits without
 cracks and screw dislocations, scored on them (90 % intervals from a bootstrap over configurations). "ID test": the same
 refit's coverage on the in-distribution test split.</caption>
 <thead><tr><th>model</th><th>method</th><th>ID test</th><th>all held out</th><th>crack (110)</th><th>crack (111)</th><th>screw dislocation</th></tr></thead>
@@ -1314,11 +1339,13 @@ choice. Decided later, after QoI results had been seen: the POPS leverage cut (t
 members, Section 3.7; B2 follows the reference package's default, the 50 % cut) and its ridge floor (set by where the box is numerically
 defined, Section 3.7), the member-rejection rule of the λ<sub>F</sub> re-run (fixed
 before that re-run), the discrepancy term and its estimators (Section 2.7.4), the per-atom force method (Section 2.5, chosen after
-comparing it with a learned scale on the test split and on the out-of-distribution set), and Bayesian model comparison in place of
+comparing it with a learned scale on the test split and on the out-of-distribution set), the use of the BLR posterior instead
+of ARD for that stage (so that one posterior serves forces and QoIs; Section 2.3 gives both), and Bayesian model comparison in place of
 the specification's fixed [0.8, 1.25] band on λ<sub>V</sub>/λ<sub>F</sub>. None of these uses a DFT QoI value as an input, but
 they were not made blind.</p>
 <p><b>Code and data availability.</b> The uncertainty methods are part of ace-jax version 0.5.2 (MIT licence,
-https://github.com/ACEsuit/ace-jax). The analysis code, the results behind every table and figure, the generator of this paper and
+https://github.com/ACEsuit/ace-jax); the per-atom stage at fixed hyperparameters (<code>--ard-prior fixed</code>) is
+ace-jax pull request 145 <b>[Draft: to be replaced by the release that includes it]</b>. The analysis code, the results behind every table and figure, the generator of this paper and
 the original specification of the study are at https://github.com/kermodegroup/si-qoi-uq-paper [archived on Zenodo, DOI to be
 added]. The GAP-18 database is available from its original publication [Bartók et al. 2018]. The Python 3 port of the silicon test
 framework used here is the branch py3 of https://github.com/libAtoms/silicon-testing-framework, at commit f23b1df.</p>""", "")
