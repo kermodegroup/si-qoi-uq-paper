@@ -55,7 +55,7 @@ UNICODE = {
     "ε": r"\ensuremath{\varepsilon}", "ζ": r"\ensuremath{\zeta}", "η": r"\ensuremath{\eta}", "κ": r"\ensuremath{\kappa}",
     "μ": r"\ensuremath{\mu}", "ν": r"\ensuremath{\nu}", "ρ": r"\ensuremath{\rho}", "τ": r"\ensuremath{\tau}", "φ": r"\ensuremath{\phi}",
     "χ": r"\ensuremath{\chi}", "ψ": r"\ensuremath{\psi}", "ω": r"\ensuremath{\omega}", "Δ": r"\ensuremath{\Delta}",
-    "Λ": r"\ensuremath{\Lambda}", "Ψ": r"\ensuremath{\Psi}", "Φ": r"\ensuremath{\Phi}", "Ω": r"\ensuremath{\Omega}",
+    "Λ": r"\ensuremath{\Lambda}", "Γ": r"\ensuremath{\Gamma}", "Ψ": r"\ensuremath{\Psi}", "Φ": r"\ensuremath{\Phi}", "Ω": r"\ensuremath{\Omega}",
     "π": r"\ensuremath{\pi}", "ϱ": r"\ensuremath{\varrho}", "ϕ": r"\ensuremath{\phi}",
     "−": r"\ensuremath{-}", "×": r"\ensuremath{\times}", "±": r"\ensuremath{\pm}", "≤": r"\ensuremath{\leq}",
     "≥": r"\ensuremath{\geq}", "≈": r"\ensuremath{\approx}", "≠": r"\ensuremath{\neq}", "→": r"\ensuremath{\to}",
