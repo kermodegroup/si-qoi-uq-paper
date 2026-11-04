@@ -816,6 +816,12 @@ if _pc_old:
     pc_sweep = ", ".join(f"{r['sd_E_svd']:.3g} meV/atom at {sci(r['ridge_rel'])}" for r in _o["sweep"] if r["ridge_rel"] in (1e-10, 1e-6, 1e-2))
 else:
     pc_cond = pc_old = pc_sweep = "(pending)"; pc_lamblr = float("nan")
+pc_old_short = (f"bulk-energy spreads from {_o['eig']['sd_E_meV_atom']:.1f} to {_o['b2']['sd_E_meV_atom']:.0f} meV/atom at a relative "
+                f"ridge of 10<sup>−14</sup>") if _pc_old else "(pending)"
+_prp = _pr.get("o3d12", {}).get("parity", {})
+pc_axes = (f"{_prp['theta_axes']['n_modes']} and {_prp['n_modes_package']} modes and bulk-energy spreads of "
+           f"{_prp['theta_axes']['sd_E_meV_atom_package']:.0f} and {_prp['sd_E_meV_atom_package']:.0f} meV/atom (o3d12, relative ridge "
+           f"{sci(_prp['ridge_rel'])})") if "theta_axes" in _prp else "(pending)"
 pc_sel = "; ".join(f"{m}: " + ", ".join(f"{q} {sci(v)}" for q, v in json.loads(str(b["ridge_selected"])).items()) for m, b in _box.items())
 pc_refridge = " and ".join(f"{sci(v['ridge_rel_ref'])} ({m})" for m, v in _pr.items()) if _pr else "(pending)"
 dtrend = json.load(open(RES / "defect_trend.json")) if (RES / "defect_trend.json").exists() else {}
@@ -1173,10 +1179,23 @@ has the right overall size but the wrong shape: it under-covers the QoIs and its
 noise in the labels, not the approximation error of a misspecified model. Shanks et al. [2026] find the same split between
 accuracy and uncertainty for argon: MACE committees and seed ensembles predict accurately but cover far fewer errors than their
 intervals claim, and calibration, sharpness and the ranking of errors need not improve together. POPS (B2) targets that error directly and, with a numerically defined box,
-performs comparably with the CR3 propagation on these QoIs: similar coverage and widths, and a joint evidence that prefers the CR3
-propagation once both carry the discrepancy term, strongly for o3d12 and weakly for o4d20. The two differ in what sets the width.
-The CR3 shape needs one scale, calibrated on held-out data, and the same covariance calibrates per-atom forces. The POPS box has no
-free scale but depends on a ridge and a leverage cut, and on these nearly singular designs it is defined only above a ridge floor.</p>
+performs comparably on these QoIs: similar coverage and widths, and a joint evidence that prefers the CR3 propagation only once
+both carry the discrepancy term (strongly for o3d12, weakly for o4d20). The CR3 approach is therefore not more accurate than POPS.
+Implicit differentiation is no distinction either: Perez et al. [2025] combine it with POPS, and either distribution can be
+propagated by the delta method or by committees. What CR3 adds is a parameter distribution that is calibrated and numerically
+well posed.</p>
+<p>Three properties of the distribution make the difference. First, its size is one scale, fitted to held-out errors and
+interpretable as such. The size of the POPS box is set instead by the ridge and the leverage cut: across the numerically defined
+ridges the o3d12 box's bulk-energy spread changes by a factor of about 60, the held-out selection put the o3d12 ridge at the floor,
+and the every-row default is unphysical. Second, a covariance is a sum over configurations, and it is formed here through its
+factor L, never as an ill-conditioned quadratic form. A hypercube is bounded by the extreme projections of single rows: on the same
+rows, mean and cut, equivalent evaluations of one box gave {pc_old_short}, and the box exists only above a ridge floor. Third, a
+covariance transforms consistently under a linear change of parameters, and a box does not: with the axes taken in θ or in the
+prior-scaled coefficients Γθ, the same corrections give boxes of {pc_axes}. For forces the calibration is explicit. One conformal
+quantile on the CR3 shape covers {lm("o3d12", "one_group")} and {lm("o4d20", "one_group")} of the test atoms against a nominal 0.90, and
+holds out of distribution on the cracks. The POPS box covers {fb("o3d12", "B2")} (o3d12) and {fb("o4d20", "B2")} (o4d20), and nothing
+in its construction aims at a target coverage. Two costs of CR3 remain. It is a sampling variance, so it needs held-out data and a
+scale; POPS needs neither in principle, although here its ridge was chosen on a hold-out of the training set. And like POPS it cannot see a bias that every configuration of a kind shares (Section 3.8).</p>
 <p>The scale is not unique. The virial scale is about a third larger than the force scale, and using it covers
 {k95("o3d12", "CR3-headline", "lam_V")} QoIs for o3d12 and {k95("o4d20", "CR3-headline", "lam_V")} for o4d20 with wider intervals; its joint evidence is higher than the force scale's for o3d12 and about equal for o4d20. Misspecification depends on the observable, and one could choose the scale by the QoI's physics, the virial scale
 for stress-like QoIs such as elastic constants, or report both. A single scale is also a compromise across configuration types
@@ -1211,8 +1230,11 @@ two levels. Per atom, with one conformal quantile from a held-out part of the tr
 their target coverage on held-out silicon data and on cracks left out of the fit; a scale learned from the site descriptor evens
 the coverage across environments seen in training but transfers less well to those left out. For derived properties, the same covariance with one scale fitted to held-out forces,
 propagated by implicit differentiation through each relaxation, covers most of 20 silicon QoIs against DFT, with intervals that
-shrink with the accuracy of the model. It outperforms the Bayesian posterior and the uncalibrated shape, and performs comparably
-with POPS once the POPS box is numerically defined, while needing one calibrated scale instead of a ridge and a leverage cut. Where it fails, for
+shrink with the accuracy of the model. It outperforms the Bayesian posterior and the uncalibrated shape, and on these QoIs it performs
+comparably with POPS once the POPS box is numerically defined. Its advantage over POPS is not accuracy but calibration and numerical
+robustness: one interpretable scale, fitted to held-out errors, sets the width at both levels; the covariance needs no ridge or leverage
+cut beyond the fit's own prior, and does not depend on the parameterisation; and the per-atom regions are calibrated to a target
+coverage. Where it fails, for
 relaxed point defects, the cause is a bias shared by all training snapshots of a kind, which no delete-one method can see; it can be
 measured from the training labels and added as a discrepancy term, which restores coverage. The methods are implemented in ace-jax.</p>""", "")
 
