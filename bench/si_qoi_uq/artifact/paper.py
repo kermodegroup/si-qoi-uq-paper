@@ -391,8 +391,8 @@ uncertainty is propagated to the QoIs themselves.</p>
 {qoi_table}
 <figure><img src="fig0_ace_pareto.png" alt="Test force RMSE and QoI error against CPU cost for the linear ACE ladder, o3d12 and o4d20 circled"><figcaption>Figure 0.
 The linear ACE ladder of the ace-jax silicon accuracy–cost benchmark: test force RMSE (left) and QoI error (right; the geometric
-mean over the silicon QoIs of |error|/tolerance against CASTEP) against cost in LAMMPS, float64: on a Sulis CPU node with the
-ace-jax C++ kernel (top) and on a Sulis A100 with the ace-jax CUDA kernel (bottom). Dashed: the benchmark's targets, GAP-18's force RMSE on this split and a QoI error of 0.5. Circled: the two models
+mean over the silicon QoIs of |error|/tolerance against CASTEP) against cost in LAMMPS, float64: on a CPU node with the
+ace-jax C++ kernel (top) and on an NVIDIA A100 GPU with the ace-jax CUDA kernel (bottom; hardware in Section 6). Dashed: the benchmark's targets, GAP-18's force RMSE on this split and a QoI error of 0.5. Circled: the two models
 studied here.</figcaption></figure>"""
 else:
     pareto_par = ""
@@ -1350,7 +1350,7 @@ and the structural weights of the ace-jax silicon accuracy–cost benchmark. Eve
 computed by a Python 3 port of the silicon test framework of Bartók et al. [2018], run unmodified apart from a relaxed-ion force
 tolerance of 10<sup>−3</sup> eV/Å for the elastic constants. Committees use 200 members drawn with fixed seeds. The fits, committees and analyses ran on
 workstations of the University of Warwick's Scientific Computing Research Technology Platform, and the cost timings of Figure 0 on
-the Sulis Tier 2 HPC platform.</p>
+a CPU node and an NVIDIA A100 GPU of the Sulis Tier 2 HPC platform.</p>
 <p><b>What was fixed in advance.</b> The specification of the study, committed before any QoI was computed (repository below),
 fixed the 21 QoIs and their tolerances, the four candidate scales λ<sub>F</sub>, λ<sub>E</sub>, λ<sub>V</sub> and
 λ<sub>pool</sub>, the three baselines, the committee size and the 10 % rule that picks the delta method or the committee. λ<sub>F</sub>
