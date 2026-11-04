@@ -1,5 +1,5 @@
 {
- "git": "de4f0e20c5f230b7b7e8eefa6e0608d6e702d4c2",
+ "git": "886e80cc0943f017a919030a64ee01f84b2d5e88",
  "dirty": true,
  "packages": {
   "jax": "0.12.0.1",
@@ -11,7 +11,7 @@
   "phonopy": null
  },
  "python": "3.14.4",
- "host": "mnf148.csc.warwick.ac.uk",
+ "host": "moriarty.scrtp.warwick.ac.uk",
  "seeds": {
   "fit": 0,
   "cr3": 20261031,

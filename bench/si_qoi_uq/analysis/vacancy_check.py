@@ -1,7 +1,7 @@
 """Why is the vacancy formation energy missed, with no thermal trend to explain it?  DFT training labels and model QoIs only.
 
 1. Cell size: the regression-estimator intercept (analysis/defect_trend.py form) for the 63- and 215-atom training
-   vacancy cells separately (train + test cells, residuals from analysis/defect_resid.py).
+   vacancy cells separately (training cells only, residuals from analysis/defect_resid.py).
 2. Over-relaxation: the coldest training vacancy cells are near a DFT minimum (small DFT forces).  Each model relaxes
    them (positions, cell fixed); a model energy gain far beyond the DFT bound 1/2 sum |F_DFT| |dx| means the model's
    surface has a deeper vacancy minimum than DFT's, which lowers the relaxed formation energy.
@@ -64,20 +64,27 @@ def main():
         allc += [(split, c) for c in load_configs(f"{D}/{split}.xyz", virial_key="virial") if c.config_type in TYPES and c.energy is not None]
     n = np.array([len(c.numbers) for _, c in allc]); x = np.array([float(np.mean(c.forces ** 2)) for _, c in allc])
     v = np.array([abs(np.linalg.det(c.cell)) / len(c.numbers) for _, c in allc]); t = np.array([c.config_type for _, c in allc], dtype=object)
-    out = {"size_split": {}, "relax_cold": {}, "geometry": {}}
+    import sys
+    trn = np.array([s == "train" for s, _ in allc])                  # training labels only
+    size_only = "--size-only" in sys.argv                            # recompute part 1 alone, keep the stored relaxations
+    out = json.load(open(RESULTS / "vacancy_check.json")) if size_only else {"size_split": {}, "relax_cold": {}, "geometry": {}}
+    out["size_split"] = {}
     for m in ("o3d12", "o4d20"):
         r = np.array([o["resid"] for o in json.load(open(H / f"{m}.json"))])
         assert len(r) == len(allc)
         out["size_split"][m] = {}
         for size in (63, 215):
-            mask = (t == "vacancy") & (n == size)
+            mask = (t == "vacancy") & (n == size) & trn
             v0 = v[mask].mean()
-            bulk = (t == "dia") & (np.abs(v - v0) < 0.6)
+            bulk = (t == "dia") & (np.abs(v - v0) < 0.6) & trn
             kb, _ = ols(x[bulk], r[bulk] / n[bulk])
             y = r[mask] - n[mask] * (kb[0] + kb[1] * x[mask])
             k, se = ols(x[mask], y)
             out["size_split"][m][size] = {"n_cells": int(mask.sum()), "intercept_eV": float(k[0]), "se_eV": se,
                                           "slope": float(k[1]), "mean_eV": float(y.mean()), "x_min": float(x[mask].min())}
+    if size_only:
+        json.dump(out, open(RESULTS / "vacancy_check.json", "w"), indent=1, default=float)
+        return
     # 2. relax the coldest training vacancy cells with each model
     cold = {}
     for size in (63, 215):

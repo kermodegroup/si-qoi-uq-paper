@@ -1,6 +1,6 @@
 """Bayesian evidence for how the vacancy bias depends on training-cell size.  DFT training labels only: no QoI value or tolerance enters.
 
-Data: the bulk-subtracted residual y_i = r_i - n_i e_bulk(x_i) of every training/test vacancy cell (the regression form of
+Data: the bulk-subtracted residual y_i = r_i - n_i e_bulk(x_i) of every training vacancy cell (the test split's are not used) (the regression form of
 analysis/vacancy_check.py, per size: the bulk trend is fitted over dia cells within 0.6 A^3/atom of that size's volume),
 against x_i = F_rms,i^2.  Sizes s in {63, 215} atoms.  Linear-Gaussian models y = X beta + e:
 
@@ -91,8 +91,11 @@ def residuals(m, cfgs):
     from .vacancy_check import ols
     n = np.array([len(c.numbers) for c in cfgs]); x = np.array([float(np.mean(c.forces ** 2)) for c in cfgs])
     v = np.array([abs(np.linalg.det(c.cell)) / len(c.numbers) for c in cfgs]); t = np.array([c.config_type for c in cfgs], dtype=object)
-    r = np.array([o["resid"] for o in json.load(open(H / f"{m}.json"))])
+    js = json.load(open(H / f"{m}.json"))
+    r = np.array([o["resid"] for o in js])
     assert len(r) == len(cfgs)
+    tr = np.array([o["split"] == "train" for o in js])              # training labels only
+    n, x, v, t, r = n[tr], x[tr], v[tr], t[tr], r[tr]
     ys, xs, ss = [], [], []
     for size in SIZES:
         mask = (t == "vacancy") & (n == size)
