@@ -1,7 +1,7 @@
 [project]
 name = "si-qoi-uq-paper"
 version = "0.1.0"
-description = "Calibrated parameter-space uncertainty for linear ACE, propagated to silicon properties: analysis code, results and paper"
+description = "Jackknife-conformal uncertainty for linear ACE potentials: calibrated forces and silicon properties compared with Bayesian and POPS baselines: analysis code, results and paper"
 authors = [{ name = "James R. Kermode" }]
 license = "MIT"
 requires-python = ">=3.11"

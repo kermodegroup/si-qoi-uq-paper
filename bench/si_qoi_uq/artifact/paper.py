@@ -1393,7 +1393,7 @@ if "method-disc" in _ids and "results-defects" in _ids:
 toc = "".join(f'<li><a href="#{s.split(chr(34))[1]}">{s.split("<h2>")[1].split("<")[0].strip()}</a></li>' for s in S if "<h2>" in s)
 page = f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Calibrated parameter uncertainty for silicon QoIs</title>
+<title>Jackknife-conformal uncertainty for linear ACE potentials</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
 <script>window.MathJax = {{ tex: {{ inlineMath: [['\\\\(', '\\\\)']], displayMath: [['\\\\[', '\\\\]']] }}, svg: {{ fontCache: 'global' }} }};</script>
@@ -1437,7 +1437,7 @@ mjx-container {{ overflow-x: auto; overflow-y: hidden; max-width: 100%; }}
 <nav aria-label="Contents"><ol>{toc}</ol></nav>
 <main>
 <header>
-<h1>Calibrated parameter-space uncertainty for linear ACE, propagated to silicon properties</h1>
+<h1>Jackknife-conformal uncertainty for linear ACE potentials: calibrated forces and silicon properties compared with Bayesian and POPS baselines</h1>
 <p class="author">James R. Kermode</p>
 <p class="affil">Warwick Centre for Predictive Modelling, School of Engineering, University of Warwick, Coventry CV4 7AL, United Kingdom</p>
 <p class="affil"><a href="paper.pdf">PDF (J. Chem. Phys. REVTeX build of this version)</a></p>
