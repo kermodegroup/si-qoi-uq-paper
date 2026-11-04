@@ -138,6 +138,22 @@ def _type_rows():
                  f"<td class=n>{e_['one_group']['rms_dev']:.3f}</td><td class=n>{e_['learned']['rms_dev']:.3f}</td></tr>")
     return rows
 type_rows = _type_rows()
+def fb_types(m, k, level=0.9, min_atoms=300):
+    """Lowest and highest per-type coverage (types with >= min_atoms test atoms, as Figure 2) of method k, and the
+    lowest types: '0.57 (surface_001) to 1.00'."""
+    import numpy as _n
+    from scipy.stats import chi2
+    p = RES / f"force_baselines_{m}.npz"
+    if not p.exists():
+        return "–"
+    b = _n.load(p, allow_pickle=True)
+    cov = b["err_norm"] <= _n.sqrt(chi2.ppf(level, 3) / 3) * b[f"sd_{k}"]
+    t = b["config_type"]
+    per = {u: float(cov[t == u].mean()) for u in _n.unique(t) if (t == u).sum() >= min_atoms}
+    lo = min(per, key=per.get)
+    return f"{per[lo]:.2f} ({lo}) to {max(per.values()):.2f}"
+
+
 def fb(m, k, level=0.9):
     """Coverage of the Gaussian isotropic 90 % per-atom region, method k (results/force_baselines_<m>.npz)."""
     import numpy as _n
@@ -1161,7 +1177,8 @@ refit's coverage on the in-distribution test split.</caption>
 <p>Figure 2 also shows the per-atom forces of the baselines, to which the QoI comparison of Section 3.4 applies. B3 is
 about λ<sub>F</sub> times too narrow everywhere. B1, the posterior shape with one scale, under-covers
 ({fb("o3d12", "B1")} for o3d12, {fb("o4d20", "B1")} for o4d20), most in the amorphous, point-defect and surface cells. B2
-over-covers for o3d12 ({fb("o3d12", "B2")}) and is close to nominal for o4d20 ({fb("o4d20", "B2")}), in line with its QoI widths.</p>""", "drafted", level=3)
+over-covers for o3d12 ({fb("o3d12", "B2")}; per type {fb_types("o3d12", "B2")}). For o4d20 it is close to nominal overall
+({fb("o4d20", "B2")}) but uneven: per type {fb_types("o4d20", "B2")}, low on the liquid and surface cells.</p>""", "drafted", level=3)
 
 dk95 = lambda m: (lambda d_: f"{d_['k95']}/{d_['n']}" if d_ else "?")(disc.get(m, {}).get("CR3-headline+disc/lam_F"))
 sec("discussion", "4  Discussion", f"""
@@ -1193,8 +1210,8 @@ rows, mean and cut, equivalent evaluations of one box gave {pc_old_short}, and t
 covariance transforms consistently under a linear change of parameters, and a box does not: with the axes taken in θ or in the
 prior-scaled coefficients Γθ, the same corrections give boxes of {pc_axes}. For forces the calibration is explicit. One conformal
 quantile on the CR3 shape covers {lm("o3d12", "one_group")} and {lm("o4d20", "one_group")} of the test atoms against a nominal 0.90, and
-holds out of distribution on the cracks. The POPS box covers {fb("o3d12", "B2")} (o3d12) and {fb("o4d20", "B2")} (o4d20), and nothing
-in its construction aims at a target coverage. Two costs of CR3 remain. It is a sampling variance, so it needs held-out data and a
+holds out of distribution on the cracks. The POPS box covers {fb("o3d12", "B2")} (o3d12) and {fb("o4d20", "B2")} (o4d20), the latter
+unevenly (per type {fb_types("o4d20", "B2")}), and nothing in its construction aims at a target coverage. Two costs of CR3 remain. It is a sampling variance, so it needs held-out data and a
 scale; POPS needs neither in principle, although here its ridge was chosen on a hold-out of the training set. And like POPS it cannot see a bias that every configuration of a kind shares (Section 3.8).</p>
 <p>The scale is not unique. The virial scale is about a third larger than the force scale, and using it covers
 {k95("o3d12", "CR3-headline", "lam_V")} QoIs for o3d12 and {k95("o4d20", "CR3-headline", "lam_V")} for o4d20 with wider intervals; its joint evidence is higher than the force scale's for o3d12 and about equal for o4d20. Misspecification depends on the observable, and one could choose the scale by the QoI's physics, the virial scale
