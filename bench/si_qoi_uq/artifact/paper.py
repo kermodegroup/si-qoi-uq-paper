@@ -551,8 +551,8 @@ hypercube spanned by the principal directions of the \(\delta_i\), with bounds f
 Perez [2024]. Following the reference package, the box is built only from the rows at or above the median leverage
 (<code>leverage_percentile = 50</code>, its default; every row makes the box unphysical here, Section 3.7). The ridge is selected
 per quantity by the CRPS on a hold-out of the training set, over relative ridges from 10<sup>−2</sup> down to 10<sup>−10</sup> of
-the largest eigenvalue: below that the box is set by roundoff (Section 3.7). We use ace-jax [ace-jax] with the numerical corrections that
-this study prompted (ace-jax pull request 141). B2 has no calibration step, so it tests a misspecification-aware shape without a
+the largest eigenvalue: below that the box is set by roundoff (Section 3.7). We use ace-jax [ace-jax] version 0.5.2, which includes the
+numerical corrections that this study prompted. B2 has no calibration step, so it tests a misspecification-aware shape without a
 fitted scale.</p>
 <p>The third baseline, B3, is the CR3 covariance with \(\lambda=1\). It isolates the effect of the scale: the difference between B3
 and the headline is entirely the calibration of Section 3.3.</p>
@@ -1236,7 +1236,7 @@ before that re-run), the discrepancy term and its estimators (Section 2.7.4), th
 comparing it with a learned scale on the test split and on the out-of-distribution set), and Bayesian model comparison in place of
 the specification's fixed [0.8, 1.25] band on λ<sub>V</sub>/λ<sub>F</sub>. None of these uses a DFT QoI value as an input, but
 they were not made blind.</p>
-<p><b>Code and data availability.</b> The uncertainty methods are part of ace-jax version 0.5.1 (MIT licence,
+<p><b>Code and data availability.</b> The uncertainty methods are part of ace-jax version 0.5.2 (MIT licence,
 https://github.com/ACEsuit/ace-jax). The analysis code, the results behind every table and figure, the generator of this paper and
 the original specification of the study are at https://github.com/kermodegroup/si-qoi-uq-paper [archived on Zenodo, DOI to be
 added]. The GAP-18 database is available from its original publication [Bartók et al. 2018]. The Python 3 port of the silicon test
