@@ -1323,6 +1323,7 @@ added]. The GAP-18 database is available from its original publication [Bartók 
 framework used here is the branch py3 of https://github.com/libAtoms/silicon-testing-framework, at commit f23b1df.</p>""", "")
 
 sec("ack", "Acknowledgements", """
+<p>The author thanks Thomas Swinburne and George Simmons for useful discussions.</p>
 <p>Calculations were performed on the Sulis Tier 2 HPC platform hosted by the Scientific Computing Research
 Technology Platform at the University of Warwick; Sulis is funded by EPSRC Grant EP/T022108/1 and the HPC Midlands+ consortium. We also used the Scientific Computing Research Technology Platform's desktop compute nodes.</p>
 <p><b>Use of AI tools.</b> Claude Code (Anthropic) was used to write and run the analysis software in this work (the propagation,
