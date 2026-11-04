@@ -262,28 +262,28 @@ covariance, the delete-one-configuration jackknife. Scaled by one conformal quan
 set, it gives per-atom force uncertainties close to their target coverage on held-out silicon data and on cracks left out
 of the fit; screw dislocations left out are under-covered. With one scale fitted to the forces of a held-out test split,
 the same parameter distribution is propagated to 21 properties of silicon, from elastic constants to defect and surface energies,
-by implicit differentiation through each relaxation and by committees, and is tested against DFT without tuning on any property.
+by implicit differentiation through each relaxation and by committees, and is tested against density functional theory (DFT) without tuning on any property.
 For a smaller and a larger model the intervals cover most properties, and the larger model's are about {tight_ratio:.0f} times
 tighter. The Bayesian posterior with one calibrated scale has the wrong shape: it covers fewer properties and has far lower joint
-evidence. POPS, once its hypercube is numerically defined, performs comparably on the properties, but its per-atom force
+evidence. Pointwise optimal parameter sets (POPS), once their hypercube is numerically defined, performs comparably on the properties, but its per-atom force
 regions are not calibrated to a target ({fb("o3d12", "B2")} and {fb("o4d20", "B2")} at a nominal 0.90). Where the jackknife fails is relaxed point defects, whose training cells are all hot snapshots: a bias that every configuration
 shares is invisible to a jackknife, but it can be measured from the training labels, and as a discrepancy term, devised
-after the QoI results were seen, it brings the coverage close to nominal.</p>""", "draft")
+after the property results were seen, it brings the coverage close to nominal.</p>""", "draft")
 
 sec("intro", "1  Introduction", """
 <p>Machine-learned interatomic potentials are used for forces, in molecular dynamics and in active learning where force errors
 must be controlled during a simulation, and for the derived properties that a potential is built to predict. Both uses need an
-uncertainty. The training labels are deterministic DFT energies, forces and stresses, so the error of a potential is approximation
+uncertainty. The training labels are deterministic density functional theory (DFT) energies, forces and stresses, so the error of a potential is approximation
 error: the model is misspecified. A Bayesian posterior is then far too narrow. Under misspecification it concentrates at the
 best-fitting parameters at a rate set by the amount of data, not by the size of the model error, and it collapses to a point as
 N<sub>data</sub> → ∞ while the prediction error stays finite [Kleijn and van der Vaart 2012; Müller 2013; Swinburne and Perez 2024].</p>
 <p>The most widely used alternatives for forces are committees and ensembles of models [Musil et al. 2019; Imbalzano et al. 2021;
 Kellner and Ceriotti 2024] and approximate posteriors on the last layer of a network [Bigi et al. 2024]. They need several fits, or a
 calibration of their own. Conformal prediction gives intervals with guaranteed coverage under exchangeability [Vovk, Gammerman and
-Shafer 2005; Tibshirani et al. 2019; Barber et al. 2021], and Best et al. [2024] combined it with the Bayesian posterior of linear ACE potentials, and committees drawn from it, for
+Shafer 2005; Tibshirani et al. 2019; Barber et al. 2021], and Best et al. [2024] combined it with the Bayesian posterior of linear atomic cluster expansion (ACE) potentials, and committees drawn from it, for
 silicon. A single conformal scale covers on average, however, while force errors vary strongly between local environments and are
 correlated within a configuration.</p>
-<p>In this paper we construct calibrated per-atom force uncertainties for linear atomic cluster expansion (ACE) potentials [Drautz
+<p>In this paper we construct calibrated per-atom force uncertainties for linear ACE potentials [Drautz
 2019] from two parts. The shape is a cluster-robust ("sandwich") covariance of the coefficients [Huber 1967; White 1982], with each
 training configuration as one cluster of correlated rows. We use the variant proposed by Bell and McCaffrey [2002] and named CR3 by
 Pustejovsky and Tipton [2018] (CV3 in MacKinnon, Nielsen and Webb [2023]), the cluster form of the heteroskedasticity-consistent HC3
@@ -309,16 +309,16 @@ fit. It is most widely estimated with a committee of potentials, an idea long es
 purely epistemic. For a linear model the consistent object is then a distribution over the coefficients θ: one draw
 gives energies, forces and stresses together, and every QoI follows from it.</p>
 <p>We propagate the same CR3 distribution, with one scale fitted to held-out forces, to 21 QoIs of silicon, for potentials fitted
-to the GAP-18 database [Bartók et al. 2018]. The propagation uses implicit differentiation through every relaxation, including that
+to the GAP-18 database [Bartók et al. 2018], the training set of the GAP-18 Gaussian approximation potential. The propagation uses implicit differentiation through every relaxation, including that
 of the lattice constant, and is cross-checked by committees run through the unmodified benchmark protocol. We test the intervals
 against DFT, one QoI at a time and jointly, and compare them with two baselines: the posterior with one conformal scale, and
 pointwise optimal parameter sets (POPS) [Swinburne and Perez 2024].</p>
 <p>Misspecification-aware parameter uncertainty has been propagated to material properties before. Perez et al. [2025] propagate
-POPS hypercube ensembles of a quadratic SNAP potential for tungsten to phase, elastic, defect and surface properties, re-relaxing
+POPS hypercube ensembles of a quadratic spectral neighbour analysis potential (SNAP) for tungsten to phase, elastic, defect and surface properties, re-relaxing
 each member, and use the implicit derivative of a relaxed minimum with respect to the parameters [Maliyov, Grigorev and Swinburne
 2025] to predict volumes and a vacancy-migration barrier; the DFT values lie inside the ensemble's envelope without a calibration
 step. We differ in three ways: the shape is the CR3 covariance with one scale calibrated on held-out data, so its size does not
-depend on which training rows define a box; the intervals are tested against DFT one QoI at a time and jointly, by coverage, CRPS
+depend on which training rows define a box; the intervals are tested against DFT one QoI at a time and jointly, by coverage, the continuous ranked probability score (CRPS)
 and evidence; and the committees run through an unmodified benchmark protocol, beside implicit differentiation of every
 relaxation.</p>
 <p>We also show where calibrated parameter-space uncertainty fails, and why. A bias that all training configurations of one kind
@@ -379,12 +379,12 @@ if {"o3d12", "o4d20", "o4d12", "o4d14"} <= set(_par):
 fitted to the GAP-18 database [Bartók et al. 2018] (Figure 0). A model oNdM has correlation order N and total polynomial degree M.
 Table 0 lists the silicon QoIs, their DFT (CASTEP) values and the benchmark's tolerances: 10 % of the DFT value for the elastic
 constants, the bulk modulus, the unstable stacking-fault energies and the decohesion stress; 5 % for the (100) surface energy;
-10 meV/atom for the phase energies; 0.1 eV for the point-defect formation energies; and 0.2 THz for the phonon RMS. The QoI error
+10 meV/atom for the phase energies; 0.1 eV for the point-defect formation energies; and 0.2 THz for the root-mean-square (RMS) error of the phonon frequencies. The QoI error
 of a model is the geometric mean of |error|/tolerance over these QoIs. o3d12 ({_a['n_params']} coefficients) is the cheaper model, with a
-test force RMSE of {_a['rmse_F']:.3f} eV/Å and a typical QoI error of one tolerance ({_a['qoi']:.2f}). o4d20 ({_b['n_params']} coefficients)
+test force RMS error (RMSE) of {_a['rmse_F']:.3f} eV/Å and a typical QoI error of one tolerance ({_a['qoi']:.2f}). o4d20 ({_b['n_params']} coefficients)
 is the only size of the ladder that meets both of the benchmark's targets, a test force RMSE no larger than GAP-18's 0.0825 eV/Å
 on this split ({_b['rmse_F']:.4f} eV/Å) and a QoI error below 0.5 ({_b['qoi']:.2f}); o3d12 is {_b['cost_cpu'] / _a['cost_cpu']:.0f}× cheaper on a
-CPU node and {_b['cost_gpu'] / _a['cost_gpu']:.0f}× cheaper on an A100. The pair spans the useful range of the ladder: a cheap model
+CPU node and {_b['cost_gpu'] / _a['cost_gpu']:.0f}× cheaper on an NVIDIA A100 GPU. The pair spans the useful range of the ladder: a cheap model
 whose intervals must be wide to be honest, and an accurate one whose intervals should be narrow. The two columns of Figure 0 also rank the sizes differently: o4d12 has a larger force error than o4d14 but a smaller QoI
 error ({_par['o4d12']['qoi']:.2f} against {_par['o4d14']['qoi']:.2f}). Force accuracy alone does not predict QoI accuracy, which is why the
 uncertainty is propagated to the QoIs themselves.</p>
@@ -420,7 +420,8 @@ energy rows (a fixed, wide prior).</p>
 <p>The prior is \(\theta\sim\mathcal N(0,\Lambda^{-1})\) with the smoothness prior \(\Lambda=\operatorname{diag}(\Gamma_j^2)/\sigma_c^2\): \(\sigma_c\) is the prior scale of the coefficients
 and \(\Gamma_j=\sum_t\big[(l_t/w_l)^4+(n_t/w_n)^4\big]\), summed over the one-particle factors \(t\) of basis function \(j\) with radial
 index \(n_t\) and angular degree \(l_t\) (the algebraic prior of ACEpotentials [Witt et al. 2023], \(w_l=2/3\), \(w_n=1\)), so rough basis functions are damped.
-The posterior is Gaussian,</p>
+This is Bayesian linear regression (BLR). The posterior is Gaussian, with mean \(\hat\theta\), the maximum a posteriori
+(MAP) estimate,</p>
 \[ A=\sum_{\text{rows}}\psi\psi^{\mathsf T}+\Lambda,\qquad \hat\theta=A^{-1}\sum_{\text{rows}}\psi\tilde y,\qquad
    \operatorname{Cov}(\theta\mid\mathcal D)=A^{-1}, \]
 <p>and the hyperparameters \(h=(\sigma_c,\sigma)\) maximise the evidence (for o3d12 the maximum lies on the upper bound
@@ -430,7 +431,7 @@ The posterior is Gaussian,</p>
 <p>up to a constant, with \(\mathcal D\) the training data, \(y^w\) the weighted targets (\(y\,w\)), \(n\) the number of rows,
 and \(c=\sum_{\text{rows}}\psi\tilde y=A\hat\theta\).</p>
 <p>Near-interpolating fits leave the condition number \(\operatorname{cond}(A)\) beyond \(1/\epsilon_{\text{mach}}\) (\(\epsilon_{\text{mach}}\)
-the float64 unit roundoff), so the evidence and the posterior are computed by QR. \(R_w\) is the triangular factor of the weighted
+the float64 unit roundoff), so the evidence and the posterior are computed by QR factorisation. \(R_w\) is the triangular factor of the weighted
 design (\(\Phi^w=Q_wR_w\), rows \(b\,w\)), accumulated by streamed updating QRs, and
 \([\operatorname{diag}\sqrt\Lambda;\,R_w/\sigma]=Q_AR_A\) gives \(R_A^{\mathsf T}R_A=A\) at \(\operatorname{cond}(\Phi)\) instead of
 \(\operatorname{cond}(\Phi)^2\).</p>
@@ -459,7 +460,7 @@ ard_head = ("<tr><th rowspan=2>model</th>" + f"<th colspan={len(ard_orders)}>ARD
             "<th colspan=2>V RMSE (meV/atom)</th><th colspan=2>test-split λ<sub>F</sub></th><th colspan=2>coverage, 95 % (68 %)</th></tr>"
             "<tr>" + "".join(f"<th>{o}</th>" for o in ard_orders) + "<th>ARD</th><th>BLR</th>" * 5 + "</tr>")
 sec("theory-ard", "2.3  Sensitivity to the prior: automatic relevance determination", rf"""
-<p>ARD replaces the single \(\sigma_c\) by one log-precision per body order, \(\Lambda=\operatorname{{diag}}(\Gamma_j^2e^{{a_{{k(j)}}}})\), with \(k(j)\) the body order of basis function \(j\), fitted by
+<p>Automatic relevance determination (ARD) replaces the single \(\sigma_c\) by one log-precision per body order, \(\Lambda=\operatorname{{diag}}(\Gamma_j^2e^{{a_{{k(j)}}}})\), with \(k(j)\) the body order of basis function \(j\), fitted by
 type-II maximum likelihood in the prior-scaled system \(S=D^{{-1}}AD^{{-1}}\), \(D=\operatorname{{diag}}\Gamma\). The BLR fit is ARD at
 \(a_k=-2\log\sigma_c\) for every \(k\). In sequential mode, used here, the noise scale \(\sigma\) stays at the BLR fit's value and only the
 \(a_k\) are fitted.</p>
@@ -500,7 +501,7 @@ covariance that is calibrated by one scale on held-out data (Section 3.3); POPS 
 the CR3 covariance shrinks as data are added, which is why the scale is needed: CR3 supplies the shape, and the held-out data the
 size.</p>
 <figure><img src="fig9_cr3_schematic.png" alt="Schematic of the CR3 construction on the regression demo's Lennard-Jones example: a degree-5 polynomial fit with the CR3 and posterior bands; the leave-one-point-out changes of the fit in the leading principal curves of the CR3 covariance; and a six-step flow of the computation"><figcaption>Figure 9.
-The CR3 construction on the Lennard-Jones example of the interactive regression demo [kermodegroup demos; scene
+The CR3 construction on the Lennard-Jones (LJ) example of the interactive regression demo [kermodegroup demos; scene
 lj-cr3], computed exactly. (a) A degree-5 polynomial, fitted by Bayesian ridge regression with evidence-optimised
 hyperparameters to 197 nearly noiseless samples (noise standard deviation 0.011, as for DFT labels) of the smooth part of a
 Lennard-Jones curve, cannot follow the steep repulsive side and the well: the error is approximation error, not noise. The
@@ -589,7 +590,7 @@ atom's descriptor against the training set; the CR3 shape weights that leverage 
 configuration, and the quantile calibrates it to a coverage. A scale that depends on the environment should therefore model the
 ratio of the error to the shape, the score \(s\), not novelty itself. We test one learned from the site descriptor (normalised
 conformal prediction [Papadopoulos et al. 2008; Lei et al. 2018]). Let \(\phi_i\) be atom \(i\)'s whitened principal components
-of the normalised site descriptor, from a PCA of training atoms only. On one half of the \(T_{\text{val}}\) configurations a ridge
+of the normalised site descriptor, from a principal component analysis of training atoms only. On one half of the \(T_{\text{val}}\) configurations a ridge
 regression \(f(\phi)=\beta_0+\beta^{\mathsf T}\phi+\gamma^{\mathsf T}\phi^{2}\) of \(\log s_i^2\) is fitted (each configuration
 weighted once, the ridge by five-fold cross-validation over configurations) and clipped to the range it takes on the
 calibration atoms. On the other half the normalised scores \(s_i\,e^{-f(\phi_i)/2}\) give one quantile \(q_f\), and the region is
@@ -753,7 +754,7 @@ rk1_sig = (" and ".join(f"{v['sig']:.2f} eV against r* = {v['rs']:.2f} eV ({m})"
 sec("method-disc", "2.7.4 Measuring the bias: a discrepancy term", r"""
 <p>A bias shared by every training configuration of a kind is invisible to any delete-one jackknife: deleting one
 configuration does not move the fit along it. The defect formation energies expose such a bias. Every training interstitial,
-vacancy and divacancy cell is a hot MD snapshot, while the QoIs are relaxed defects.</p>
+vacancy and divacancy cell is a hot molecular-dynamics snapshot, while the QoIs are relaxed defects.</p>
 <p><b>Measuring the bias from training labels.</b> For each defect class
 \(t\in\{\text{interstitial},\text{vacancy},\text{divacancy}\}\), the bulk reference is a per-atom thermal trend
 \(e_{\text{b}}(\eta)=\beta_0+\beta_1\eta\), fitted by least squares to the residuals per atom of the diamond bulk cells within
@@ -786,7 +787,7 @@ interstitial QoIs is """ + rk1_txt + r""" (both metrics). The hot-snapshot contr
 in different directions in θ, so the transfer depends on the QoI. Coverage at 95 % with λ<sub>F</sub>, over the """ + str(next(iter(rk1.values()))["n"] if rk1 else "?") + r""" QoIs the delta method gives, becomes """ + rk1_cov + r""",
 short of the observable-space term below.</p>
 <p><b>Discrepancy term.</b> For the QoIs of defect class \(t\), the variance becomes
-\(\sigma_Q^2=\sigma_{Q,\text{method}}^2+r^{*2}_t+s^{*2}_t\), with \(\sigma_{Q,\text{method}}\) the σ of the UQ method without the term (interstitial class for the three interstitials; vacancy class for the
+\(\sigma_Q^2=\sigma_{Q,\text{method}}^2+r^{*2}_t+s^{*2}_t\), with \(\sigma_{Q,\text{method}}\) the σ of the uncertainty method without the term (interstitial class for the three interstitials; vacancy class for the
 vacancy). Every other QoI is unchanged. This leaves the pure parameter-space propagation for these QoIs and is reported as a
 separate, labelled method. The term widens σ but leaves the prediction at the potential's own value, on purpose: the uncertainty
 describes the potential that is run. Subtracting \(r^*_t\) from the prediction would correct the potential, a different object
@@ -826,8 +827,7 @@ errors, and their correlations, match the covariance; the second penalises inter
 therefore weighs calibration and sharpness together, and a method cannot gain by inflating its intervals.</p>
 <p>Coverage alone rewards intervals that are too wide. We therefore also report sharpness, the median of \(\sigma_Q/\text{tol}_Q\)
 with \(\text{tol}_Q\) the benchmark's tolerance for QoI \(Q\): a value below 1 means the interval is narrower than the accuracy the
-benchmark asks for. A useful method has near-nominal coverage at the smallest sharpness. The continuous ranked probability
-score (CRPS) combines the two in one number per QoI [Gneiting and Raftery 2007]. For a Gaussian prediction with mean
+benchmark asks for. A useful method has near-nominal coverage at the smallest sharpness. The CRPS combines the two in one number per QoI [Gneiting and Raftery 2007]. For a Gaussian prediction with mean
 \(\hat Q\) and standard deviation \(\sigma_Q\) it is
 \(\mathrm{CRPS}=\sigma_Q\,[z(2\Phi(z)-1)+2\varphi(z)-1/\sqrt\pi]\), with \(z\) the standardised error and \(\Phi\),
 \(\varphi\) the standard normal distribution and density functions. It is a proper score: it is smallest in expectation for the
@@ -883,7 +883,7 @@ if _pc_old:
     _dz = np.load("/storage/eng/essswb/projects/si-qoi-uq-paper/runs/popsref/design_o3d12.npz")   # analysis/pops_dump.py
     pc_lamblr = json.loads(str(_dz["meta"]))["lam_blr"] / float(_dz["Lam"].max())
     pc_old = (f"{_o['b2']['sd_E_meV_atom']:.0f} (the box an earlier version of this study used), {_o['eig']['sd_E_meV_atom']:.1f} (the port's "
-              f"eigendecomposition route), {_o['svd']['sd_E_meV_atom']:.1f} (an SVD of the rows) and {_o['package_beta']['sd_E_meV_atom']:.1f} "
+              f"eigendecomposition route), {_o['svd']['sd_E_meV_atom']:.1f} (a singular value decomposition, SVD, of the rows) and {_o['package_beta']['sd_E_meV_atom']:.1f} "
               f"meV/atom (the reference package's hypercube step)")
     pc_sweep = ", ".join(f"{r['sd_E_svd']:.3g} meV/atom at {sci(r['ridge_rel'])}" for r in _o["sweep"] if r["ridge_rel"] in (1e-10, 1e-6, 1e-2))
 else:
@@ -1115,8 +1115,8 @@ if vck:
 sec("results-defects", "3.8  Defect formation energies: diagnosis and the discrepancy term", f"""
 <p>For both models the relaxed interstitial formation energies are the QoIs that are confidently wrong: all three are too
 low, and outside the 95 % interval. This holds for every method of Section 3.7, not only the headline, so the diagnosis below
-is about the fit, not the UQ method; the discrepancy term it leads to (below) applies to any of them. Table 7 shows it for
-the posterior baseline B1 as well as for CR3: with the term B1 covers {b1disc}. They are low for every ACE and PACE model in the benchmark too, and the tetrahedral one
+is about the fit, not the uncertainty method; the discrepancy term it leads to (below) applies to any of them. Table 7 shows it for
+the posterior baseline B1 as well as for CR3: with the term B1 covers {b1disc}. They are low for every ACE model in the benchmark too, linear and nonlinear (PACE), and the tetrahedral one
 for GAP-18.</p>
 <div class="wrap"><table><caption>Table 5. The training residual trend predicts the QoI error. Interstitial cells,
 residual (DFT − model) minus a temperature-matched bulk reference, extrapolated to F<sub>rms</sub> → 0 (eV), against the QoI
