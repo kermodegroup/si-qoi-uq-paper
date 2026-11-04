@@ -118,6 +118,9 @@ ood_rows = "".join(f"<tr><td>{m}</td><td>{lab}</td><td class=n>{f(_ood_id(m, k))
     f"<td class=n>{_ood_cell(m, k, c)}</td>" for c, _ in OOD_COLS) + "</tr>" for m in ("o3d12", "o4d20") if m in _lso for k, lab in OOD_METH)
 ood_n = lambda m: f"{_ood[m]['all']['atoms']} atoms in {_ood[m]['all']['configs']} configurations" if m in _ood else "–"
 ood_v = lambda m, k, c="all": "–" if _ood_get(m, k, c) is None else f"{_ood_get(m, k, c):.2f}"
+_atr = json.loads((RES / "ard_transfer.json").read_text()) if (RES / "ard_transfer.json").exists() else {}
+atr = lambda m, k, fmt=".2f": format(_atr[m][k], fmt).replace("-", "−") if m in _atr else "–"   # hold-out -> full transfer (analysis/ard_transfer.py)
+atr_pct = lambda m: f"{100 * (_atr[m]['test_q_over_q_one'] - 1):.1f} %" if m in _atr else "–"
 lm = lambda m, k: "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all'][k]:.2f}"
 lm_seeds = lambda m: "–" if m not in _lsm else "–".join(f"{x:.2f}" for x in _lsm[m]["sets"]["test"]["all"]["learned_seed_range"])
 lm_rad = lambda m, k: "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all']['median_radius'][k]:.1f}"
@@ -142,27 +145,47 @@ def fb_types(m, k, level=0.9, min_atoms=300):
     """Lowest and highest per-type coverage (types with >= min_atoms test atoms, as Figure 2) of method k, and the
     lowest types: '0.57 (surface_001) to 1.00'."""
     import numpy as _n
-    from scipy.stats import chi2
+    from scipy.stats import chi
     p = RES / f"force_baselines_{m}.npz"
     if not p.exists():
         return "–"
     b = _n.load(p, allow_pickle=True)
-    cov = b["err_norm"] <= _n.sqrt(chi2.ppf(level, 3) / 3) * b[f"sd_{k}"]
+    cov = b[f"d_{k}"] <= chi(3).ppf(level)
     t = b["config_type"]
     per = {u: float(cov[t == u].mean()) for u in _n.unique(t) if (t == u).sum() >= min_atoms}
     lo = min(per, key=per.get)
     return f"{per[lo]:.2f} ({lo}) to {max(per.values()):.2f}"
 
 
-def fb(m, k, level=0.9):
-    """Coverage of the Gaussian isotropic 90 % per-atom region, method k (results/force_baselines_<m>.npz)."""
+def fb_iso(m, k, level=0.9):
+    """Coverage of the isotropic ball |e| <= sigma sqrt(chi2_3(level) / 3), sigma = sqrt(tr C), method k (for contrast)."""
     import numpy as _n
     from scipy.stats import chi2
+    b = _n.load(RES / f"force_baselines_{m}.npz")
+    return f"{float(_n.mean(b['err_norm'] <= _n.sqrt(chi2.ppf(level, 3) / 3) * b[f'sd_{k}'])):.2f}"
+
+
+def fb_eps_max(level=0.9):
+    """Largest change in ellipsoid coverage of any method and model when eps is raised tenfold (d_<k>_eps0.01)."""
+    import numpy as _n
+    from scipy.stats import chi
+    k3, dm = chi(3).ppf(level), 0.0
+    for m in ("o3d12", "o4d20"):
+        b = _n.load(RES / f"force_baselines_{m}.npz")
+        for k in ("headline", "B1", "B2", "B3"):
+            dm = max(dm, abs(float(_n.mean(b[f"d_{k}_eps0.01"] <= k3) - _n.mean(b[f"d_{k}"] <= k3))))
+    return f"{dm:.3f}"
+
+
+def fb(m, k, level=0.9):
+    """Coverage of the Gaussian 90 % per-atom ellipsoid of method k's own force covariance (results/force_baselines_<m>.npz)."""
+    import numpy as _n
+    from scipy.stats import chi
     p = RES / f"force_baselines_{m}.npz"
     if not p.exists():
         return "–"
     b = _n.load(p)
-    return f"{float(_n.mean(b['err_norm'] <= _n.sqrt(chi2.ppf(level, 3) / 3) * b[f'sd_{k}'])):.2f}"
+    return f"{float(_n.mean(b[f'd_{k}'] <= chi(3).ppf(level))):.2f}"
 dcrps = lambda m, meth, sc: f(disc.get(m, {}).get(f"{meth}+disc/{sc}", {}).get("crps_tol"))
 crps = lambda m, meth, sc: f(get(m, meth, sc).get("crps_tol")) if get(m, meth, sc) else "–"
 EV_ROWS = (("CR3/lam_F", "CR3 × λ<sub>F</sub> (headline)"), ("B1/q_b1", "B1: posterior × q̂"),
@@ -1121,10 +1144,17 @@ Only the four defect QoIs change.</figcaption></figure>""", "", level=4)
 sec("results-forces", "3.2  Calibrated per-atom forces", f"""
 <p>Figure 2 and Table 2p test the per-atom force uncertainty of Section 2.5 on the 248 test configurations, with the ARD fits;
 atoms whose force rows vanish by site symmetry are dropped by the rule of Section 3.3. At a nominal 90 %, the CR3 shape with one
-hold-out quantile covers {lm("o3d12", "one_group")} of the test atoms for o3d12 and {lm("o4d20", "one_group")} for o4d20. o3d12 is slightly
-below nominal and o4d20 at it; which points to the transfer from the hold-out fit to the full fit as the remaining
-approximation for the smaller model. The shape carries most of the dependence of the error on the environment: one quantile
-reaches the nominal level overall with no environment-dependent scale.</p>
+hold-out quantile covers {lm("o3d12", "one_group")} of the test atoms for o3d12 and {lm("o4d20", "one_group")} for o4d20. o4d20 is at nominal; o3d12 is below
+it, and the cause is the transfer from the hold-out fit to the full fit. The calibration scores come from the hold-out posterior,
+fitted on {atr("o3d12", "N_fit", "d")} of the {atr("o3d12", "N", "d")} training configurations, and are carried to the full posterior by
+(N/N<sub>fit</sub>)<sup>β</sup>, with β estimated from a second, smaller hold-out fit ({atr("o3d12", "N_fit2", "d")} configurations) and
+clipped to [0, 1/2] (Section 2.5). For o4d20 that estimate gave β = {atr("o4d20", "beta")}, a factor {atr("o4d20", "factor", ".3f")}, and the
+test scores' 90 % quantile matches the transferred one to {atr("o4d20", "test_q_over_q_one", ".3f")}. For o3d12 the scale of the
+smaller fit came out larger ({atr("o3d12", "lam2")} against {atr("o3d12", "lam1")}), so β<sub>raw</sub> = {atr("o3d12", "beta_raw")} was
+clipped to 0 and nothing was transferred; the full fit's test scores are {atr_pct("o3d12")} larger at the 90 % quantile, which is
+the shortfall. We report this as found: the transfer rule was fixed before any test coverage was seen, and changing it now would
+be tuning on the test split. Where the transfer works, the shape carries most of the dependence of the error on the
+environment: one quantile reaches the nominal level overall with no environment-dependent scale.</p>
 <p>The coverage is not even across environments, though. The point-defect cells are under-covered and the liquid and surface
 cells over-covered in both models (Figure 2, bottom); the amorphous cells are under-covered for o3d12 and over-covered for o4d20.
 The learned scale of Section 2.5 corrects much of this in distribution: it covers {lm("o3d12", "learned")} and {lm("o4d20", "learned")}
@@ -1138,16 +1168,21 @@ less robust, as the next test shows.</p>
 configuration once in total is about 12 % smaller and covers only {lm("o3d12", "one_group_cfgq")} and
 {lm("o4d20", "one_group_cfgq")}, because the many small, well-predicted cells then dominate it; the quantiles here are
 atom-weighted. The CR3
-shape with the propagation's global λ<sub>F</sub> covers {fb("o3d12", "headline")} and {fb("o4d20", "headline")}, but
-λ<sub>F</sub> is fitted on these test configurations, so that is in sample and not a validation.</p>
+shape of the BLR fit with the propagation's global λ<sub>F</sub> covers {fb("o3d12", "headline")} and {fb("o4d20", "headline")}, below the
+one quantile for both models and with the same pattern across configuration types, even though λ<sub>F</sub> is fitted on these test
+configurations (in sample). λ<sub>F</sub> is an RMS over force components, not a quantile of the 3-D score, and the BLR
+shape is strongly anisotropic, so errors along its thin directions leave the ellipsoid. All regions in Figure 2 are
+ellipsoids of the method's own 3×3 covariance; an isotropic ball |ΔF| ≤ σ(χ<sup>2</sup><sub>3</sub>(0.9)/3)<sup>1/2</sup> of the same
+σ = (tr C)<sup>1/2</sup> is larger along those directions and covers more ({fb_iso("o3d12", "headline")} and {fb_iso("o4d20", "headline")} for
+λ<sub>F</sub>); compared that way, λ<sub>F</sub> would look better calibrated than the one quantile, but only because its region is larger. Increasing the regulariser ε of the ellipsoid tenfold changes no coverage by more than {fb_eps_max()}.</p>
 <figure><img src="fig7_force_calibration.png" alt="Per-atom force uncertainty against observed error for the learned scale, one hold-out quantile and the baselines, and test coverage per configuration type, for each model"><figcaption>Figure 2.
 Top: binned on predicted σ (20 equal-count bins), RMS observed |ΔF| against RMS σ, for the CR3 shape with one hold-out
 quantile (the method) and with the learned scale (ARD fit; σ<sub>F,i</sub> from the 90 % quantile), and for the per-atom σ of the
 propagation's methods on the BLR fit: CR3 × λ<sub>F</sub> (the headline), B1 (posterior × q̂), B2 (POPS, 50 % leverage cut; the
 box's uniform variance) and B3 (CR3, λ = 1); the per-atom density behind. Points below the diagonal are conservative.
-Bottom: test coverage of the 90 % region, overall and per GAP-18 configuration type with at least 300 test atoms. Conformal
-regions: one quantile and the learned scale. Gaussian isotropic region |ΔF| ≤ σ (χ<sup>2</sup><sub>3</sub>(0.9)/3)<sup>1/2</sup>:
-the others. The headline's λ<sub>F</sub> is fitted on the test split itself, so its per-atom coverage here is in sample.</figcaption></figure>
+Bottom: test coverage of the 90 % region, overall and per GAP-18 configuration type with at least 300 test atoms. Every
+method's region is the same kind: the ellipsoid of its own 3×3 force covariance, e<sup>T</sup>C<sup>−1</sup>e ≤ χ<sup>2</sup><sub>3</sub>(0.9)
+(for the one quantile and the learned scale this is their conformal region). The headline's λ<sub>F</sub> is fitted on the test split itself, so its per-atom coverage here is in sample.</figcaption></figure>
 <div class="wrap"><table><caption>Table 2p. Test coverage of the 90 % per-atom force region per GAP-18 configuration type (types
 with at least 300 test atoms): one hold-out quantile against the learned scale (mean over five hold-out splits), and the RMS
 deviation of the per-type coverage from nominal.</caption>
@@ -1182,8 +1217,8 @@ refit's coverage on the in-distribution test split.</caption>
 <p>Figure 2 also shows the per-atom forces of the baselines, to which the QoI comparison of Section 3.4 applies. B3 is
 about λ<sub>F</sub> times too narrow everywhere. B1, the posterior shape with one scale, under-covers
 ({fb("o3d12", "B1")} for o3d12, {fb("o4d20", "B1")} for o4d20), most in the amorphous, point-defect and surface cells. B2
-over-covers for o3d12 ({fb("o3d12", "B2")}; per type {fb_types("o3d12", "B2")}). For o4d20 it is close to nominal overall
-({fb("o4d20", "B2")}) but uneven: per type {fb_types("o4d20", "B2")}, low on the liquid and surface cells.</p>""", "drafted", level=3)
+over-covers for o3d12 ({fb("o3d12", "B2")}; per type {fb_types("o3d12", "B2")}). For o4d20 it under-covers overall
+({fb("o4d20", "B2")}) and unevenly: per type {fb_types("o4d20", "B2")}, low on the liquid and surface cells.</p>""", "drafted", level=3)
 
 dk95 = lambda m: (lambda d_: f"{d_['k95']}/{d_['n']}" if d_ else "?")(disc.get(m, {}).get("CR3-headline+disc/lam_F"))
 sec("discussion", "4  Discussion", f"""

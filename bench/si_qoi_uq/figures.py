@@ -307,14 +307,15 @@ def force_calibration(results, out, nbins=20, level=0.9, min_atoms=300):
     (equal counts), RMS |error| against RMS sigma, for the CR3 shape with one hold-out conformal quantile and with the
     learned continuous scale (ARD fit, ood/learned_scale.py; sigma = radius sqrt(v) / chi_3^-1(level)), and the
     propagation's methods on the BLR fit (analysis/force_baselines.py: CR3 x lam_F, B1, B2, B3), per-atom density behind.
-    Bottom: coverage at `level` overall and per GAP-18 configuration type with >= min_atoms test atoms: the conformal
-    regions (one quantile, learned), and the Gaussian isotropic region |e| <= sigma sqrt(chi2_3(level) / 3) for the others
+    Bottom: coverage at `level` overall and per GAP-18 configuration type with >= min_atoms test atoms, every method's
+    region the Gaussian ellipsoid of its own 3x3 force covariance, e^T (C + eps tr C/3 I)^-1 e <= chi_3^-1(level)^2: for the
+    one quantile and the learned scale that is their conformal region (s <= q); for the others d_<k> of force_baselines
     (lam_F is fitted on the test split: in sample)."""
-    from scipy.stats import chi, chi2
+    from scipy.stats import chi
     ms = [m for m in ("o3d12", "o4d20") if (results / f"learned_scale_{m}_atoms.npz").exists()]
     if not ms:
         return
-    kq, k3 = np.sqrt(chi2.ppf(level, 3) / 3), chi(3).ppf(level)
+    k3 = chi(3).ppf(level)
     fig, axes = plt.subplots(2, len(ms), figsize=_size(5.6 * len(ms), 9.6), squeeze=False, facecolor=SURFACE)
 
     def binned(x, y, key):
@@ -333,7 +334,7 @@ def force_calibration(results, out, nbins=20, level=0.9, min_atoms=300):
             for k, lab, mk, col in (("headline", "CR3 × λ_F (in sample on test)", "s", CAT[1]), ("B1", "B1: posterior × q̂", "^", CAT[2]),
                                     ("B2", "B2: POPS (50 % cut)", "D", CAT[3]), ("B3", "B3: CR3, λ = 1", "v", CAT[4])):
                 sd = b[f"sd_{k}"]
-                traces.append((lab, b["err_norm"], sd, b["config_type"], b["err_norm"] <= kq * sd, mk, col))
+                traces.append((lab, b["err_norm"], sd, b["config_type"], b[f"d_{k}"] <= k3, mk, col))
         allsd = np.concatenate([tr[2] for tr in traces])
         lo = 0.8 * min(np.percentile(e[e > 0], 1), np.percentile(allsd, 0.5))
         hi = 1.2 * max(e.max(), np.percentile(allsd, 99.9))

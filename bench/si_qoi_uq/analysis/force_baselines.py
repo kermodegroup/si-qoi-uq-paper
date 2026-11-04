@@ -8,6 +8,9 @@ Per test atom, from the fit's force rows F_a (3, p), sigma = sqrt(tr C_a) with C
             (50 %; uniform variance on each axis)
   B3        F_a L L^T F_a^T (CR3, lam = 1)
 and each atom's Mondrian group from the ARD posterior's group constants (geometry only; ARD_RUNS).
+Also per method the Mahalanobis score d = sqrt(e^T (C_a + eps tr(C_a)/3 I)^-1 e) (eps = the ARD fit's, 1e-3), so every
+method's region can be the Gaussian ellipsoid of its own shape, d <= chi_3^-1(level), as the conformal region of the
+per-atom method is (s <= q is that ellipsoid at the conformal scale).
 
     SIQ_RUNS=<BLR root> ARD_RUNS=<ARD root> python -m bench.si_qoi_uq.analysis.force_baselines o3d12|o4d20
         -> results/force_baselines_<m>.npz
@@ -16,6 +19,7 @@ import json, os, pathlib, sys
 
 import numpy as np
 
+EPS_SENS = (1e-2, 1e-1)   # x10, x100 the ARD fit's eps: the ellipsoid of a near-singular shape depends on it
 ARD_RUNS = pathlib.Path(os.environ.get("ARD_RUNS", "/storage/eng/essswb/projects/ace-jax/runs/si_qoi_uq_ard137"))
 
 
@@ -27,6 +31,7 @@ def main():
     from ace_jax.fit.data import build_dataset, load_configs
     from ace_jax.fit.inducing import GPConfig
     from ace_jax.fit.rows import chunked_rows_fn
+    from scipy.stats import chi
     from ..diagnostics import SYM_ZERO, TEST_XYZ
     from ..harness import RUNS
     from ..run import RESULTS, fit_dir, lin_for
@@ -43,7 +48,7 @@ def main():
     rows = chunked_rows_fn(lin.model, GPConfig(r0=2.4, rcut=lin.rc, n_B=lin.n_B, n_pair=lin.n_pair, NZ=lin.NZ,
                                                C=int(ds.y_E.shape[1]), e0_cols=lin.e0_cols))
     th = np.asarray(lin.theta_hat)
-    E, G, T, V = [], [], [], {k: [] for k in facs}
+    E, G, T, V, C = [], [], [], {k: [] for k in facs}, {k: [] for k in facs}
     gc = 0
     for i in range(ds.n_batches):
         bt = jax.tree.map(lambda a, i=i: a[i], ds)
@@ -60,18 +65,32 @@ def main():
         for k, L in facs.items():
             M = Fa[..., :L.shape[0]] @ L                               # POPS has no E0 column (zero on force rows)
             V[k].append(np.asarray(jnp.sum(M * M, axis=(1, 2))))
+            C[k].append(np.asarray(M @ jnp.swapaxes(M, 1, 2)))                # (n, 3, 3) force covariance
     E, G = np.concatenate(E), np.concatenate(G)
     v = {k: np.concatenate(x) for k, x in V.items()}
+    eps = float(ard.eps)
+
+    def maha(Ca, scale, eps=eps):                                      # d of the method's covariance scale^2 C_a
+        Ca = np.concatenate(Ca)[keep] * scale ** 2
+        tr = np.trace(Ca, axis1=1, axis2=2)
+        reg = Ca + eps * (tr / 3)[:, None, None] * np.eye(3)
+        return np.sqrt(np.einsum("na,nab,nb->n", E[keep], np.linalg.inv(reg), E[keep]))
     sd = np.sqrt(np.maximum(v["cr3"], 0))
-    keep = sd > SYM_ZERO * np.median(sd)
+    keep = sd > SYM_ZERO * np.median(sd)                               # symmetry-zero atoms: no shape, dropped
+    meth = {"headline": ("cr3", lamF), "B1": ("post", qb1), "B2": ("pops", 1.0), "B3": ("cr3", 1.0)}
+    d = {k: maha(C[f], sc) for k, (f, sc) in meth.items()}
+    d |= {f"{k}_eps{e:g}": maha(C[f], sc, e) for k, (f, sc) in meth.items() for e in EPS_SENS}   # regulariser sensitivity
     out = dict(err_norm=np.linalg.norm(E, axis=1)[keep], group=G[keep], config_type=np.array(T, dtype=object)[keep],
                sd_headline=lamF * sd[keep], sd_B1=qb1 * np.sqrt(np.maximum(v["post"], 0))[keep],
-               sd_B2=np.sqrt(np.maximum(v["pops"], 0))[keep], sd_B3=sd[keep], lam_F=lamF, q_b1=qb1, n_dropped=int((~keep).sum()))
+               sd_B2=np.sqrt(np.maximum(v["pops"], 0))[keep], sd_B3=sd[keep], lam_F=lamF, q_b1=qb1, eps=eps,
+               **{f"d_{k}": x for k, x in d.items()}, n_dropped=int((~keep).sum()))
     np.savez(RESULTS / f"force_baselines_{m}.npz", **out)
     for k in ("headline", "B1", "B2", "B3"):
         r = out["err_norm"] / out[f"sd_{k}"]
         per = {int(g): round(float(np.sqrt(np.mean(r[out["group"] == g] ** 2))), 2) for g in np.unique(out["group"])}
-        print(f"{m} {k:8s} RMS |e|/sd {np.sqrt(np.mean(r ** 2)):.3f}  per group {per}", flush=True)
+        cv = "  ".join(f"{np.mean(out[f'd_{k}{x}'] <= chi(3).ppf(0.9)):.3f}" for x in ("", *(f"_eps{e:g}" for e in EPS_SENS)))
+        print(f"{m} {k:8s} RMS |e|/sd {np.sqrt(np.mean(r ** 2)):.3f}  90 % ellipsoid coverage (eps x1 x10 x100) {cv}"
+              f"  per group {per}", flush=True)
 
 
 if __name__ == "__main__":
