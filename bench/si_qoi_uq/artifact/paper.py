@@ -276,7 +276,7 @@ must be controlled during a simulation, and for the derived properties that a po
 uncertainty. The training labels are deterministic density functional theory (DFT) energies, forces and stresses, so the error of a potential is approximation
 error: the model is misspecified. A Bayesian posterior is then far too narrow. Under misspecification it concentrates at the
 best-fitting parameters at a rate set by the amount of data, not by the size of the model error, and it collapses to a point as
-N<sub>data</sub> → ∞ while the prediction error stays finite [Kleijn and van der Vaart 2012; Müller 2013; Swinburne and Perez 2024].</p>
+N<sub>data</sub> → ∞ while the prediction error stays finite [Kleijn and van der Vaart 2012; Müller 2013; Swinburne and Perez 2025].</p>
 <p>The most widely used alternatives for forces are committees and ensembles of models [Musil et al. 2019; Imbalzano et al. 2021;
 Kellner and Ceriotti 2024] and approximate posteriors on the last layer of a network [Bigi et al. 2024]. They need several fits, or a
 calibration of their own. Conformal prediction gives intervals with guaranteed coverage under exchangeability [Vovk, Gammerman and
@@ -312,7 +312,7 @@ gives energies, forces and stresses together, and every QoI follows from it.</p>
 to the GAP-18 database [Bartók et al. 2018], the training set of the GAP-18 Gaussian approximation potential. The propagation uses implicit differentiation through every relaxation, including that
 of the lattice constant, and is cross-checked by committees run through the unmodified benchmark protocol. We test the intervals
 against DFT, one QoI at a time and jointly, and compare them with two baselines: the posterior with one conformal scale, and
-pointwise optimal parameter sets (POPS) [Swinburne and Perez 2024].</p>
+pointwise optimal parameter sets (POPS) [Swinburne and Perez 2025].</p>
 <p>Misspecification-aware parameter uncertainty has been propagated to material properties before. Perez et al. [2025] propagate
 POPS hypercube ensembles of a quadratic spectral neighbour analysis potential (SNAP) for tungsten to phase, elastic, defect and surface properties, re-relaxing
 each member, and use the implicit derivative of a relaxed minimum with respect to the parameters [Maliyov, Grigorev and Swinburne
@@ -487,7 +487,7 @@ the ARD fits covers {ard_lm("o3d12")} (o3d12) and {ard_lm("o4d20")} (o4d20) of t
 {lm("o3d12", "one_group")} and {lm("o4d20", "one_group")} on the BLR fits (Section 3.2).</p>""", "drafted", level=3)
 
 sec("theory-cr3", "2.4  Misspecification-robust shape: the CR3 jackknife", r"""
-<p><b>POPS.</b> The closest existing approach for linear potentials is POPS [Swinburne and Perez 2024]. For each training row
+<p><b>POPS.</b> The closest existing approach for linear potentials is POPS [Swinburne and Perez 2025]. For each training row
 \(i\), with residual \(r_i\) and leverage \(h_i=\psi_i^{\mathsf T}A^{-1}\psi_i\), the pointwise optimal parameter set is
 \(\hat\theta+\delta_i\), with \(\delta_i=A^{-1}\psi_i\,r_i/h_i\) the smallest change (in the \(A\) metric) that makes the model
 reproduce that row exactly. The spread of the \(\delta_i\), as an ensemble or as a hypercube in their principal directions, is
@@ -610,13 +610,13 @@ and corrects its size with one conformal quantile \(\hat q\). The quantile is ta
 B1 therefore uses the same held-out data as the global scale of our method. It differs mainly in the shape, so it tests whether
 the CR3 covariance describes the errors better than the posterior; it also forms its single scale differently (a quantile of
 \(|z|\) pooled over E, F and V, against an RMS over force components).</p>
-<p>The second baseline, B2, is POPS [Swinburne and Perez 2024], as implemented in ace-jax [ace-jax] by a port of the reference
-package POPSRegression [Swinburne, POPSRegression]. For each training row \(i\) the correction is
+<p>The second baseline, B2, is POPS [Swinburne and Perez 2025], as implemented in ace-jax [ace-jax] by a port of the reference
+package POPSRegression [Swinburne and Perez, POPSRegression]. For each training row \(i\) the correction is
 \(\delta_i=A_\mu^{-1}\psi^w_i\,r_i/h_i\), with leverage \(h_i=\psi_i^{w\mathsf T}A_\mu^{-1}\psi^w_i\). Here \(\psi^w_i=b_i w_i\) carries the
 row weights but no noise scale, \(r_i\) is the row's residual at the ridge solution, and \(A_\mu=M+\mu\operatorname{diag}(\Gamma_j^2)\),
 with \(M=\sum_i\psi^w_i\psi_i^{w\mathsf T}\) and the ridge parameter \(\mu\) chosen on a path. Members are drawn uniformly in the
-hypercube spanned by the principal directions of the \(\delta_i\), with bounds from their extreme projections, as in Swinburne and
-Perez [2024]. Following the reference package, the box is built only from the rows at or above the median leverage
+hypercube spanned by the principal directions of the \(\delta_i\), with bounds from their extreme projections, as in
+Swinburne and Perez [2025]. Following the reference package, the box is built only from the rows at or above the median leverage
 (<code>leverage_percentile = 50</code>, its default; a box from every row is unphysical here, Section 3.7). The ridge is selected
 per quantity by the CRPS on a hold-out of the training set, over relative ridges from 10<sup>−2</sup> down to 10<sup>−10</sup> of
 the largest eigenvalue, a decade above the relative ridge of about 10<sup>−11</sup> below which the box is set by roundoff
@@ -1042,7 +1042,7 @@ the bulk energy of o3d12 by {pops_sd} meV/atom. Rejecting unphysical members can
 {pc_cond} and its evidence fit puts σ<sub>c</sub> on its upper bound, so the ridge that gives the BLR mean is
 {sci(pc_lamblr)} of the largest eigenvalue. Below a relative ridge of about 10<sup>−11</sup> the box is set by roundoff. At the
 10<sup>−14</sup> that an earlier ridge selection chose, four equivalent evaluations from the same rows, mean and cut give
-bulk-energy spreads of {pc_old}. The POPS step of the reference package POPSRegression [Swinburne, POPSRegression] agrees with the
+bulk-energy spreads of {pc_old}. The POPS step of the reference package POPSRegression [Swinburne and Perez, POPSRegression] agrees with the
 stable SVD evaluation there, so the port and the package differ only in these numerics, not in the method. We therefore select
 the ridge from 10<sup>−10</sup> upwards ({pc_sel}). For o3d12 the selection takes the smallest ridge it is offered for
 forces and virials, and one decade above it for energies, so the floor sets most of the box; for o4d20 it chooses inside the grid. At these ridges the box is reproduced: the stored B2 box, the
@@ -1425,8 +1425,8 @@ sec("refs", "References", """<p class="note">Checked against publisher or reposi
 <li>J. E. Pustejovsky, E. Tipton, Small-sample methods for cluster-robust variance estimation and hypothesis testing in fixed effects models, J. Bus. Econ. Stat. 36, 672–683 (2018).</li>
 <li>B. L. Shanks, G. Simmons, A. P. Bartók, J. R. Kermode, Uncertainty quantification design principles for machine learning interatomic potentials: lessons learned from hierarchical Bayesian inference, arXiv:2206.08744v2 (2026).</li>
 <li>G. Simmons, T. Hudson, T. D. Swinburne, J. R. Kermode, review of uncertainty quantification for machine-learned interatomic potentials, in preparation.</li>
-<li>T. D. Swinburne, D. Perez, Parameter uncertainties for imperfect surrogate models in the low-noise regime, Mach. Learn.: Sci. Technol. 6, 015008 (2024).</li>
-<li>T. D. Swinburne, POPSRegression: Bayesian regression for low-noise data with misspecification uncertainty, Python package, https://pypi.org/project/popsregression/.</li>
+<li>T. D. Swinburne, D. Perez, Parameter uncertainties for imperfect surrogate models in the low-noise regime, Mach. Learn.: Sci. Technol. 6, 015008 (2025).</li>
+<li>T. D. Swinburne, D. Perez, POPSRegression: Bayesian regression for low-noise data with misspecification uncertainty, Python package version 0.4.0, https://pypi.org/project/popsregression/ (2026).</li>
 <li>R. J. Tibshirani, R. F. Barber, E. J. Candès, A. Ramdas, Conformal prediction under covariate shift, Adv. Neural Inf. Process. Syst. 32, 2530–2540 (2019).</li>
 <li>V. Vovk, A. Gammerman, G. Shafer, Algorithmic Learning in a Random World, Springer (2005).</li>
 <li>H. White, Maximum likelihood estimation of misspecified models, Econometrica 50, 1–25 (1982).</li>
