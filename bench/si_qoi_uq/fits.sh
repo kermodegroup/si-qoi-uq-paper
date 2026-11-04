@@ -6,6 +6,7 @@
 # Launch detached on mnf148/lestrade (o4d20 > 10 GB).  GPU: SIQ_GPU_VENV=<venv with a CUDA jax> runs this
 # worktree's source (PYTHONPATH) under that venv on the GPU, without touching .venv (identical jax 0.11.2).
 # SIQ_ACEJAX_SRC=<checkout>/src fits with another ace-jax source (e.g. a PR under acceptance), on CPU or GPU.
+# SIQ_ARD_PRIOR=fixed keeps the BLR prior in the --uq ard stage (ace-jax --ard-prior fixed).
 set -euo pipefail
 M=$1; V=$2
 DATA=/storage/eng/essswb/projects/ace-jax/data/si_accuracy_cost
@@ -21,6 +22,8 @@ case $V in
   kappa)    UQ="--uq ard --ard-variance kappa --ard-cluster-size inf" ;;   # B1: posterior shape, keeps chol
   *) echo "unknown variant $V" >&2; exit 2 ;;
 esac
+# SIQ_ARD_PRIOR=fixed: the same calibrated stage on the BLR posterior (ace-jax --ard-prior fixed; no ARD evidence fit)
+[ -n "${SIQ_ARD_PRIOR:-}" ] && UQ="$UQ --ard-prior $SIQ_ARD_PRIOR"
 mkdir -p "$OUT"
 cd "$(dirname "$0")/../.."
 export JAX_ENABLE_X64=1

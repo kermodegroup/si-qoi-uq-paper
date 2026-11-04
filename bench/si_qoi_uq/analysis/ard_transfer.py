@@ -1,4 +1,4 @@
-"""The ARD fits' hold-out-to-full transfer of the per-atom force scale, and what the test split says about it.
+"""The per-atom stage's hold-out-to-full transfer of the per-atom force scale, and what the test split says about it.
 
 The calibration scores come from the hold-out posterior P_fit (fitted on N_fit of the N training configurations) and are
 carried to the served posterior by t = (N / N_fit)^beta, beta estimated from a second, smaller hold-out fit and clipped to
@@ -19,6 +19,8 @@ def main():
     from ..run import RESULTS
     out = {}
     for m in ("o3d12", "o4d20"):
+        if not (ARD_RUNS / "fits" / m / "cr3" / "ard.json").exists():
+            continue
         d = json.load(open(ARD_RUNS / "fits" / m / "cr3" / "ard.json"))
         tr = next(v for k, v in _walk(d) if k == "transfer")
         z = np.load(RESULTS / f"learned_scale_{m}_atoms.npz", allow_pickle=True)

@@ -5,8 +5,9 @@ Per atom, as analysis/force_calibration.py: V the unscaled 3x3 CR3 shape, v = tr
 s = sqrt(e^T (V + eps v/3 I)^-1 e), symmetry-zero atoms (sqrt v < 1e-3 median) dropped.  Coverage of the 90 % region by
   mondrian   s <= q_g (the refit's served groups and quantiles: training hold-out)
   one_group  s <= q_1, one configuration-weighted quantile of the same hold-out scores
-  global     |e| <= lam sqrt(v) sqrt(chi2_3(0.9) / 3), lam^2 = mean |e|^2 / v over the in-distribution test atoms of
-             the refit (a global scale fitted out of sample for the OOD set; Gaussian isotropic reading)
+  global     s <= lam chi_3^-1(0.9), lam^2 = mean |e|^2 / v over the in-distribution test atoms of the refit (a global
+             scale fitted out of sample for the OOD set): the Gaussian ellipsoid of the same shape, so every method's region
+             is the same kind (an isotropic ball |e| <= lam sqrt(v chi2_3/3) is larger along the shape's thin directions)
 overall, per held-out type and per Mondrian group; 90 % intervals from a bootstrap over configurations (2000 draws).
 
     OOD_RUNS=<runs/ood_holdout> python -m bench.si_qoi_uq.ood.score o3d12|o4d20  -> results/ood_mondrian_<m>.json
@@ -54,7 +55,7 @@ def atoms(lin, post, xyz):
 def main():
     import jax
     jax.config.update("jax_enable_x64", True)
-    from scipy.stats import chi2
+    from scipy.stats import chi
     from ace_jax.fit.ard import ARDPosterior
     from novelty_groups import quantiles
     from ..linear import LinearACE
@@ -79,11 +80,11 @@ def main():
     idt = scored(DATA / "test.xyz")
     lam = float(np.sqrt(np.mean(idt["e"] ** 2 / idt["v"])))
     ood = scored(DATA / "ood.xyz")
-    kq = np.sqrt(chi2.ppf(1 - alpha, 3) / 3)
+    k3 = chi(3).ppf(1 - alpha)
     cov = {"mondrian": ood["s"] <= q_g[ood["g"]], "one_group": ood["s"] <= q1,
-           "global": ood["e"] <= kq * lam * np.sqrt(ood["v"])}
+           "global": ood["s"] <= k3 * lam}
     cov_id = {"mondrian": idt["s"] <= q_g[idt["g"]], "one_group": idt["s"] <= q1,
-              "global": idt["e"] <= kq * lam * np.sqrt(idt["v"])}
+              "global": idt["s"] <= k3 * lam}
     rng = np.random.default_rng(0)
     cfgs = np.unique(ood["c"])
 
