@@ -1442,6 +1442,8 @@ if "method-disc" in _ids and "results-defects" in _ids:   # the parameter-space 
     _why = _why[: _why.index("</p>") + 4]
     S[_md] = S[_md].replace(_why, "")
     S[_rd] = S[_rd].replace("</section>", _why + "</section>")
+from mathify import mathify   # inline math written as text or HTML -> \\( \\) (artifact/mathify.py)
+S = [mathify(x) for x in S]
 toc = "".join(f'<li><a href="#{s.split(chr(34))[1]}">{s.split("<h2>")[1].split("<")[0].strip()}</a></li>' for s in S if "<h2>" in s)
 page = f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
