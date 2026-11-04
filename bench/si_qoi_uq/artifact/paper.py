@@ -1249,9 +1249,10 @@ factor L, never as an ill-conditioned quadratic form. A hypercube is bounded by 
 rows, mean and cut, equivalent evaluations of one box gave {pc_old_short}, and the box exists only above a ridge floor. Third, a
 covariance transforms consistently under a linear change of parameters, and a box does not: with the axes taken in θ or in the
 prior-scaled coefficients Γθ, the same corrections give different boxes ({pc_axes}). For forces the calibration is explicit. One conformal
-quantile on the CR3 shape covers {lm("o3d12", "one_group")} and {lm("o4d20", "one_group")} of the test atoms against a nominal 0.90, and
-holds out of distribution on the cracks. The POPS box covers {fb("o3d12", "B2")} (o3d12) and {fb("o4d20", "B2")} (o4d20), the latter
-unevenly (per type {fb_types("o4d20", "B2")}), and nothing in its construction aims at a target coverage. Two costs of CR3 remain. It is a sampling variance, so it needs held-out data and a
+quantile on the CR3 shape covers {lm("o3d12", "one_group")} and {lm("o4d20", "one_group")} of the test atoms against a nominal 0.90 (the
+o3d12 shortfall is the hold-out transfer of Section 3.2), and holds out of distribution on the cracks; the global force scale on the same
+kind of region covers less ({fb("o3d12", "headline")} and {fb("o4d20", "headline")}), even fitted in sample. The POPS box covers
+{fb("o3d12", "B2")} (o3d12) and {fb("o4d20", "B2")} (o4d20), the latter below nominal and unevenly (per type {fb_types("o4d20", "B2")}), and nothing in its construction aims at a target coverage. Two costs of CR3 remain. It is a sampling variance, so it needs held-out data and a
 scale; POPS needs neither in principle, although here its ridge was chosen on a hold-out of the training set. And like POPS it cannot see a bias that every configuration of a kind shares (Section 3.8).</p>
 <p>The scale is not unique. The virial scale is about a third larger than the force scale, and using it covers
 {k95("o3d12", "CR3-headline", "lam_V")} QoIs for o3d12 and {k95("o4d20", "CR3-headline", "lam_V")} for o4d20 with wider intervals; its joint evidence is higher than the force scale's for o3d12 and about equal for o4d20. Misspecification depends on the observable, and one could choose the scale by the QoI's physics, the virial scale
