@@ -518,9 +518,11 @@ sec("theory-cr3", "2.4  Misspecification-robust shape: the CR3 jackknife", r"""
 \(\hat\theta+\delta_i\), with \(\delta_i=A^{-1}\psi_i\,r_i/h_i\) the smallest change (in the \(A\) metric) that makes the model
 reproduce that row exactly. The spread of the \(\delta_i\), as an ensemble or as a hypercube in their principal directions, is
 the uncertainty. It does not shrink as data are added, because each \(\delta_i\) stays finite while the model is misspecified.
-Swinburne et al. [2026] give finite-data PAC-Bayes bounds on the generalisation error of misspecified, near-deterministic linear
-models, by lifting the analysis to distributions over hyperparameters; they note that existing misspecification-aware schemes can
-become unstable in this near-deterministic limit.</p>
+POPS has no finite-sample guarantee, and earlier PAC-Bayes bounds on the generalisation error become ill-conditioned as the label
+noise vanishes. Swinburne et al. [2026] obtain a stable finite-data bound by lifting the analysis to distributions over
+hyperparameters, and for linear models replace the hypercube by a uniform distribution on an ellipsoid whose shape minimises it:
+the covariance of a POPS hypercube plus a low-rank correction. Their linear ACE test uses total energies of copper in a
+35-dimensional projection of the features.</p>
 <p><b>Comparison.</b> CR3 below is built from the same per-row influence, \(A^{-1}\psi_i r_i\), but asks the opposite question:
 how far the fit moves when a configuration is removed, not how far it must move to fit a row exactly. For one row the two differ
 only in the leverage factor, \(1/(1-h_i)\) for deletion against \(1/h_i\) for an exact fit. CR3 is therefore largest for rows the
@@ -1379,9 +1381,10 @@ interpretable as such. The size of the POPS box is set instead by the ridge and 
 ridges the o3d12 box's bulk-energy spread changes by a factor of about 60, the held-out selection put the o3d12 ridge at the floor,
 and a box built from every row is unphysical. Second, a covariance is a sum over configurations, and it is formed here through its
 factor L, never as an ill-conditioned quadratic form. A hypercube is bounded by the extreme projections of single rows: on the same
-rows, mean and cut, equivalent evaluations of one box gave {pc_old_short}, and the box exists only above a ridge floor, the near-deterministic instability that Swinburne et al. [2026] also point to. Third, a
+rows, mean and cut, equivalent evaluations of one box gave {pc_old_short}, and the box exists only above a ridge floor. Third, a
 covariance transforms consistently under a linear change of parameters, and a box does not: with the axes taken in θ or in the
-prior-scaled coefficients Γθ, the same corrections give different boxes ({pc_axes}). For forces the calibration is explicit. One conformal
+prior-scaled coefficients Γθ, the same corrections give different boxes ({pc_axes}). The ellipsoid of Swinburne et al. [2026] enters its objective only through
+the predicted widths \\(F^{{\\mathsf T}}BF\\), so it transforms consistently; its baseline, however, is the covariance of a POPS box. For forces the calibration is explicit. One conformal
 quantile on the CR3 shape covers {lm("o3d12", "one_group")} and {lm("o4d20", "one_group")} of the test atoms against a nominal 0.90 (the
 o3d12 shortfall is the hold-out transfer of Section 3.2), and holds out of distribution on the cracks for both models and on
 the screw dislocations for o4d20, though not for o3d12 ({ood_v("o3d12", "one_group", "screw_disloc")}); the global force scale on the same
