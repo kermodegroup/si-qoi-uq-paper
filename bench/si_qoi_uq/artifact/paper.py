@@ -381,7 +381,9 @@ fitted to the GAP-18 database [Bartók et al. 2018] (Figure 0). A model oNdM has
 Table 0 lists the silicon QoIs, their DFT (CASTEP) values and the benchmark's tolerances: 10 % of the DFT value for the elastic
 constants, the bulk modulus, the unstable stacking-fault energies and the decohesion stress; 5 % for the (100) surface energy;
 10 meV/atom for the phase energies; 0.1 eV for the point-defect formation energies; and 0.2 THz for the root-mean-square (RMS) error of the phonon frequencies. The QoI error
-of a model is the geometric mean of |error|/tolerance over these QoIs. o3d12 ({_a['n_params']} coefficients) is the cheaper model, with a
+of a model is the geometric mean of |error|/tolerance over these QoIs. The ratios span orders of magnitude, so an arithmetic mean
+would be set by the one or two worst QoIs; the geometric mean, the exponential of the mean log ratio, counts a factor-of-two
+improvement equally on every QoI. o3d12 ({_a['n_params']} coefficients) is the cheaper model, with a
 test force RMS error (RMSE) of {_a['rmse_F']:.3f} eV/Å and a typical QoI error of one tolerance ({_a['qoi']:.2f}). o4d20 ({_b['n_params']} coefficients)
 is the only size of the ladder that meets both of the benchmark's targets, a test force RMSE no larger than GAP-18's 0.0825 eV/Å
 on this split ({_b['rmse_F']:.4f} eV/Å) and a QoI error below 0.5 ({_b['qoi']:.2f}); o3d12 is {_b['cost_cpu'] / _a['cost_cpu']:.0f}× cheaper on a
@@ -412,15 +414,22 @@ applied to positions and cell. The predictions are \(b_E\cdot\theta\), \(B_F\the
 \(-W/\Omega\), with \(\Omega\) the cell volume). Each row of \(b_E\), \(B_F\) or \(B_V\) is called an observable row \(b\).
 Each row has a weight \(w\), which combines a factor \(1/\sqrt N\) on the energy and virial rows of an \(N\)-atom configuration, a weight per quantity
 (energy, force, virial) and a weight per configuration type, and all rows share one noise scale \(\sigma\). The weights set the
-balance between energies, forces and virials, and \(\sigma\) sets the overall noise level. The whitened rows and targets are
-\(\psi=b\,w/\sigma\) and \(\tilde y=y\,w/\sigma\), with \(y\) the DFT label minus the \(E^0\) baseline. Stacked over all configurations, the observable rows \(b\) form the design matrix \(\Phi\), and the
+balance between energies, forces and virials, and \(\sigma\) sets the overall noise level. For an energy row the whitened row and
+target are \(\psi=b_E\,w/\sigma\) and \(\tilde y=y\,w/\sigma\), with \(y=E_{\text{DFT}}-\sum_iE^0_{Z_i}\) the DFT energy minus the
+reference energies. Force and virial rows enter in the same way: each of the \(3N\) rows of \(B_F\) and each of the six independent
+(Voigt) rows of \(B_V\) is one row \(b\), with \(\psi=b\,w/\sigma\) and \(\tilde y=y\,w/\sigma\), and its target \(y\) is the matching DFT
+force or virial component (\(E^0\) contributes to neither). Stacked over all configurations, the observable rows \(b\) form the design matrix \(\Phi\), and the
 \(\psi\) its whitened form \(\Psi\). With least-squares \(E^0\), one column per species carries the atom count on the
 energy rows (a fixed, wide prior).</p>
 """ + pareto_par + r"""
 <h3>2.2 Prior, posterior and evidence</h3>
-<p>The prior is \(\theta\sim\mathcal N(0,\Lambda^{-1})\) with the smoothness prior \(\Lambda=\operatorname{diag}(\Gamma_j^2)/\sigma_c^2\): \(\sigma_c\) is the prior scale of the coefficients
-and \(\Gamma_j=\sum_t\big[(l_t/w_l)^4+(n_t/w_n)^4\big]\), summed over the one-particle factors \(t\) of basis function \(j\) with radial
-index \(n_t\) and angular degree \(l_t\) (the algebraic prior of ACEpotentials [Witt et al. 2023], \(w_l=2/3\), \(w_n=1\)), so rough basis functions are damped.
+<p>The prior is \(\theta\sim\mathcal N(0,\Lambda^{-1})\) with the smoothness prior</p>
+\[ \Lambda=\frac{D^2}{\sigma_c^2},\qquad D=\operatorname{diag}(\Gamma_j),\qquad
+   \Gamma_j=\sum_t\Big[\Big(\frac{l_t}{w_l}\Big)^4+\Big(\frac{n_t}{w_n}\Big)^4\Big], \]
+<p>where \(\sigma_c\) is the prior scale of the coefficients and the sum runs over the one-particle factors \(t\) of basis function \(j\), with radial
+index \(n_t\) and angular degree \(l_t\) (the algebraic prior of ACEpotentials [Witt et al. 2023], \(w_l=2/3\), \(w_n=1\)), so rough basis
+functions are damped. The smoothness weights \(D\) do not depend on any hyperparameter; Sections 2.3 and 2.4 use them to scale
+the coefficients.
 This is Bayesian linear regression (BLR). The posterior is Gaussian, with mean \(\hat\theta\), the maximum a posteriori
 (MAP) estimate,</p>
 \[ A=\sum_{\text{rows}}\psi\psi^{\mathsf T}+\Lambda,\qquad \hat\theta=A^{-1}\sum_{\text{rows}}\psi\tilde y,\qquad
@@ -433,9 +442,9 @@ This is Bayesian linear regression (BLR). The posterior is Gaussian, with mean \
 and \(c=\sum_{\text{rows}}\psi\tilde y=A\hat\theta\).</p>
 <p>Near-interpolating fits leave the condition number \(\operatorname{cond}(A)\) beyond \(1/\epsilon_{\text{mach}}\) (\(\epsilon_{\text{mach}}\)
 the float64 unit roundoff), so the evidence and the posterior are computed by QR factorisation. \(R_w\) is the triangular factor of the weighted
-design (\(\Phi^w=Q_wR_w\), rows \(b\,w\)), accumulated by streamed updating QRs, and
-\([\operatorname{diag}\sqrt\Lambda;\,R_w/\sigma]=Q_AR_A\) gives \(R_A^{\mathsf T}R_A=A\) at \(\operatorname{cond}(\Phi)\) instead of
-\(\operatorname{cond}(\Phi)^2\).</p>
+design (\(\Phi^w=Q_wR_w\), rows \(b\,w\)), accumulated by streamed updating QRs, and</p>
+\[ \begin{bmatrix}\Lambda^{1/2}\\ R_w/\sigma\end{bmatrix}=Q_AR_A,\qquad R_A^{\mathsf T}R_A=A, \]
+<p>which works at \(\operatorname{cond}(\Phi)\) instead of \(\operatorname{cond}(\Phi)^2\).</p>
 """, "drafted from docs")
 
 ards = json.load(open(RES / "ard_summary.json")) if (RES / "ard_summary.json").exists() else {}
@@ -461,14 +470,18 @@ ard_head = ("<tr><th rowspan=2>model</th>" + f"<th colspan={len(ard_orders)}>ARD
             "<th colspan=2>V RMSE (meV/atom)</th><th colspan=2>test-split λ<sub>F</sub></th><th colspan=2>coverage, 95 % (68 %)</th></tr>"
             "<tr>" + "".join(f"<th>{o}</th>" for o in ard_orders) + "<th>ARD</th><th>BLR</th>" * 5 + "</tr>")
 sec("theory-ard", "2.3  Sensitivity to the prior: automatic relevance determination", rf"""
-<p>Automatic relevance determination (ARD) replaces the single \(\sigma_c\) by one log-precision per body order, \(\Lambda=\operatorname{{diag}}(\Gamma_j^2e^{{a_{{k(j)}}}})\), with \(k(j)\) the body order of basis function \(j\), fitted by
-type-II maximum likelihood in the prior-scaled system \(S=D^{{-1}}AD^{{-1}}\), \(D=\operatorname{{diag}}\Gamma\). The BLR fit is ARD at
-\(a_k=-2\log\sigma_c\) for every \(k\). In sequential mode, used here, the noise scale \(\sigma\) stays at the BLR fit's value and only the
+<p>Automatic relevance determination (ARD) replaces the single \(\sigma_c\) by one log-precision per body order,</p>
+\[ \Lambda=D\,\operatorname{{diag}}\big(e^{{a_{{k(j)}}}}\big)\,D, \]
+<p>with \(k(j)\) the body order of basis function \(j\) and \(D\) the smoothness weights of Section 2.2. The BLR fit is ARD at
+\(a_k=-2\log\sigma_c\) for every \(k\). The \(a_k\) are fitted by type-II maximum likelihood in the scaled system
+\(S=D^{{-1}}AD^{{-1}}\), whose prior part is \(\operatorname{{diag}}(e^{{a_{{k(j)}}}})\). The scaling is by \(D\), not by \(\Lambda^{{1/2}}\),
+because \(D\) does not change with the \(a_k\): the data part of \(S\) is computed once, and only its diagonal changes during the
+maximisation. In sequential mode, used here, the noise scale \(\sigma\) stays at the BLR fit's value and only the
 \(a_k\) are fitted.</p>
 <p><b>QR evidence.</b> As for the BLR fit (Section 2.2), the evidence, its gradient and Hessian, and the posterior are computed
-from the QR factor of
-\([\operatorname{{diag}}(e^{{a_{{k(j)}}/2}});\,R_wD^{{-1}}/\sigma]=Q_SR_S\) (so \(R_S^{{\mathsf T}}R_S=S\)), whose condition number is
-\(\sqrt{{\operatorname{{cond}}(S)}}\). The posterior stores \(R_S^{{\mathsf T}}\) as its Cholesky factor, so the CR3 jackknife and the per-atom force variances are unchanged. The \(a_k\) are bounded below at
+from the QR factor</p>
+\[ \begin{{bmatrix}}\operatorname{{diag}}\big(e^{{a_{{k(j)}}/2}}\big)\\ R_wD^{{-1}}/\sigma\end{{bmatrix}}=Q_SR_S,\qquad R_S^{{\mathsf T}}R_S=S, \]
+<p>whose condition number is \(\sqrt{{\operatorname{{cond}}(S)}}\). The posterior stores \(R_S^{{\mathsf T}}\) as its Cholesky factor, so the CR3 jackknife and the per-atom force variances are unchanged. The \(a_k\) are bounded below at
 \(a_{{\text{{floor}}}}=\log(\lambda_{{\max}}/10^{{22}})\), with \(\lambda_{{\max}}\) the largest eigenvalue of the data part of \(S\)
 (\(D^{{-1}}\Psi^{{\mathsf T}}\Psi D^{{-1}}\)) at the starting noise scale, and an endpoint with every \(a_k\) on the floor and the gradient pointing below it
 is flagged as degenerate and refused.</p>
@@ -525,7 +538,7 @@ score are</p>
 far the fit is pulled towards that configuration. Because \(\Lambda\succ0\), its eigenvalues lie in \([0,1)\). An eigenvalue near 0
 means the configuration is predicted by the rest of the data; one near 1 means the fit nearly interpolates it along that direction,
 and its residual there underestimates the error it would have if it were left out.</li>
-<li>\(W_k\) is the cluster's rows expressed in whitened coefficient coordinates, scaled by the prior (\(D\)) and by the Cholesky
+<li>\(W_k\) is the cluster's rows expressed in whitened coefficient coordinates, scaled by the smoothness weights (\(D\)) and by the Cholesky
 factor of \(S\) (Section 2.3). In these coordinates the posterior is isotropic, so \(H_{kk}=W_k^{\mathsf T}W_k\) is a plain Gram
 matrix; computing \(W_k\) costs one triangular solve per cluster.</li>
 <li>\(\tilde g_k\) is the cluster's contribution to the gradient of the least-squares objective, \(\Psi_k^{\mathsf T}\rho_k\),
@@ -696,21 +709,23 @@ Write the energy of a structure with coordinates \(x\) (positions, and cell wher
 <p>with \(\mathcal H=\nabla_x^2E\) the Hessian at \(x^*(\hat\theta)\). Then \(\sigma_Q=\lambda\lVert L^{\mathsf T}G\rVert\), with \(G=dQ/d\theta\)
 the QoI's row.</p>
 <ul>
-<li><b>Lattice constant.</b> The diamond lattice constant \(a_0\) makes the diamond-cell energy \(E_{\text{dia}}(a)\) stationary:
-\(da_0/d\theta=-(\partial b_{E,\text{dia}}/\partial a)/E_{aa}\), with \(E_{aa}=d^2E_{\text{dia}}/da^2\) at \(a_0\).</li>
-<li><b>Energies at a minimum</b> (phase, defect, surface energies). By the envelope theorem the relaxed energy \(E^*\) has \(dE^*/d\theta=b_E(x^*)\) for every
-relaxed coordinate, plus the response of the cell the protocol builds from \(a_0\):
-\(dE/da_0\cdot da_0/d\theta\), \(dE/da_0=\theta\cdot\partial b_E/\partial\ln a\,/a_0=-\operatorname{tr}W/a_0\) (\(W\) the virial of the
-relaxed structure). The relaxed
-geometries are the harness's own, recorded for the mean model. Example, vacancy:
-\(G=b_{\text{vac}}+(\theta\cdot\partial_{\ln a}b_{\text{vac}}/a_0)\,da_0/d\theta-\tfrac{N-1}{N}b_{\text{bulk}}\), with \(b_{\text{vac}}\) and
-\(b_{\text{bulk}}\) the energy rows of the relaxed vacancy cell and the \(N\)-atom bulk cell (the bulk cell has zero virial at \(a_0\), so it
+<li><b>Lattice constant.</b> The diamond lattice constant \(a_0\) makes the diamond-cell energy \(E_{\text{dia}}(a)\) stationary, so
+\[ \frac{da_0}{d\theta}=-\frac{1}{E_{aa}}\frac{\partial b_{E,\text{dia}}}{\partial a},\qquad E_{aa}=\frac{d^2E_{\text{dia}}}{da^2}\Big|_{a_0}. \]</li>
+<li><b>Energies at a minimum</b> (phase, defect, surface energies). By the envelope theorem the relaxed coordinates add nothing to the derivative of the relaxed
+energy \(E^*\): it is the energy row at \(x^*\) plus the response of the cell the protocol builds from \(a_0\),
+\[ \frac{dE^*}{d\theta}=b_E(x^*)+\frac{dE}{da_0}\frac{da_0}{d\theta},\qquad
+   \frac{dE}{da_0}=\frac{1}{a_0}\,\theta\cdot\frac{\partial b_E}{\partial\ln a}=-\frac{\operatorname{tr}W}{a_0}, \]
+with \(W\) the virial of the relaxed structure. The relaxed geometries are the harness's own, recorded for the mean model. For
+example, the vacancy formation energy has the row
+\[ G=b_{\text{vac}}+\frac{1}{a_0}\Big(\theta\cdot\frac{\partial b_{\text{vac}}}{\partial\ln a}\Big)\frac{da_0}{d\theta}-\frac{N-1}{N}\,b_{\text{bulk}}, \]
+with \(b_{\text{vac}}\) and \(b_{\text{bulk}}\) the energy rows of the relaxed vacancy cell and the \(N\)-atom bulk cell (the bulk cell has zero virial at \(a_0\), so it
 has no \(a_0\) term).</li>
 <li><b>Elastic constants, relaxed-ion.</b> At each applied strain the internal coordinates \(u\) (atomic positions in the strained
 cell) are relaxed, and the stress \(\tau=-W/\Omega\) is linear in θ at fixed geometry, \(\tau=B_\tau\theta\) with \(B_\tau=-B_V/\Omega\).
-Then \(d\tau/d\theta=B_\tau+(\partial\tau/\partial u)\,du^*/d\theta+(\partial\tau/\partial a)\,da_0/d\theta\) with
-\(du^*/d\theta=-\mathcal H_{uu}^{-1}[(\partial b_E/\partial u)^{\mathsf T}+\partial_a\nabla_uE\otimes da_0/d\theta]\), \(\mathcal H_{uu}\) the
-Hessian in \(u\). The elastic constants are linear fits of \(\tau\) against strain, so their rows are the same fits of these. Stress route: the harness's
+Then
+\[ \frac{d\tau}{d\theta}=B_\tau+\frac{\partial\tau}{\partial u}\frac{du^*}{d\theta}+\frac{\partial\tau}{\partial a}\frac{da_0}{d\theta},\qquad
+   \frac{du^*}{d\theta}=-\mathcal H_{uu}^{-1}\Big[\Big(\frac{\partial b_E}{\partial u}\Big)^{\mathsf T}+\partial_a\nabla_uE\otimes\frac{da_0}{d\theta}\Big], \]
+with \(\mathcal H_{uu}\) the Hessian in \(u\). The elastic constants are linear fits of \(\tau\) against strain, so their rows are the same fits of these. Stress route: the harness's
 matscipy protocol (Voigt strain pattern e<sub>1</sub>+e<sub>4</sub>, 5 steps of ±1 %, linear fits). Energy route: curvature at the same steps
 of patterns e<sub>1</sub>, e<sub>4</sub>, e<sub>1</sub>+e<sub>2</sub>.</li>
 <li><b>Decohesion.</b> Rigid openings of the relaxed bulk: linear in θ at fixed \(a_0\) plus the \(a_0\) term; the cubic-spline
@@ -768,10 +783,7 @@ synthetic observation:</p>
 \[ r^*_t=\sum_i a_i u_i=y^*_t-d^*_t\cdot\hat\theta,\qquad a=e_1^{\mathsf T}(X^{\mathsf T}X)^{-1}X^{\mathsf T},\quad X=[1,\,\eta_i], \]
 <p>with \(X\) the regression design (rows \([1,\eta_i]\)), \(e_1=(1,0)^{\mathsf T}\) selecting the intercept, \(d^*_t\) and
 \(y^*_t\) the same combination of the defect rows and labels with the bulk trend's rows and labels subtracted, and standard
-error \(s^*_t\) from the regression scatter. No QoI value or tolerance enters. An alternative reference, each defect cell's
-nearest bulk cell in volume and thermal amplitude, was rejected on training data alone: most partners are 2-atom cells, so a
-partner's residual enters about 108 times, and that form has the larger standard error and extrapolates worse to held-out cold
-snapshots.</p>
+error \(s^*_t\) from the regression scatter. No QoI value or tolerance enters.</p>
 <p><b>Training-cell size.</b> The training vacancy cells come in two sizes, 63 and 215 atoms, so the vacancy trend need not be
 shared. We compare four linear-Gaussian models of the vacancy residuals \(u_i\) by their evidence: one intercept and slope for
 both sizes; per-size intercepts with a shared slope; a shared intercept with per-size slopes; and per-size intercepts and
@@ -806,8 +818,9 @@ held-out sets are used, and they play different roles. The per-atom quantile com
 test split is an independent test of it. The propagation's global scale and B1's quantile are fitted on the test split's
 residuals, as the specification fixed (Section 3.3), so their per-atom coverage on the test split is in sample. No DFT QoI value
 enters any scale.</p>
-<p>Signs: an error is model − DFT in Table 0 and in z below; the defect analysis (Section 3.8) works with training residuals,
-DFT − model, and its tables say so. For the per-atom forces (Section 3.2), the test is the coverage of the conformal regions on the 248 test configurations,
+<p><b>Sign conventions.</b> An error in Table 0 and in \(z_Q\) below is \(\text{model}-\text{DFT}\). The defect analysis
+(Section 3.8) works with training residuals, \(\text{DFT}-\text{model}\), and its tables say so.</p>
+<p>For the per-atom forces (Section 3.2), the test is the coverage of the conformal regions on the 248 test configurations,
 overall and per configuration type, together with the RMS of the observed force error over the predicted σ<sub>F,i</sub>, which is
 1 for a calibrated Gaussian reading. For the QoIs (Sections 3.4–3.8), each prediction gives a standardised error
 \(z_Q=(\hat Q-Q_{\text{DFT}})/\sigma_Q\), with \(\hat Q\) the mean model's value. We count how many of the 20 scored QoIs fall inside
