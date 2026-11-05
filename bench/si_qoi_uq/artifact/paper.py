@@ -385,7 +385,11 @@ _par = {p_["size"]: p_ for p_ in json.load(open(RES / "ace_pareto.json"))} if (R
 if {"o3d12", "o4d20", "o4d12", "o4d14"} <= set(_par):
     _a, _b = _par["o3d12"], _par["o4d20"]
     pareto_par = f"""<p><b>The two models.</b> We study two members of the linear ACE ladder of the ace-jax silicon accuracy–cost benchmark,
-fitted to the GAP-18 database [Bartók et al. 2018] (Figure 0). A model oNdM has correlation order N and total polynomial degree M.
+fitted to the GAP-18 database [Bartók et al. 2018] (Figure 0). A model oNdM has correlation order N, the largest number of
+neighbour factors in a basis function (body order N + 1, the index used for ARD in Section 2.3), and maximum total polynomial
+degree M: each one-particle factor t with radial index \\(n_t\\) and angular degree \\(l_t\\) contributes \\(n_t+\\tfrac32 l_t\\),
+and the sum over the factors of a basis function is at most M. This is the total-degree basis of ACEpotentials, described in
+detail by Witt et al. [2023].
 Table 0 lists the silicon QoIs, their DFT (CASTEP) values and the benchmark's tolerances: 10 % of the DFT value for the elastic
 constants, the bulk modulus, the unstable stacking-fault energies and the decohesion stress; 5 % for the (100) surface energy;
 10 meV/atom for the phase energies; 0.1 eV for the point-defect formation energies; and 0.2 THz for the root-mean-square (RMS) error of the phonon frequencies. The QoI error
