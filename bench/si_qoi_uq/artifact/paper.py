@@ -517,7 +517,10 @@ sec("theory-cr3", "2.4  Misspecification-robust shape: the CR3 jackknife", r"""
 \(i\), with residual \(r_i\) and leverage \(h_i=\psi_i^{\mathsf T}A^{-1}\psi_i\), the pointwise optimal parameter set is
 \(\hat\theta+\delta_i\), with \(\delta_i=A^{-1}\psi_i\,r_i/h_i\) the smallest change (in the \(A\) metric) that makes the model
 reproduce that row exactly. The spread of the \(\delta_i\), as an ensemble or as a hypercube in their principal directions, is
-the uncertainty. It does not shrink as data are added, because each \(\delta_i\) stays finite while the model is misspecified.</p>
+the uncertainty. It does not shrink as data are added, because each \(\delta_i\) stays finite while the model is misspecified.
+Swinburne et al. [2026] give finite-data PAC-Bayes bounds on the generalisation error of misspecified, near-deterministic linear
+models, by lifting the analysis to distributions over hyperparameters; they note that existing misspecification-aware schemes can
+become unstable in this near-deterministic limit.</p>
 <p><b>Comparison.</b> CR3 below is built from the same per-row influence, \(A^{-1}\psi_i r_i\), but asks the opposite question:
 how far the fit moves when a configuration is removed, not how far it must move to fit a row exactly. For one row the two differ
 only in the leverage factor, \(1/(1-h_i)\) for deletion against \(1/h_i\) for an exact fit. CR3 is therefore largest for rows the
@@ -1376,7 +1379,7 @@ interpretable as such. The size of the POPS box is set instead by the ridge and 
 ridges the o3d12 box's bulk-energy spread changes by a factor of about 60, the held-out selection put the o3d12 ridge at the floor,
 and a box built from every row is unphysical. Second, a covariance is a sum over configurations, and it is formed here through its
 factor L, never as an ill-conditioned quadratic form. A hypercube is bounded by the extreme projections of single rows: on the same
-rows, mean and cut, equivalent evaluations of one box gave {pc_old_short}, and the box exists only above a ridge floor. Third, a
+rows, mean and cut, equivalent evaluations of one box gave {pc_old_short}, and the box exists only above a ridge floor, the near-deterministic instability that Swinburne et al. [2026] also point to. Third, a
 covariance transforms consistently under a linear change of parameters, and a box does not: with the axes taken in θ or in the
 prior-scaled coefficients Γθ, the same corrections give different boxes ({pc_axes}). For forces the calibration is explicit. One conformal
 quantile on the CR3 shape covers {lm("o3d12", "one_group")} and {lm("o4d20", "one_group")} of the test atoms against a nominal 0.90 (the
@@ -1528,6 +1531,7 @@ sec("refs", "References", """<p class="note">Checked against publisher or reposi
 <li>J. E. Pustejovsky, E. Tipton, Small-sample methods for cluster-robust variance estimation and hypothesis testing in fixed effects models, J. Bus. Econ. Stat. 36, 672–683 (2018).</li>
 <li>B. L. Shanks, G. Simmons, A. P. Bartók, J. R. Kermode, Uncertainty quantification design principles for machine learning interatomic potentials: lessons learned from hierarchical Bayesian inference, arXiv:2206.08744v2 (2026).</li>
 <li>G. Simmons, T. Hudson, T. D. Swinburne, J. R. Kermode, review of uncertainty quantification for machine-learned interatomic potentials, in preparation.</li>
+<li>T. D. Swinburne, O. Hussein, I. Lynch, D. Perez, PAC-Bayesian regression for misspecified, near-deterministic surrogate models, Sim2Science: ML with Imperfect Scientific Models (workshop, 2026), https://openreview.net/forum?id=gD3LoosP0w.</li>
 <li>T. D. Swinburne, D. Perez, Parameter uncertainties for imperfect surrogate models in the low-noise regime, Mach. Learn.: Sci. Technol. 6, 015008 (2025).</li>
 <li>T. D. Swinburne, D. Perez, POPSRegression: Bayesian regression for low-noise data with misspecification uncertainty, Python package version 0.4.0, https://pypi.org/project/popsregression/ (2026).</li>
 <li>R. J. Tibshirani, R. F. Barber, E. J. Candès, A. Ramdas, Conformal prediction under covariate shift, Adv. Neural Inf. Process. Syst. 32, 2530–2540 (2019).</li>
