@@ -972,6 +972,10 @@ def fmv(m, st, k, fld="coverage", nd=2):
     """Per-atom force score of a propagation method (analysis/force_methods.py): st "id" (test split) or "ood" (held out)."""
     v = _fm.get(m, {}).get(st, {}).get("all", {}).get(k, {}).get(fld)
     return "–" if v is None else f"{v:.{nd}f}"
+def fmt_t(m, t, k, fld="coverage", nd=2):
+    """As fmv, on one held-out configuration type (force_methods_<m>.json ood.per_type)."""
+    v = _fm.get(m, {}).get("ood", {}).get("per_type", {}).get(t, {}).get(k, {}).get(fld)
+    return "–" if v is None else f"{v:.{nd}f}"
 sec("results", "3.4  Coverage and sharpness", f"""
 <div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % credible interval of the coverage probability]) and sharpness, for the four methods of Figures 1 and 1b.</caption>
 <thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th><th>CRPS/tol</th></tr></thead>
@@ -1012,10 +1016,14 @@ phase energies, which are strongly nonlinear in θ at λ<sub>F</sub> (Section 3.
 <p>Figure 10 compares the four methods on both models. On the QoIs the headline has the lowest CRPS/tol for both models
 and the highest log evidence for o4d20; for o3d12, B2 has the higher evidence (Table 4). The per-atom forces rank the
 methods differently. B2's box, read as a Gaussian of its covariance, covers """ + fmv("o3d12", "id", "B2") + " and " + fmv("o4d20", "id", "B2") + f""" of the test atoms
-at 90 % (o3d12, o4d20), against """ + fmv("o3d12", "id", "headline") + " and " + fmv("o4d20", "id", "headline") + f""" for the headline, and on the held-out cracks and
-dislocations """ + fmv("o3d12", "ood", "B2") + " and " + fmv("o4d20", "ood", "B2") + f""" against """ + fmv("o3d12", "ood", "headline") + " and " + fmv("o4d20", "ood", "headline") + f""". Its mean log score per test atom
+at 90 % (o3d12, o4d20), against """ + fmv("o3d12", "id", "headline") + " and " + fmv("o4d20", "id", "headline") + f""" for the headline. On the held-out cracks and
+dislocations the two models disagree. For o3d12 B2 covers """ + fmv("o3d12", "ood", "B2") + " against the headline's " + fmv("o3d12", "ood", "headline") + f""", and is higher on every
+held-out type. For o4d20 it covers """ + fmv("o4d20", "ood", "B2") + " against " + fmv("o4d20", "ood", "headline") + f""": """ + fmt_t("o4d20", "crack_110_1-10", "B2") + " and " + fmt_t("o4d20", "crack_111_1-10", "B2") + f""" on the two cracks
+(headline """ + fmt_t("o4d20", "crack_110_1-10", "headline") + " and " + fmt_t("o4d20", "crack_111_1-10", "headline") + f""") and """ + fmt_t("o4d20", "screw_disloc", "B2") + " on the screw dislocations (" + fmt_t("o4d20", "screw_disloc", "headline") + f"""), with the POPS ridge
+selected as in distribution. The held-out mean log scores follow the coverages: """ + fmv("o3d12", "ood", "B2", "log_score", 1) + " against " + fmv("o3d12", "ood", "headline", "log_score", 1) + " nats for o3d12, " + fmv("o4d20", "ood", "B2", "log_score", 1) + " against " + fmv("o4d20", "ood", "headline", "log_score", 1) + f""" for o4d20.
+On the test split B2's mean log score per atom
 is """ + fmv("o3d12", "id", "B2", "log_score", 1) + " and " + fmv("o4d20", "id", "B2", "log_score", 1) + f""" nats, against the headline's """ + fmv("o3d12", "id", "headline", "log_score", 1) + " and " + fmv("o4d20", "id", "headline", "log_score", 1) + f""". B1 under-covers the forces
-in and out of distribution (""" + fmv("o3d12", "id", "B1") + "/" + fmv("o3d12", "ood", "B1") + " and " + fmv("o4d20", "id", "B1") + "/" + fmv("o4d20", "ood", "B1") + f"""), and B3 covers almost no atoms. B2 is clearly weaker in one respect, per configuration type, where it is uneven for o4d20: its lowest per-type coverage is """ + worst_t("o4d20", "B2") + f""", against """ + worst_t("o4d20", "headline") + f""" for the headline (o3d12: """ + worst_t("o3d12", "B2") + " and " + worst_t("o3d12", "headline") + f"""). The headline's
+in and out of distribution (""" + fmv("o3d12", "id", "B1") + "/" + fmv("o3d12", "ood", "B1") + " and " + fmv("o4d20", "id", "B1") + "/" + fmv("o4d20", "ood", "B1") + f"""), and B3 covers almost no atoms. In distribution B2 is also uneven per configuration type for o4d20: its lowest per-type test coverage is """ + worst_t("o4d20", "B2") + f""", against """ + worst_t("o4d20", "headline") + f""" for the headline (o3d12: """ + worst_t("o3d12", "B2") + " and " + worst_t("o3d12", "headline") + f"""). The headline's
 λ<sub>F</sub> and B1's q̂ are fitted on the test split, so their test-split force scores are in sample; on the held-out
 configurations every method is out of sample, with λ<sub>F</sub>, q̂ and the POPS box refitted on the reduced training set by
 the same rules. The headline's λ<sub>F</sub> is the RMS over force components of Section 3.3; the global scale of Table 2c is
@@ -1375,7 +1383,9 @@ quantile on the CR3 shape covers {lm("o3d12", "one_group")} and {lm("o4d20", "on
 o3d12 shortfall is the hold-out transfer of Section 3.2), and holds out of distribution on the cracks for both models and on
 the screw dislocations for o4d20, though not for o3d12 ({ood_v("o3d12", "one_group", "screw_disloc")}); the global force scale on the same
 kind of region covers less ({fb("o3d12", "headline")} and {fb("o4d20", "headline")}), even fitted in sample. The POPS box covers
-{fb("o3d12", "B2")} (o3d12) and {fb("o4d20", "B2")} (o4d20), the latter below nominal and unevenly (per type {fb_types("o4d20", "B2")}), and nothing in its construction aims at a target coverage. Two costs of CR3 remain. It is a sampling variance, so it needs held-out data and a
+{fb("o3d12", "B2")} (o3d12) and {fb("o4d20", "B2")} (o4d20), the latter below nominal and unevenly (per type {fb_types("o4d20", "B2")}), and nothing in its construction aims at a target coverage.
+Refitted without the cracks and dislocations, it covers """ + fmv("o3d12", "ood", "B2") + " of the held-out atoms for o3d12 but " + fmv("o4d20", "ood", "B2") + f""" for o4d20, against
+""" + fmv("o3d12", "ood", "headline") + " and " + fmv("o4d20", "ood", "headline") + f""" for CR3 × λ<sub>F</sub> (Section 3.4). Two costs of CR3 remain. It is a sampling variance, so it needs held-out data and a
 scale; POPS needs neither in principle, although here its ridge was chosen on a hold-out of the training set. And like POPS it cannot see a bias that every configuration of a kind shares (Section 3.8).</p>
 <p>The scale is not unique. The virial scale is about a third larger than the force scale, and using it covers
 {k95("o3d12", "CR3-headline", "lam_V")} QoIs for o3d12 and {k95("o4d20", "CR3-headline", "lam_V")} for o4d20 with wider intervals; its joint evidence is higher than the force scale's for o3d12 and about equal for o4d20. Misspecification depends on the observable, and one could choose the scale by the QoI's physics, the virial scale
