@@ -1,0 +1,134 @@
+{
+ "model": "o4d20",
+ "f_ref_test_mean": 7.852639445633637,
+ "qoi": {
+  "diamond_bulk_modulus": {
+   "c_mean": 1.5731542662256075,
+   "c_max": 1.5731542668813723,
+   "atoms": 8
+  },
+  "diamond_c11": {
+   "c_mean": 1.5731542662256075,
+   "c_max": 1.5731542668813723,
+   "atoms": 8
+  },
+  "diamond_c12": {
+   "c_mean": 1.5731542662256075,
+   "c_max": 1.5731542668813723,
+   "atoms": 8
+  },
+  "diamond_c44": {
+   "c_mean": 1.5731542662256075,
+   "c_max": 1.5731542668813723,
+   "atoms": 8
+  },
+  "decohesion_max_stress": {
+   "c_mean": 1.5731542662256075,
+   "c_max": 1.5731542668813723,
+   "atoms": 8
+  },
+  "dE_beta-Sn (meV/at)": {
+   "c_mean": 0.6135944751188792,
+   "c_max": 0.6135944751188793,
+   "atoms": 2
+  },
+  "dE_sh (meV/at)": {
+   "c_mean": 0.4981217526479361,
+   "c_max": 0.4981217526479361,
+   "atoms": 1
+  },
+  "dE_hex_diamond (meV/at)": {
+   "c_mean": 0.971963141821771,
+   "c_max": 0.971963143882374,
+   "atoms": 4
+  },
+  "dE_bc8 (meV/at)": {
+   "c_mean": 0.3082011330698374,
+   "c_max": 0.30820113327399223,
+   "atoms": 8
+  },
+  "dE_st12 (meV/at)": {
+   "c_mean": 0.515688094369682,
+   "c_max": 0.5758560917945128,
+   "atoms": 12
+  },
+  "dE_hcp (meV/at)": {
+   "c_mean": 0.3958501587930256,
+   "c_max": 0.3958501587930256,
+   "atoms": 2
+  },
+  "dE_fcc (meV/at)": {
+   "c_mean": 1.155814969772175,
+   "c_max": 1.1558149697721756,
+   "atoms": 4
+  },
+  "dE_bcc (meV/at)": {
+   "c_mean": 0.6284080714475803,
+   "c_max": 0.6284080714475804,
+   "atoms": 2
+  },
+  "vacancy_energy": {
+   "c_mean": 1.5579044542905705,
+   "c_max": 1.6169192541278448,
+   "atoms": 215
+  },
+  "tetrahedral_interstitial_energy": {
+   "c_mean": 1.556068845273186,
+   "c_max": 1.6508910224625075,
+   "atoms": 217
+  },
+  "hexagonal_interstitial_energy": {
+   "c_mean": 1.5513186278337745,
+   "c_max": 1.5934376188149433,
+   "atoms": 217
+  },
+  "dumbbell_interstitial_energy": {
+   "c_mean": 1.5317097944018814,
+   "c_max": 1.6641498358603188,
+   "atoms": 217
+  },
+  "surface_100 (J/m2)": {
+   "c_mean": 1.4948331774170784,
+   "c_max": 1.582711554659057,
+   "atoms": 40
+  },
+  "gamma_us glide (J/m2)": {
+   "c_mean": 1.4638999150289282,
+   "c_max": 1.6014770473937805,
+   "atoms": 252
+  },
+  "gamma_us shuffle (J/m2)": {
+   "c_mean": 1.4638999150289282,
+   "c_max": 1.6014770473937805,
+   "atoms": 252
+  }
+ },
+ "coverage/c_mean": {
+  "n": 20,
+  "k95": 18,
+  "k68": 12,
+  "k95_unscaled": 15,
+  "k68_unscaled": 12
+ },
+ "coverage/c_max": {
+  "n": 20,
+  "k95": 18,
+  "k68": 12,
+  "k95_unscaled": 15,
+  "k68_unscaled": 12
+ },
+ "coverage+disc/c_mean": {
+  "n": 20,
+  "k95": 18,
+  "k68": 14,
+  "k95_unscaled": 18,
+  "k68_unscaled": 14
+ },
+ "coverage+disc/c_max": {
+  "n": 20,
+  "k95": 18,
+  "k68": 14,
+  "k95_unscaled": 18,
+  "k68_unscaled": 14
+ }
+}
