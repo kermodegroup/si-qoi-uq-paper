@@ -1,0 +1,16 @@
+{
+  "title": "Jackknife-conformal uncertainty for linear ACE potentials: code, results and paper source",
+  "upload_type": "software",
+  "description": "<p>Analysis code, results, figures and paper source for J. R. Kermode, <i>Jackknife-conformal uncertainty for linear ACE potentials: calibrated forces and silicon properties compared with Bayesian and POPS baselines</i>. The uncertainty methods are part of ace-jax 0.5.3 (https://github.com/ACEsuit/ace-jax); this archive holds the study that uses them: every number and figure in the paper is generated from results/ by bench/si_qoi_uq/artifact/paper.py.</p>",
+  "creators": [
+    {
+      "name": "Kermode, James R.",
+      "affiliation": "Warwick Centre for Predictive Modelling, School of Engineering, University of Warwick"
+    }
+  ],
+  "license": "MIT",
+  "keywords": ["uncertainty quantification", "machine-learned interatomic potentials", "atomic cluster expansion", "jackknife", "conformal prediction", "silicon"],
+  "related_identifiers": [
+    {"identifier": "https://github.com/ACEsuit/ace-jax", "relation": "requires", "resource_type": "software"}
+  ]
+}

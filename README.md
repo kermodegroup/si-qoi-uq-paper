@@ -4,7 +4,7 @@ Analysis code, results, figures and paper source for J. R. Kermode, *Jackknife-c
 calibrated forces and silicon properties compared with Bayesian and POPS baselines* (in preparation).
 
 The uncertainty methods themselves (the CR3 jackknife shape, Mondrian conformal calibration of per-atom forces, QR ARD, POPS)
-are part of [ace-jax](https://github.com/ACEsuit/ace-jax) 0.5.1; this repository holds the study that uses them.
+are part of [ace-jax](https://github.com/ACEsuit/ace-jax) 0.5.3; this repository holds the study that uses them.
 
 ## Layout
 
