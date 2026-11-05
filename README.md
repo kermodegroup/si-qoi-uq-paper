@@ -3,6 +3,11 @@
 Analysis code, results, figures and paper source for J. R. Kermode, *Jackknife-conformal uncertainty for linear ACE potentials:
 calibrated forces and silicon properties compared with Bayesian and POPS baselines* (in preparation).
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23986930.svg)](https://doi.org/10.5281/zenodo.23986930)
+Release v1.0.0, the version used in the paper, is archived on Zenodo at
+[10.5281/zenodo.23986930](https://doi.org/10.5281/zenodo.23986930); all versions:
+[10.5281/zenodo.23986929](https://doi.org/10.5281/zenodo.23986929).
+
 The uncertainty methods themselves (the CR3 jackknife shape, Mondrian conformal calibration of per-atom forces, QR ARD, POPS)
 are part of [ace-jax](https://github.com/ACEsuit/ace-jax) 0.5.3; this repository holds the study that uses them.
 

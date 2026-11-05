@@ -1475,8 +1475,8 @@ are available on request.</p>
 (<code>--ard-prior fixed</code>), are part of ace-jax version 0.5.3 (MIT licence, https://github.com/ACEsuit/ace-jax); the
 per-atom fits were run from its development branch before the release, and the parity and transfer analyses of Section 3.2
 reproduce exactly with the release. The analysis code, the results behind every table and figure, the generator of this paper and
-the original specification of the study are at https://github.com/kermodegroup/si-qoi-uq-paper [archived on Zenodo, DOI to be
-added]. The GAP-18 database is available from its original publication [Bartók et al. 2018]. The Python 3 port of the silicon test
+the original specification of the study are at https://github.com/kermodegroup/si-qoi-uq-paper; the version used here, release v1.0.0, is archived on
+Zenodo at https://doi.org/10.5281/zenodo.23986930. The GAP-18 database is available from its original publication [Bartók et al. 2018]. The Python 3 port of the silicon test
 framework used here is the branch py3 of https://github.com/libAtoms/silicon-testing-framework, at commit f23b1df.</p>""", "")
 
 sec("ack", "Acknowledgements", """
