@@ -1265,6 +1265,8 @@ about λ<sub>F</sub> times too narrow everywhere. B1, the posterior shape with o
 over-covers for o3d12 ({fb("o3d12", "B2")}; per type {fb_types("o3d12", "B2")}). For o4d20 it under-covers overall
 ({fb("o4d20", "B2")}) and unevenly: per type {fb_types("o4d20", "B2")}, low on the liquid and surface cells.</p>""", "drafted", level=3)
 
+mond_dmax = (lambda v: f"{v:.2f}" if v is not None else "–")(max((abs(_ood_get(m, "mondrian", c) - _ood_get(m, "one_group", c))
+                                                                for m in _lso for c, _ in OOD_COLS), default=None))
 dk95 = lambda m: (lambda d_: f"{d_['k95']}/{d_['n']}" if d_ else "?")(disc.get(m, {}).get("CR3-headline+disc/lam_F"))
 sec("discussion", "4  Discussion", f"""
 <p>A single parameter covariance, the CR3 jackknife scaled once to held-out forces, gives usable uncertainties for derived
@@ -1324,6 +1326,17 @@ size dependence shows that the bias depends on the cell size; the 215-atom extra
 a reminder that such extrapolations depend on how the training data were made. Relaxed or low-temperature defect
 configurations in the training set would remove the need for the term, and the same diagnostic, a residual trend that extrapolates
 away from zero, can flag where such data are missing.</p>
+<p>Mondrian conformal prediction [Vovk, Gammerman and Shafer 2005], which calibrates a separate quantile in each group of a
+partition fixed in advance, is a natural extension for environments absent from training. The ace-jax force uncertainty
+provides eight such groups of atoms, set by the distortion and coordination of each atom's first shell [ace-jax]. On a
+Cantor-alloy model in the package's development tests (file <code>2026-10-03_rev2_acceptance.md</code> in <code>bench/defect_uq/results</code>),
+those groups with the hold-out transfer met their coverage targets on crack and dislocation cells left out of both training
+and calibration: 0.90 on the cracks, 0.89 at the crack tips and 0.94 on edge and screw dislocations, at a nominal 0.90.
+That test did not compare the groups with a single quantile. On silicon here the same groups change the out-of-distribution
+coverage of the atom-weighted quantile by at most {mond_dmax} and leave the screw dislocations of o3d12 under-covered
+({ood_v("o3d12", "mondrian", "screw_disloc")}, against {ood_v("o3d12", "one_group", "screw_disloc")} with one quantile).
+Whether groups resolve the remaining under-coverage on strongly distorted environments, for example with finer distortion
+bands or a descriptor-novelty axis, is left to future work.</p>
 <p>The study has limitations. The calibration assumes that the test split and the QoI structures are exchangeable with the
 training data, which the defects show is not always true. The hyperparameters are held fixed in the jackknife, so their own
 uncertainty is not propagated. The locality of the model, which cannot represent interactions beyond its cutoff, appears here only
