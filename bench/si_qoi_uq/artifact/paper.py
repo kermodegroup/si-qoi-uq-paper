@@ -883,13 +883,14 @@ if _pc_old:
     pc_cond = sci(_o["cond"]["cond_X"])
     _dz = np.load("/storage/eng/essswb/projects/si-qoi-uq-paper/runs/popsref/design_o3d12.npz")   # analysis/pops_dump.py
     pc_lamblr = json.loads(str(_dz["meta"]))["lam_blr"] / float(_dz["Lam"].max())
-    pc_old = (f"{_o['b2']['sd_E_meV_atom']:.0f} (the box an earlier version of this study used), {_o['eig']['sd_E_meV_atom']:.1f} (the port's "
-              f"eigendecomposition route), {_o['svd']['sd_E_meV_atom']:.1f} (a singular value decomposition, SVD, of the rows) and {_o['package_beta']['sd_E_meV_atom']:.1f} "
-              f"meV/atom (the reference package's hypercube step)")
+    pc_old = (f"{_o['eig']['sd_E_meV_atom']:.1f} (eigendecomposition), {_o['svd']['sd_E_meV_atom']:.1f} (a singular value decomposition, "
+              f"SVD, of the rows) and {_o['package_beta']['sd_E_meV_atom']:.1f} meV/atom (the hypercube step of the reference package "
+              f"POPSRegression [Swinburne and Perez, POPSRegression])")
     pc_sweep = ", ".join(f"{r['sd_E_svd']:.3g} meV/atom at {sci(r['ridge_rel'])}" for r in _o["sweep"] if r["ridge_rel"] in (1e-10, 1e-6, 1e-2))
 else:
     pc_cond = pc_old = pc_sweep = "(pending)"; pc_lamblr = float("nan")
-pc_old_short = (f"bulk-energy spreads from {_o['eig']['sd_E_meV_atom']:.1f} to {_o['b2']['sd_E_meV_atom']:.0f} meV/atom at a relative "
+_pc_ev = [_o[k]["sd_E_meV_atom"] for k in ("eig", "svd", "package_beta")] if _pc_old else []
+pc_old_short = (f"bulk-energy spreads from {min(_pc_ev):.1f} to {max(_pc_ev):.1f} meV/atom at a relative "
                 f"ridge of 10<sup>−14</sup>") if _pc_old else "(pending)"
 # the rebuilt B2 boxes against four evaluations from the same rows, mean, ridge and cut (analysis/pops_compare.py)
 pc_parity = " and ".join(f"{sci(max(v[k]['cov_rel_diff_vs_b2'] for k in ('eig', 'svd', 'package_theta')))} ({m})" for m, v in _pcs.items()) \
@@ -1039,19 +1040,19 @@ shape, so it is too wide for some QoIs and too narrow for others, and its joint 
 <p>B2, POPS, needed more care. A hypercube built from every training row, instead of the reference package's 50 % cut, gives
 unphysical members: the bounds are set by a handful of rows with near-zero leverage, whose corrections are unbounded, and the members spread
 the bulk energy of o3d12 by {pops_sd} meV/atom. Rejecting unphysical members cannot rescue a box of that size.</p>
-<p>The POPS box is also numerically fragile on these designs. The o3d12 design has a condition number of
-{pc_cond} and its evidence fit puts σ<sub>c</sub> on its upper bound, so the ridge that gives the BLR mean is
-{sci(pc_lamblr)} of the largest eigenvalue. Below a relative ridge of about 10<sup>−11</sup> the box is set by roundoff. At the
-10<sup>−14</sup> that an earlier ridge selection chose, four equivalent evaluations from the same rows, mean and cut give
-bulk-energy spreads of {pc_old}. The POPS step of the reference package POPSRegression [Swinburne and Perez, POPSRegression] agrees with the
-stable SVD evaluation there, so the port and the package differ only in these numerics, not in the method. We therefore select
-the ridge from 10<sup>−10</sup> upwards ({pc_sel}). For o3d12 the selection takes the smallest ridge it is offered for
-forces and virials, and one decade above it for energies, so the floor sets most of the box; for o4d20 it chooses inside the grid. At these ridges the box is reproduced: the stored B2 box, the
-eigendecomposition route, the SVD and the reference package's hypercube step on the same corrections agree in covariance to
-{pc_parity}, relative. The package takes its axes in the coordinates it is given, here the prior-scaled Γθ; in those its box
-differs ({pc_axes}). Within the numerically defined range the box widens with the ridge: for
-o3d12 its bulk-energy spread (SVD evaluation, one ridge for all quantities) is {pc_sweep}. The reference package's own default ridge, chosen by evidence, is
-{pc_refridge} of the largest eigenvalue, in the range where the box is not defined, so we do not use it.</p>
+<p>The box is also numerically delicate on these designs. The o3d12 design matrix has a condition number of {pc_cond}, and
+its evidence fit puts σ<sub>c</sub> on its upper bound, so the ridge implied by the BLR prior is only {sci(pc_lamblr)} of the
+largest eigenvalue. At ridges this small the box is not well defined: below a relative ridge of about 10<sup>−11</sup> it
+depends on how it is computed. At 10<sup>−14</sup>, mathematically equivalent evaluations from the same rows, mean and
+leverage cut give o3d12 bulk-energy spreads of {pc_old}. We therefore select the ridge from 10<sup>−10</sup> upwards
+({pc_sel}). The o3d12 selection lands on this floor or one decade above it, so for o3d12 the floor rather than the data largely
+fixes the box; the o4d20 selection falls inside the grid. At the selected ridges the evaluations agree: the B2 box, the
+eigendecomposition, the SVD and the reference package give covariances that agree to within {pc_parity}, relative, so our implementation
+and the reference package differ in numerics only, not in method. Two dependences remain. The size of the box depends strongly
+on the ridge: for o3d12, with one ridge for all quantities, the bulk-energy spread is {pc_sweep}. It also depends on the
+coordinates: the reference package takes its axes in the coordinates it is given, here the prior-scaled Γθ, and its box there
+differs from the box in θ ({pc_axes}). The reference package's default ridge, chosen by evidence, is {pc_refridge} of the
+largest eigenvalue, below the floor, so we do not use it.</p>
 <p>We ran committees at
 the 50 % cut (B2) and at 5 % (Table 3b). Their bulk-energy spreads, against the CR3 members at λ = 1 and at
 λ<sub>F</sub>, are {pops_w} meV/atom (committee members, at the ridges selected per quantity). At 95 %, B2 covers, for
