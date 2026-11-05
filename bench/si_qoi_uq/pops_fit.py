@@ -14,8 +14,11 @@ o4d20; used to add a box at the ridge a full run selected).
 --levels: only the boxes at these leverage percentiles (both ridges, names pops_box[_blr]_lev{pct}), each screened on
 three rattled diamond cells (a = 5.2, 5.46, 5.8 A; E and F are exact rows) for the members' energy and force spread
 -> pops_screen.json next to the fit.  Without it, the four boxes of the original run.
+
+The out-of-distribution refit (ood/make_split.py, the training set without cracks and screw dislocations):
+    SIQ_RUNS=$OOD_RUNS POPS_TRAIN=$OOD_DATA/train.xyz POPS_TEST=$OOD_DATA/test.xyz python -m bench.si_qoi_uq.pops_fit o3d12
 """
-import json, pathlib, subprocess, sys
+import json, os, pathlib, subprocess, sys
 
 import numpy as np
 
@@ -48,7 +51,8 @@ def main():
         kept.update(path=r["path"], ridge=r["ridge"])
         return r
     ppred._pops_setup = keep
-    argv = ["fit", "--train", f"{DATA}/train.xyz", "--test", f"{DATA}/test.xyz", *BASIS[m], "--rcut", "5.0",
+    train, test = os.environ.get("POPS_TRAIN", f"{DATA}/train.xyz"), os.environ.get("POPS_TEST", f"{DATA}/test.xyz")
+    argv = ["fit", "--train", train, "--test", test, *BASIS[m], "--rcut", "5.0",
             "--virial-key", "virial", "--weights", f"{DATA}/weights_acejax.json", "--e0", "lsq", "--rungs", "map",
             "--m-per-species", "0", "--noise", "shared", "--configs-per-batch", "1", "--seed", "0", "--uq", "pops",
             # with the default QR statistics the final POPS path's c* (and every test prediction) came out NaN
