@@ -139,6 +139,13 @@ lm_rad = lambda m, k: PEND if m in PENDING else "–" if m not in _lsm else f"{_
 lm_rms = lambda m: PEND if m in PENDING else "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all']['rms_e_over_sigma_learned']:.2f}"
 lm_med = lambda m: PEND if m in PENDING else "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all'].get('median_e_over_sigma_learned', float('nan')):.2f}"
 evdev = lambda tag, st, k: PEND if tag.replace("ood_", "") in PENDING else "–" if tag not in _evn else f"{_evn[tag][st][k]['rms_dev']:.3f}"
+_lt = {(r["model"], r["kind"], r["label"]): float(r["rms_z"]) for r in sd if r["factor"] == "cr3" and r["breakdown"] == "config_type"}
+lam_t = lambda m, k, t: f"{_lt[(m, k, t)]:.1f}" if (m, k, t) in _lt else "–"     # test-split RMS z of one type (CR3 shape)
+def lam_span_m(m):
+    # range of the per-type lam_F over the types of Table 2p (at least 300 test atoms)
+    ts = _evn.get(m, {}).get("test", {}).get("one_group", {}).get("per_type", {})
+    v = [_lt[(m, "F", t)] for t in ts if (m, "F", t) in _lt]
+    return f"{min(v):.1f} to {max(v):.1f}" if v else "–"
 def _type_rows():
     rows = ""
     for m in ("o3d12", "o4d20"):
@@ -151,9 +158,10 @@ def _type_rows():
         pt = _lsm[m]["sets"]["test"]["per_type"]
         for t in sorted(e_["one_group"]["per_type"], key=lambda t: -pt[t]["atoms"]):
             rows += (f"<tr><td>{m}</td><td>{t}</td><td class=n>{pt[t]['atoms']}</td><td class=n>{pt[t]['configs']}</td>"
-                     f"<td class=n>{e_['one_group']['per_type'][t]:.2f}</td><td class=n>{e_['learned']['per_type'][t]:.2f}</td></tr>")
+                     f"<td class=n>{e_['one_group']['per_type'][t]:.2f}</td><td class=n>{e_['learned']['per_type'][t]:.2f}</td>"
+                     f"<td class=n>{lam_t(m, 'F', t)}</td><td class=n>{lam_t(m, 'V', t)}</td></tr>")
         rows += (f"<tr><td>{m}</td><td>RMS deviation from {e_['nominal']:.2f}</td><td></td><td></td>"
-                 f"<td class=n>{e_['one_group']['rms_dev']:.3f}</td><td class=n>{e_['learned']['rms_dev']:.3f}</td></tr>")
+                 f"<td class=n>{e_['one_group']['rms_dev']:.3f}</td><td class=n>{e_['learned']['rms_dev']:.3f}</td><td></td><td></td></tr>")
     return rows
 type_rows = _type_rows()
 def fb_types(m, k, level=0.9, min_atoms=300):
@@ -656,12 +664,9 @@ and V equally within a configuration and configurations equally. As in Section 3
 (\(\lVert L^{\mathsf T}b\rVert\lt 10^{-3}\) of the median of their kind) are dropped. No QoI, and no DFT QoI value, enters any scale.
 The headline uses \(\lambda_F\): forces are most of the training rows, and they are the quantity calibrated per atom in Section 3.2.
 In Figure 2, \(\lambda_F\) gives the headline line.</p>
-<p>A single scale is a compromise. Figure 5 breaks the test-split scale down by configuration type: it ranges from about 1 to 15
-across types and observables, largest for the virials of the bt cells, the vacancy and interstitial cells and, for o3d12, the
-hexagonal-diamond forces, and smallest for the energies of the crystal phases. The ratios of the global scales (Table 2) show the same at the level of observables.</p>
-<figure><img src="fig5_scale_diagnostics.png" alt="Test-split scale per observable and configuration type, both models"><figcaption>Figure 5.
-Test-split scale λ = RMS z with the CR3 shape, per observable (energy, force, virial) and GAP-18 configuration type, for both models
-("all": the global λ<sub>E</sub>, λ<sub>F</sub>, λ<sub>V</sub> of Table 2). Missing bars: types without that observable.</figcaption></figure>
+<p>A single scale is a compromise. Table 2p gives the test-split scales per configuration type. Over the types listed
+there λ<sub>F</sub> ranges from """ + lam_span_m("o3d12") + r""" (o3d12) and """ + lam_span_m("o4d20") + r""" (o4d20), and
+λ<sub>V</sub> is largest for the bt cells (""" + lam_t("o3d12", "V", "bt") + " and " + lam_t("o4d20", "V", "bt") + r"""). The ratios of the global scales (Table 2) show the same at the level of observables.</p>
 <div class="wrap"><table><caption>Table 2. Test-split scales (CR3 shape).</caption>
 <thead><tr><th>model</th><th>λ<sub>E</sub></th><th>λ<sub>F</sub></th><th>λ<sub>V</sub></th><th>λ<sub>pool</sub></th><th>λ<sub>V</sub>/λ<sub>F</sub></th><th>λ<sub>E</sub>/λ<sub>F</sub></th></tr></thead>
 <tbody>""" + lam_rows + r"""</tbody></table></div>
@@ -842,8 +847,9 @@ therefore weighs calibration and sharpness together, and a method cannot gain by
 <p>Coverage alone rewards intervals that are too wide. We therefore also report sharpness, the median of \(\sigma_Q/\text{tol}_Q\)
 with \(\text{tol}_Q\) the benchmark's tolerance for QoI \(Q\): a value below 1 means the interval is narrower than the accuracy the
 benchmark asks for. A useful method has near-nominal coverage at the smallest sharpness. The CRPS combines the two in one number per QoI [Gneiting and Raftery 2007]. For a Gaussian prediction with mean
-\(\hat Q\) and standard deviation \(\sigma_Q\) it is
-\(\mathrm{CRPS}=\sigma_Q\,[z(2\Phi(z)-1)+2\varphi(z)-1/\sqrt\pi]\), with \(z\) the standardised error and \(\Phi\),
+\(\hat Q\) and standard deviation \(\sigma_Q\) it is</p>
+\[ \mathrm{CRPS}=\sigma_Q\Big[z\big(2\Phi(z)-1\big)+2\varphi(z)-\frac{1}{\sqrt\pi}\Big], \]
+<p>with \(z\) the standardised error and \(\Phi\),
 \(\varphi\) the standard normal distribution and density functions. It is a proper score: it is smallest in expectation for the
 true predictive distribution, it grows for intervals that are too narrow and for intervals that are too wide, and it tends
 to the absolute error as σ<sub>Q</sub> → 0. We report its mean over the scored QoIs in tolerance units, CRPS/tol (lower is
@@ -863,14 +869,22 @@ pops = pw.get(("o3d12", "pops"))
 pops_sd = sci(pops["sd_E_meV_per_atom"]) if pops else "?"
 b3txt = " and ".join(f"{int(float(b3[m]['k95']))}/{int(float(b3[m]['n']))} ({m})" for m in models if b3[m])
 b1txt = " and ".join(f"{int(float(b1[m]['k95']))}/{int(float(b1[m]['n']))} ({m})" for m in models if b1[m])
-pops_w = "; ".join(f"{m}: 5 % cut {pw[(m, 'popslev5')]['sd_E_meV_per_atom']:.3g}, 50 % cut {pw[(m, 'popslev50')]['sd_E_meV_per_atom']:.3g}, "
-                   f"CR3 {pw[(m, 'cr3')]['sd_E_meV_per_atom']:.2f} / {pw[(m, 'cr3lamF')]['sd_E_meV_per_atom']:.2f}"
-                   for m in ("o3d12", "o4d20") if all((m, k) in pw for k in ("popslev5", "popslev50", "cr3")))
-_pc = {(r["model"], r["method"]): r for r in rd("coverage.csv") if r["method"] in ("B2lev5-committee", "B2lev50-committee")}
-pops_cov = "; for ".join(f"{m}, " + " and ".join(
-    f"{int(float(_pc[(m, f'B2lev{c}-committee')]['k95']))}/{int(float(_pc[(m, f'B2lev{c}-committee')]['n']))} with the {c} % cut "
-    f"(RMS z {float(_pc[(m, f'B2lev{c}-committee')]['rms_z']):.1f}, median σ/tol {float(_pc[(m, f'B2lev{c}-committee')]['median_sigma_over_tol']):.2f})"
-    for c in (50, 5) if (m, f"B2lev{c}-committee") in _pc) for m in ("o3d12", "o4d20"))
+POPS_SETS = (("B2lev50-committee", "popslev50", "B2: POPS, leverage cut 50 %"), ("B2lev5-committee", "popslev5", "POPS, leverage cut 5 %"),
+             ("CR3-headline", "cr3lamF", "CR3 × λ<sub>F</sub> (headline)"), ("B3-headline", "cr3", "B3: CR3, λ = 1"))
+def _pops_rows():
+    cv = {(r["model"], r["method"], r["scale"]): r for r in rd("coverage.csv")}
+    out = ""
+    for m in ("o3d12", "o4d20"):
+        for meth, st, lab in POPS_SETS:
+            r = cv.get((m, meth, "lam_F" if meth == "CR3-headline" else "lam_1"))
+            if r and (m, st) in pw:
+                out += (f"<tr><td>{m}</td><td>{lab}</td><td class=n>{float(pw[(m, st)]['sd_E_meV_per_atom']):.2f}</td>"
+                        f"<td class=n>{int(float(r['k95']))}/{int(float(r['n']))}</td><td class=n>{float(r['rms_z']):.2f}</td>"
+                        f"<td class=n>{float(r['median_sigma_over_tol']):.2f}</td><td class=n>{float(r['crps_tol']):.2f}</td></tr>")
+    return out
+pops_rows = _pops_rows()
+pops_ratio = " and ".join(f"{float(pw[(m, 'popslev5')]['sd_E_meV_per_atom']) / float(pw[(m, 'popslev50')]['sd_E_meV_per_atom']):.1f} ({m})"
+                          for m in ("o3d12", "o4d20") if all((m, k) in pw for k in ("popslev5", "popslev50")))
 _pr = {m: json.load(open(RES / f"pops_reference_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"pops_reference_{m}.json").exists()}
 def _pr_txt():
     """The reference package on the port's own rows (analysis/pops_reference.py): its defaults and every row.  The
@@ -941,13 +955,26 @@ def miss_txt(m):
 k95 = lambda m, meth, sc: (lambda r: f"{int(float(r['k95']))}/{int(float(r['n']))}" if r else "?")(get(m, meth, sc))
 sot = lambda m, meth, sc: (lambda r: f"{float(r['median_sigma_over_tol']):.2f}" if r else "?")(get(m, meth, sc))
 tight = (head["o3d12"]["median_sigma_over_tol"] / head["o4d20"]["median_sigma_over_tol"]) if all(head.get(m) for m in ("o3d12", "o4d20")) else float("nan")
+_fm = {m: json.load(open(RES / f"force_methods_{m}.json")) for m in ("o3d12", "o4d20") if (RES / f"force_methods_{m}.json").exists()}
+def worst_t(m, k, min_atoms=300):
+    """Lowest test coverage of method k's 90 % ellipsoid over the configuration types of Figure 2 (force_baselines)."""
+    from scipy.stats import chi
+    f = RES / f"force_baselines_{m}.npz"
+    if not f.exists():
+        return "–"
+    b = np.load(f, allow_pickle=True); t = b["config_type"]; ty, c = np.unique(t, return_counts=True)
+    return f"{min(np.mean(b[f'd_{k}'][t == x] <= chi(3).ppf(0.9)) for x in ty[c >= min_atoms]):.2f}"
+def fmv(m, st, k, fld="coverage", nd=2):
+    """Per-atom force score of a propagation method (analysis/force_methods.py): st "id" (test split) or "ood" (held out)."""
+    v = _fm.get(m, {}).get(st, {}).get("all", {}).get(k, {}).get(fld)
+    return "–" if v is None else f"{v:.{nd}f}"
 sec("results", "3.4  Coverage and sharpness", f"""
 <div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % credible interval of the coverage probability]) and sharpness, for the four methods of Figures 1 and 1b.</caption>
 <thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th><th>CRPS/tol</th></tr></thead>
 <tbody>{cov_rows}</tbody></table></div>
 <div class="wrap"><table><caption>Table 3b. Sensitivity of the coverage to the scale and to the committee variant: the CR3 shape
 with the energy, virial or pooled scale (Section 3.3), the full re-run at λ<sub>F</sub> keeping physical members only (Section 3.6),
-and POPS with the 50 % leverage cut (Section 3.7).</caption>
+and POPS with the 5 % leverage cut instead of B2's 50 % (Section 3.7).</caption>
 <thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th><th>CRPS/tol</th></tr></thead>
 <tbody>{sens_rows}</tbody></table></div>
 <p>With the headline CR3 × λ<sub>F</sub>, {k95("o3d12", "CR3-headline", "lam_F")} QoIs of o3d12 and {k95("o4d20", "CR3-headline", "lam_F")}
@@ -978,6 +1005,26 @@ same as λ<sub>F</sub>. The full committee re-run at λ<sub>F</sub>, keeping onl
 {k95("o3d12", "CR3-committee-lamF-physical", "lam_F")} for o3d12 and {k95("o4d20", "CR3-committee-lamF-physical", "lam_F")} for o4d20,
 against {k95("o3d12", "CR3-headline", "lam_F")} and {k95("o4d20", "CR3-headline", "lam_F")} for the headline. The differences come mainly from the
 phase energies, which are strongly nonlinear in θ at λ<sub>F</sub> (Section 3.6).</p>
+<p>Figure 10 compares the four methods on both models. On the QoIs the headline has the lowest CRPS/tol for both models
+and the highest log evidence for o4d20; for o3d12, B2 has the higher evidence (Table 4). The per-atom forces rank the
+methods differently. B2's box, read as a Gaussian of its covariance, covers """ + fmv("o3d12", "id", "B2") + " and " + fmv("o4d20", "id", "B2") + f""" of the test atoms
+at 90 % (o3d12, o4d20), against """ + fmv("o3d12", "id", "headline") + " and " + fmv("o4d20", "id", "headline") + f""" for the headline, and on the held-out cracks and
+dislocations """ + fmv("o3d12", "ood", "B2") + " and " + fmv("o4d20", "ood", "B2") + f""" against """ + fmv("o3d12", "ood", "headline") + " and " + fmv("o4d20", "ood", "headline") + f""". Its mean log score per test atom
+is """ + fmv("o3d12", "id", "B2", "log_score", 1) + " and " + fmv("o4d20", "id", "B2", "log_score", 1) + f""" nats, against the headline's """ + fmv("o3d12", "id", "headline", "log_score", 1) + " and " + fmv("o4d20", "id", "headline", "log_score", 1) + f""". B1 under-covers the forces
+in and out of distribution (""" + fmv("o3d12", "id", "B1") + "/" + fmv("o3d12", "ood", "B1") + " and " + fmv("o4d20", "id", "B1") + "/" + fmv("o4d20", "ood", "B1") + f"""), and B3 covers almost no atoms. B2 is clearly weaker in one respect, per configuration type, where it is uneven for o4d20: its lowest per-type coverage is """ + worst_t("o4d20", "B2") + f""", against """ + worst_t("o4d20", "headline") + f""" for the headline (o3d12: """ + worst_t("o3d12", "B2") + " and " + worst_t("o3d12", "headline") + f"""). The headline's
+λ<sub>F</sub> and B1's q̂ are fitted on the test split, so their test-split force scores are in sample; on the held-out
+configurations every method is out of sample, with λ<sub>F</sub>, q̂ and the POPS box refitted on the reduced training set by
+the same rules. The headline's λ<sub>F</sub> is the RMS over force components of Section 3.3; the global scale of Table 2c is
+fitted per atom instead (λ<sup>2</sup> the mean of |ΔF|<sup>2</sup>/tr V), so its coverages differ.</p>
+<figure><img src="fig10_summary.png" alt="Four methods, two models: QoI CRPS, coverage and log evidence; per-atom force coverage in and out of distribution and log score"><figcaption>Figure 10.
+The headline method, CR3 × λ<sub>F</sub>, and the three baselines: B1, the Bayesian posterior scaled by one conformal
+quantile q̂; B2, POPS with the 50 % leverage cut; B3, CR3 without calibration (λ = 1). One row of panels per model. Left: the 20 scored QoIs, CRPS/tol, coverage of the 95 % intervals, and the log evidence of the DFT values
+(committee covariance, ε = 10<sup>−6</sup>; Table 4). Right: per-atom forces, coverage of each method's 90 % ellipsoid on the test split,
+its lowest value over the configuration types of Figure 2 (Table 2p), and on the cracks and screw dislocations held out
+of BLR refits (Table 2c), and the mean Gaussian log score per test atom.
+Dashed: nominal coverage. Full colour: the best method on each proper score (CRPS, log evidence, log score); coverage panels are not ranked. On
+the test split the headline's λ<sub>F</sub> and B1's q̂ are fitted on the same data, so their test-split force panels are in sample. The log axes are cut at −75 (QoIs) and 0 (forces) so that the other methods can be
+compared; B3's values beyond them are written on the panel.</figcaption></figure>
 <figure><img src="fig6_model_compare.png" alt="Per QoI, error over tolerance with 95 percent intervals for o3d12 and o4d20, DFT as crosses at zero; one row each for the headline and the three baselines"><figcaption>Figure 1. Model prediction minus DFT, in units of the benchmark tolerance, with the 95 % interval, for o3d12
 (circles) and o4d20 (squares); DFT is the cross at 0 and the shaded band is ± 1 tolerance. The axis is linear within ± 1 and
 logarithmic beyond, and is shared by all rows. Top row: the headline, CR3 × λ<sub>F</sub>; the larger model's intervals are
@@ -1066,12 +1113,15 @@ on the ridge: for o3d12, with one ridge for all quantities, the bulk-energy spre
 coordinates: the reference package takes its axes in the coordinates it is given, here the prior-scaled Γθ, and its box there
 differs from the box in θ ({pc_axes}). The reference package's default ridge, chosen by evidence, is {pc_refridge} of the
 largest eigenvalue, below the floor, so we do not use it.</p>
-<p>We ran committees at
-the 50 % cut (B2) and at 5 % (Table 3b). Their bulk-energy spreads, against the CR3 members at λ = 1 and at
-λ<sub>F</sub>, are {pops_w} meV/atom (committee members, at the ridges selected per quantity). At 95 %, B2 covers, for
-{pops_cov}. With a numerically defined box, POPS gives QoI intervals of about the headline's width and
+<p>We ran committees at the 50 % cut (B2) and at 5 %, at the ridges selected per quantity; Table 3c compares them with the
+CR3 members. The 5 % cut widens the box, by a factor of {pops_ratio} in bulk-energy spread, but it changes the 95 % coverage
+by at most one QoI. With a numerically defined box, POPS gives QoI intervals of about the headline's width and
 coverage without a calibration step. What sets its width is the ridge and the leverage cut instead: over the numerically defined
-ridges the o3d12 box's bulk-energy spread changes by a factor of about 60 (above).</p>""", "drafted", level=3)
+ridges the o3d12 box's bulk-energy spread changes by a factor of about 60 (above).</p>
+<div class="wrap"><table><caption>Table 3c. POPS committees at the two leverage cuts against the CR3 members: spread of the
+members' bulk (diamond) energy, and QoI coverage and sharpness as in Table 3.</caption>
+<thead><tr><th>model</th><th>method</th><th>bulk-energy spread (meV/atom)</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th><th>CRPS/tol</th></tr></thead>
+<tbody>{pops_rows}</tbody></table></div>""", "drafted", level=3)
 
 trend_rows = ""
 for m in ("o3d12", "o4d20"):
@@ -1100,8 +1150,9 @@ dz_rows = "".join(
     for r in disc_rows if r["qoi"] in dict(DEF_Q) and r["method"] == "CR3-headline+disc" and r["scale"] == "lam_F")
 models_disc = ", ".join(sorted(k for k in disc if k != "estimator")) or "none yet"
 vck = json.load(open(RES / "vacancy_check.json")) if (RES / "vacancy_check.json").exists() else {}
-EST_LAB = {"interstitial": "bulk-trend regression", "divacancy": "bulk-trend regression", "vacancy": "215-atom intercept, size-model average"}
-r7a_rows = "".join(f"<tr><td>{m}</td><td>{t}</td><td>{EST_LAB.get(t, '')}</td><td class=n>{v['r_star_eV']:+.3f} ± {v['se_eV']:.3f}</td></tr>"
+EST_LAB = {"interstitial": "bulk-trend regression, η → 0", "divacancy": "bulk-trend regression, η → 0",
+           "vacancy": "215-atom intercept, η → 0, averaged over size models"}
+r7a_rows = "".join(f"<tr><td>{m}</td><td>{t}</td><td>{EST_LAB.get(t, '')}</td><td class=n>{v['r_star_eV']:+.3f}</td><td class=n>{v['se_eV']:.3f}</td></tr>"
                    for m in ("o3d12", "o4d20") for t, v in disc.get(m, {}).get("r_star", {}).items())
 vev = json.load(open(RES / "vacancy_evidence.json")) if (RES / "vacancy_evidence.json").exists() else {}
 VMOD = (("pool", "one intercept, one slope"), ("int", "per-size intercepts, one slope"),
@@ -1144,8 +1195,11 @@ a bias that all interstitial clusters share. With per-atom energy weighting, 0.4
 2–7 meV/atom in the fit.</p>""", "drafted", level=3)
 
 sec("results-defects2", "", f"""
-<div class="wrap"><table><caption>Table 7a. The r* ± se used in the headline discrepancy term (DFT training labels only).</caption>
-<thead><tr><th>model</th><th>class</th><th>estimator</th><th>r* (eV)</th></tr></thead><tbody>{r7a_rows}</tbody></table></div>
+<div class="wrap"><table><caption>Table 7a. The bias r*<sub>t</sub> and its standard error s*<sub>t</sub> in the headline discrepancy term
+(Section 2.7.4; DFT training labels only). Every row is an extrapolation of the training residuals to zero thermal amplitude
+(η → 0). For the vacancy that extrapolation is also for the size of the QoI cell (215 atoms), averaged over the four size
+models of Table 8b, and s* is the standard deviation of that average.</caption>
+<thead><tr><th>model</th><th>class</th><th>estimator</th><th>r* (eV)</th><th>s* (eV)</th></tr></thead><tbody>{r7a_rows}</tbody></table></div>
 <div class="wrap"><table><caption>Table 7. Coverage of the 20 scored QoIs with the discrepancy term on the four defect QoIs
 (models with r*: {models_disc}).</caption>
 <thead><tr><th>model</th><th>method</th><th>95 % without</th><th>95 % with [credible interval]</th><th>68 %</th><th>median σ/tol</th><th>CRPS/tol without → with</th></tr></thead>
@@ -1155,9 +1209,10 @@ term, B1 and CR3 × λ<sub>F</sub> score almost the same ({dcrps("o3d12", "B1-he
 {dcrps("o3d12", "CR3-headline", "lam_F")} for o3d12, {dcrps("o4d20", "B1-headline", "q_b1")} against
 {dcrps("o4d20", "CR3-headline", "lam_F")} for o4d20, B1 marginally lower). Once the defects carry the term, the remaining
 difference between the two shapes is small on this score, while CR3 still covers more QoIs.</p>
-<p>The interstitial estimator agrees well with the observed interstitial errors. That agreement was seen before the
-nearest-bulk reference was rejected on training data (Section 2.7.4), so the choice was not made blind, although the
-reasons for it use no DFT QoI value.</p>
+<p>The interstitial estimator agrees well with the observed interstitial errors. That agreement was seen before the bulk
+reference was chosen: an alternative, each defect cell's nearest bulk cell in volume and thermal amplitude, was rejected
+because its standard error is larger and it extrapolates worse to held-out cold snapshots. The choice was therefore not made
+blind, although the reasons for it use training data only.</p>
 <div class="wrap"><table><caption>Table 8. Defect QoIs, CR3 × λ<sub>F</sub>: error, error of the prediction corrected by r* (for
 reference; not used), σ without and with the discrepancy term (eV), and z.</caption>
 <thead><tr><th>model</th><th>QoI</th><th>DFT − model</th><th>DFT − (model + r*)</th><th>σ</th><th>σ with term</th><th>z</th></tr></thead>
@@ -1241,8 +1296,9 @@ method's region is the same kind: the ellipsoid of its own 3×3 force covariance
 (for the one quantile and the learned scale this is their conformal region). The headline's λ<sub>F</sub> is fitted on the test split itself, so its per-atom coverage here is in sample.</figcaption></figure>
 <div class="wrap"><table><caption>Table 2p. Test coverage of the 90 % per-atom force region per GAP-18 configuration type (types
 with at least 300 test atoms): one hold-out quantile against the learned scale (mean over five hold-out splits), and the RMS
-deviation of the per-type coverage from nominal.</caption>
-<thead><tr><th>model</th><th>configuration type</th><th>atoms</th><th>configs</th><th>one quantile</th><th>learned scale</th></tr></thead>
+deviation of the per-type coverage from nominal; and the test-split scales of the propagation, λ<sub>F</sub> and
+λ<sub>V</sub> = RMS z with the CR3 shape over that type's force and virial rows (Section 3.3; "–": no virials).</caption>
+<thead><tr><th>model</th><th>configuration type</th><th>atoms</th><th>configs</th><th>one quantile</th><th>learned scale</th><th>λ<sub>F</sub></th><th>λ<sub>V</sub></th></tr></thead>
 <tbody>{type_rows}</tbody></table></div>
 <p>An out-of-distribution test asks whether this holds for environments absent from the fit. We refitted both models (BLR,
 evidence-optimised on the reduced training set) with GAP-18's cracks ((111) and (110) cleavage, 1-10 front) and screw dislocations removed from training, from the
@@ -1548,6 +1604,19 @@ page = _re.sub(r"\b(Table|Figure)(s?) ([0-9]+[a-z]?(?:(?:, | and |–)[0-9]+[a-z
                lambda m: m.group(1) + m.group(2) + " " + _re.sub(r"[0-9]+[a-z]?", lambda n: _ref(m.group(1), n.group(0)), m.group(3)), page)
 _bad = [m.group(0) for m in _re.finditer(r"\b(?:Tables?|Figures?) [0-9]+[a-z]\b", page)]
 assert not _bad, f"unnumbered table/figure references: {_bad}"
+def _text_nodes(html, fn):
+    """fn applied to the text between tags (never to attributes, scripts, or the text of a link or code span)."""
+    parts, skip = _re.split(r"(<[^>]+>)", html), 0
+    for i, t in enumerate(parts):
+        if t.startswith("<"):
+            skip += 1 if _re.match(r"<(a|code|script|style)\b", t) else -1 if _re.match(r"</(a|code|script|style)>", t) else 0
+        elif not skip:
+            parts[i] = fn(t)
+    return "".join(parts)
+_b0, _b1 = page.index("<main>"), page.index("</main>")
+_body = _text_nodes(page[_b0:_b1], lambda t: _re.sub(r"https?://[^\s<>()]+[^\s<>().,;:]", lambda m: f'<a href="{m.group(0)}">{m.group(0)}</a>', t))
+_body = _text_nodes(_body, lambda t: _re.sub(r"(?<![\[\w/.-])ace-jax(?![\w\]-])", "<code>ace-jax</code>", t))   # not citation keys, paths, ace-jax-coupling
+page = page[:_b0] + _body + page[_b1:]
 (OUT / "index.html").write_text(page)
 for p in FIG.glob("*.png"):
     shutil.copy(p, OUT / p.name)

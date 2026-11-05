@@ -17,14 +17,15 @@ from .propagate import COVER_KEYS, KEYS  # noqa: E402
 SURFACE, INK, MUTED, GRID = "#ffffff", "#0b0b0b", "#52514e", "#e4e3df"
 CAT = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#6250d6", "#008300"]
 MARK = ["o", "s", "D", "^", "v", "P", "X"]
-PANELS = (("CR3-headline", "lam_F", "CR3 × λ_F (headline)"), ("B1-headline", "q_b1", "B1: posterior × conformal q̂"),
+ALPHA_OTHER = 0.6        # fill opacity of every bar but the best on a proper score (fig10); outlines stay opaque
+PANELS = (("CR3-headline", "lam_F", "CR3 × λ$_F$ (headline)"), ("B1-headline", "q_b1", "B1: posterior × conformal q̂"),
           ("B2lev50-committee", "lam_1", "B2: POPS (leverage cut 50 %)"), ("B3-headline", "lam_1", "B3: CR3, λ = 1"))
-SHORT = {"diamond_bulk_modulus": "B", "diamond_c11": "C11", "diamond_c12": "C12", "diamond_c44": "C44",
+SHORT = {"diamond_bulk_modulus": "B", "diamond_c11": "C$_{11}$", "diamond_c12": "C$_{12}$", "diamond_c44": "C$_{44}$",
          "vacancy_energy": "vacancy", "dumbbell_interstitial_energy": "dumbbell", "hexagonal_interstitial_energy":
          "hex. int.", "tetrahedral_interstitial_energy": "tet. int.", "surface_100 (J/m2)": "(100) surf.",
-         "gamma_us glide (J/m2)": "γus glide", "gamma_us shuffle (J/m2)": "γus shuffle",
-         "decohesion_max_stress": "decoh. σmax", "phonon_f rms vs DFT (THz)": "phonon rms"}
-STRIP = [("CR3-headline", "lam_F", "CR3, λ_F"), ("CR3-headline", "lam_V", "CR3, λ_V"),
+         "gamma_us glide (J/m2)": "γ$_\\mathrm{us}$ glide", "gamma_us shuffle (J/m2)": "γ$_\\mathrm{us}$ shuffle",
+         "decohesion_max_stress": "decoh. σ$_\\max$", "phonon_f rms vs DFT (THz)": "phonon rms"}
+STRIP = [("CR3-headline", "lam_F", "CR3, λ$_F$"), ("CR3-headline", "lam_V", "CR3, λ$_V$"),
          ("B1-headline", "q_b1", "B1: posterior × q̂"), ("B2-committee", "lam_1", "B2 (POPS)"),
          ("B2blr-committee", "lam_1", "B2 (POPS, ridge blr)")]
 
@@ -115,7 +116,7 @@ def strip(results, out, models):
             ax.scatter(x + (j - 2) * 0.15, np.clip(zz, -8, 8), s=26, marker=MARK[j], color=CAT[j], label=lab,
                        edgecolor=SURFACE, linewidth=0.8, zorder=3)
         ax.set_xticks(x, [short(k) for k in COVER_KEYS], rotation=60, ha="right")
-        ax.set_ylabel("z = (Q̂ − Q_DFT) / σ", color=INK, fontsize="small")
+        ax.set_ylabel("z = (Q̂ − Q$_\\mathrm{DFT}$) / σ", color=INK, fontsize="small")
         ax.set_title(f"{m}: standardised QoI errors (bands ±1, ±2; clipped at ±8)", color=INK, fontsize="medium", loc="left")
     _top_legend(fig, axes[0, 0], ncol=5)
     _save(fig, out, "fig1_z_strip")
@@ -123,7 +124,7 @@ def strip(results, out, models):
 
 def coverage_bars(results, out, models):
     cov = [r for r in csv.DictReader(open(results / "coverage.csv"))]
-    short_lab = {"CR3-headline": "CR3 × λ_F\n(headline)", "B1-headline": "B1: posterior\n× q̂", "B2lev50-committee": "B2: POPS\n(50 % cut)",
+    short_lab = {"CR3-headline": "CR3 × λ$_F$\n(headline)", "B1-headline": "B1: posterior\n× q̂", "B2lev50-committee": "B2: POPS\n(50 % cut)",
                  "B3-headline": "B3: CR3,\nλ = 1"}
     sel = [(meth, sc, short_lab.get(meth, lab)) for meth, sc, lab in PANELS]        # the same methods as fig6's rows
     fig, axes = plt.subplots(1, len(models), figsize=_size(5.5 * len(models), 4.4), squeeze=False, facecolor=SURFACE)
@@ -131,15 +132,15 @@ def coverage_bars(results, out, models):
         _style(ax)
         n = next((r["n"] for r in cov if r["model"] == m and r["method"] == sel[0][0] and r["scale"] == sel[0][1]), "?")
         for j, (lev, nom) in enumerate((("68", 0.68), ("95", 0.95))):
-            for i, (meth, sc, _) in enumerate(sel):
-                r = next((r for r in cov if r["model"] == m and r["method"] == meth and r["scale"] == sc), None)
+            rs = [next((r for r in cov if r["model"] == m and r["method"] == meth and r["scale"] == sc), None) for meth, sc, _ in sel]
+            for i, r in enumerate(rs):
                 if r is None:
                     continue
                 f, lo, hi = float(r[f"frac{lev}"]), float(r[f"ci{lev}_lo"]), float(r[f"ci{lev}_hi"])
                 xi = i + (j - 0.5) * 0.36
-                ax.bar(xi, f, width=0.34, color=CAT[j], edgecolor=SURFACE, linewidth=2,
-                       label=f"{lev}% interval" if i == 0 else None)
+                ax.bar(xi, f, width=0.34, facecolor=CAT[j], edgecolor=INK, linewidth=0.8)   # unranked: the intervals overlap
                 ax.errorbar(xi, f, yerr=[[f - lo], [hi - f]], color=INK, lw=1, capsize=2)
+            ax.bar(np.nan, np.nan, facecolor=CAT[j], edgecolor=INK, linewidth=0.8, label=f"{lev}% interval")
             ax.axhline(nom, color=CAT[j], lw=1, ls="--")
         ax.set_xticks(range(len(sel)), [s[2] for s in sel], fontsize="x-small")
         ax.set_ylim(0, 1.25); ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8, 1.0])
@@ -198,7 +199,7 @@ def elastic(out, models, extras):
             mu = ex["Qhat"][[ia, ib]]
             for j, (route, pre) in enumerate((("stress route", ""), ("energy route", "energy:"))):
                 GL = np.stack([ex["Lc"].T @ ex["G"][pre + a], ex["Lc"].T @ ex["G"][pre + b]])
-                _ellipse(ax, mu, lam ** 2 * GL @ GL.T, CAT[j], "-" if j == 0 else "--", f"{route} (1σ, λ_F)")
+                _ellipse(ax, mu, lam ** 2 * GL @ GL.T, CAT[j], "-" if j == 0 else "--", f"{route} (1σ, λ$_F$)")
             ax.scatter(*ex["ref"][[ia, ib]], marker="*", s=120, color=INK, label="DFT (CASTEP)", zorder=4)
             ax.scatter(*mu, marker="o", s=24, color=MUTED, label="Q̂", zorder=4)
             ax.set_xlabel(f"{short(a)} (GPa)", color=INK, fontsize="small")
@@ -214,31 +215,87 @@ def elastic(out, models, extras):
     _save(fig, out, "fig4_elastic_ellipses")
 
 
-def scales_fig(results, out, models):
-    rows = [r for r in csv.DictReader(open(results / "scale_diagnostics.csv")) if r["factor"] == "cr3"]
-    fig, axes = plt.subplots(len(models), 1, figsize=_size(11, 4.6 * len(models)), squeeze=False, facecolor=SURFACE)
-    for ax, m in zip(axes[:, 0], models):
-        _style(ax)
-        labels = sorted({r["label"] for r in rows if r["model"] == m and r["breakdown"] == "config_type"})
-        cats = ["all"] + labels
-        for j, t in enumerate(("E", "F", "V")):
-            v = []
-            for lab in cats:
-                br = "all" if lab == "all" else "config_type"
-                rr = next((r for r in rows if r["model"] == m and r["kind"] == t and r["breakdown"] == br
-                           and r["label"] == lab), None)
-                v.append(float(rr["rms_z"]) if rr else np.nan)
-            ax.bar(np.arange(len(cats)) + (j - 1) * 0.27, v, width=0.25, color=CAT[j], edgecolor=SURFACE,
-                   linewidth=1.5, label={"E": "energy", "F": "force", "V": "virial"}[t])
-        ax.set_yscale("log")
-        from matplotlib.ticker import FuncFormatter, NullFormatter
-        ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}")); ax.yaxis.set_minor_formatter(NullFormatter())
-        ax.set_yticks([1, 2, 5, 10, 20]); ax.set_ylim(0.9, 20)
-        ax.set_xticks(range(len(cats)), cats, rotation=45, ha="right", rotation_mode="anchor")
-        ax.set_ylabel("λ = RMS z", color=INK, fontsize="small")
-        ax.set_title(f"{m}: test-split scale per observable and configuration type", color=INK, fontsize="medium", loc="left")
-    _top_legend(fig, axes[0, 0], ncol=3)
-    _save(fig, out, "fig5_scale_diagnostics")
+SUMMARY_METH = (("CR3-headline", "lam_F", "CR3/lam_F", "headline", "CR3 × λ$_F$"), ("B1-headline", "q_b1", "B1/q_b1", "B1", "B1: posterior × $\\hat{q}$"),
+                ("B2lev50-committee", "lam_1", "B2lev50/lam_1", "B2", "B2: POPS"), ("B3-headline", "lam_1", "B3/lam_1", "B3", "B3: CR3, λ = 1"))
+
+
+def summary_fig(results, out, models):
+    """The four methods of fig6 (headline, B1, B2, B3) on the paper's key metrics, laid out as Shanks et al. (2026) Fig. 1:
+    one row of panels per model, one column per metric, methods as horizontal bars sharing the row labels, one hue per
+    metric family (QoIs, per-atom forces; neither is a model colour of fig6).  QoIs: CRPS/tol, 95 % coverage, log
+    evidence of the DFT values (committee covariance, eps 1e-6, no discrepancy term); forces: 90 % ellipsoid coverage on
+    the test split, its lowest value over the configuration types of fig7 (at least 300 test atoms), and on the held-out
+    cracks and dislocations, mean Gaussian log score per test atom
+    (results/force_methods_<m>.json).  Bars beyond a panel's range are cut at its edge and labelled with the value;
+    a missing value is marked n/a -> fig10_summary."""
+    cov = {(r["model"], r["method"], r["scale"]): r for r in csv.DictReader(open(results / "coverage.csv"))}
+    ev = {(r["model"], r["method"]): float(r["log_p_eps1e-06"]) for r in csv.DictReader(open(results / "evidence.csv"))
+          if r["kind"] == "committee"}
+    fm = {m: json.load(open(results / f"force_methods_{m}.json")) for m in models if (results / f"force_methods_{m}.json").exists()}
+    getf = lambda m, st, k, f: fm.get(m, {}).get(st, {}).get("all", {}).get(k, {}).get(f, np.nan)
+    from scipy.stats import chi
+    k3 = chi(3).ppf(0.9)
+
+    def worst_type(m, k, min_atoms=300):
+        """Lowest test coverage of the 90 % ellipsoid over the configuration types of fig7's lower panels."""
+        f = results / f"force_baselines_{m}.npz"
+        if not f.exists():
+            return np.nan
+        b = np.load(f, allow_pickle=True)
+        t = b["config_type"]
+        ty, c = np.unique(t, return_counts=True)
+        return 100 * min(np.mean(b[f"d_{k}"][t == x] <= k3) for x in ty[c >= min_atoms])
+    QC, FC = CAT[2], CAT[5]
+    cols = (("CRPS / tol\nlower is better", lambda m, c: float(cov[(m, c[0], c[1])]["crps_tol"]), None, None, QC),
+            ("coverage / %\nnominal 95", lambda m, c: 100 * float(cov[(m, c[0], c[1])]["k95"]) / float(cov[(m, c[0], c[1])]["n"]), 95, (0, 100), QC),
+            ("log evidence\nhigher is better", lambda m, c: ev.get((m, c[2]), np.nan), None, (-75, 0), QC),
+            ("coverage / %\ntest, nom. 90", lambda m, c: 100 * getf(m, "id", c[3], "coverage"), 90, (0, 100), FC),
+            ("worst type / %\ntest, nom. 90", lambda m, c: worst_type(m, c[3]), 90, (0, 100), FC),
+            ("coverage / %\nheld out, nom. 90", lambda m, c: 100 * getf(m, "ood", c[3], "coverage"), 90, (0, 100), FC),
+            ("log score per atom\nhigher is better", lambda m, c: getf(m, "id", c[3], "log_score"), None, (0, 5), FC))
+    fig, axes = plt.subplots(len(models), len(cols), figsize=_size(11, 2.1 * len(models) + 0.5), sharey=True,
+                             squeeze=False, facecolor=SURFACE)
+    y = np.arange(len(SUMMARY_METH))
+    for i, m in enumerate(models):
+        for k, (title, fn, nominal, lim, colour) in enumerate(cols):
+            ax = axes[i, k]
+            ax.set_facecolor(SURFACE)
+            for sp in ("top", "right"):
+                ax.spines[sp].set_visible(False)
+            ax.grid(axis="x", color=GRID, lw=0.6); ax.set_axisbelow(True)
+            v = np.array([fn(m, c) for c in SUMMARY_METH], float)
+            lo = lim[0] if lim else 0.0
+            # proper scores only (CRPS, log evidence, log score): best at full colour, the rest faded.  Coverage panels are
+            # not ranked (nearest nominal is not a proper score, and the POPS box has no target level): all faded
+            score = np.full(len(v), np.nan) if nominal is not None else (-v if k == 0 else v)
+            top = np.nanmax(np.where(np.isfinite(score), score, -np.inf)) if np.isfinite(score).any() else np.nan
+            best = set(np.flatnonzero(np.isclose(score, top))) if np.isfinite(top) else set()   # ties all marked
+            for yi, vi in enumerate(v):
+                ax.barh(yi, max(vi, lo) if np.isfinite(vi) else 0, height=0.78, edgecolor=INK, linewidth=0.8, zorder=3,
+                        facecolor=matplotlib.colors.to_rgba(colour, 1.0 if yi in best else ALPHA_OTHER))
+            for yi, vi in zip(y, v):
+                if not np.isfinite(vi):
+                    ax.text(0.02, yi, "n/a", transform=ax.get_yaxis_transform(), va="center", fontsize="xx-small", color=MUTED)
+                elif vi < lo:                                           # cut at the panel edge
+                    ax.text(lo, yi, f" {vi:.0f}", va="center", ha="left", fontsize="xx-small", zorder=6,
+                            color=SURFACE if lo < 0 else INK)               # on the cut bar, or beside an empty one
+            ax.axvline(0, color=INK, lw=0.8, zorder=5)
+            if nominal is not None:
+                ax.axvline(nominal, color=MUTED, lw=1, ls="--", zorder=4)
+            if lim:
+                ax.set_xlim(*lim)
+            ax.set_ylim(len(y) - 0.5, -0.5)                             # headline on top
+            ax.set_title(title, color=INK, fontsize="x-small")
+            ax.tick_params(axis="both", labelsize="xx-small", colors=MUTED, labelcolor=INK)
+        axes[i, 0].set_yticks(y, [c[4] for c in SUMMARY_METH])
+        axes[i, 0].annotate(m, (0, 1), xycoords="axes fraction", xytext=(-60, 14), textcoords="offset points",
+                            fontsize="small", color=INK, ha="left", va="bottom")
+    fig.tight_layout(h_pad=1.6, rect=(0, 0, 1, 0.93))
+    for c0, c1, lab in ((0, 2, "QoIs (20 DFT values)"), (3, len(cols) - 1, "Per-atom forces")):     # one header per metric family
+        b0, b1 = axes[0, c0].get_position(), axes[0, c1].get_position()
+        fig.text((b0.x0 + b1.x1) / 2, 0.985, lab, ha="center", va="top", fontsize="small", color=INK)
+        fig.add_artist(plt.Line2D([b0.x0, b1.x1], [0.95, 0.95], color=MUTED, lw=0.8))
+    _save(fig, out, "fig10_summary")
 
 
 def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=False, panels=PANELS):
@@ -289,7 +346,7 @@ def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=Fa
                         capsize=3, mec=SURFACE, mew=0.8, label=lab, zorder=3)
         ax.scatter(x, np.zeros(len(x)), marker="x", s=46, color=INK, linewidths=1.6, label="DFT (CASTEP)", zorder=4)
         ax.set_yscale("symlog", linthresh=1.0)
-        ax.set_ylabel("(Q − Q_DFT) / tol", color=INK, fontsize="small")
+        ax.set_ylabel("(Q − Q$_\\mathrm{DFT}$) / tol", color=INK, fontsize="small")
         if title:
             ax.set_title(title, color=INK, fontsize="medium", loc="left")
         hs, ls_ = ax.get_legend_handles_labels()
@@ -331,7 +388,7 @@ def force_calibration(results, out, nbins=20, level=0.9, min_atoms=300):
         pb = results / f"force_baselines_{m}.npz"
         if pb.exists():
             b = np.load(pb, allow_pickle=True)
-            for k, lab, mk, col in (("headline", "CR3 × λ_F (in sample on test)", "s", CAT[1]), ("B1", "B1: posterior × q̂", "^", CAT[2]),
+            for k, lab, mk, col in (("headline", "CR3 × λ$_F$ (in sample on test)", "s", CAT[1]), ("B1", "B1: posterior × q̂", "^", CAT[2]),
                                     ("B2", "B2: POPS (50 % cut)", "D", CAT[3]), ("B3", "B3: CR3, λ = 1", "v", CAT[4])):
                 sd = b[f"sd_{k}"]
                 traces.append((lab, b["err_norm"], sd, b["config_type"], b[f"d_{k}"] <= k3, mk, col))
@@ -554,7 +611,7 @@ def all_figures(results, out, runs, models, extras, contexts=("paper", "talk")):
         m3 = "o4d20" if "o4d20" in extras else models[0]
         correlation(runs, o, m3, extras[m3])
         elastic(o, [m for m in models if m in extras], extras)
-        scales_fig(results, o, models)
+        summary_fig(results, o, models)
         model_compare(results, o, models)
         model_compare(results, o, models, disc=True)
         force_calibration(results, o)
