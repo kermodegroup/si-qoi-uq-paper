@@ -1436,7 +1436,9 @@ shrink with the accuracy of the model. It outperforms the Bayesian posterior and
 comparably with POPS once the POPS box is numerically defined. Its advantage over POPS is not accuracy but calibration and numerical
 robustness: one interpretable scale, fitted to held-out errors, sets the width at both levels; the covariance needs no ridge or leverage
 cut beyond the fit's own prior, and does not depend on the parameterisation; and the per-atom regions are calibrated to a target
-coverage. Where it fails, for
+coverage. On per-atom forces left out of the fit, POPS is not consistent between the two models: refitted without the cracks
+and dislocations, it covers """ + fmv("o3d12", "ood", "B2") + " of the held-out atoms for o3d12, above the " + fmv("o3d12", "ood", "headline") + """ of the scaled CR3 covariance, but
+""" + fmv("o4d20", "ood", "B2") + " for o4d20, where the scaled CR3 covariance covers " + fmv("o4d20", "ood", "headline") + """. Where the CR3 covariance fails, for
 relaxed point defects, the cause is a bias shared by all training snapshots of a kind, which no delete-one method can see; it can be
 measured from the training labels and added as a discrepancy term, which brings the coverage close to nominal. The methods are
 implemented in ace-jax.</p>""", "")
