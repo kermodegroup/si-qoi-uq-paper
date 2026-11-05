@@ -41,7 +41,7 @@ CITE = {
     "Kellner and Ceriotti 2024": "kellner2024", "Papadopoulos et al. 2008": "papadopoulos2008", "Lei et al. 2018": "lei2018",
     "Vovk, Gammerman and Shafer 2005": "vovk2005", "Tibshirani et al. 2019": "tibshirani2019", "Barber et al. 2021": "barber2021",
     "Witt et al. 2023": "witt2023", "Simmons, Hudson, Swinburne and Kermode, in prep.": "simmons_inprep",
-    "Swinburne and Perez, POPSRegression": "popsregression", "ace-jax": "acejax", "kermodegroup demos": "demos",
+    "Swinburne and Perez, POPSRegression": "popsregression", "ace-jax": "acejax", "ace-jax Cantor tests": "acejax_cantor", "kermodegroup demos": "demos",
     # narrative "Author [year]" forms
     "Bell and McCaffrey 2002": "bell2002", "Best et al. 2024": "best2024", "Fisher et al. 2026": "fisher2026",
     "Kass and Raftery 1995": "kass1995", "MacKinnon, Nielsen and Webb 2023": "mackinnon2023",

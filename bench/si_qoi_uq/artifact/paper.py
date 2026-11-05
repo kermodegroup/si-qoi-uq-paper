@@ -1234,7 +1234,7 @@ deviation of the per-type coverage from nominal.</caption>
 <p>An out-of-distribution test asks whether this holds for environments absent from the fit. We refitted both models (BLR,
 evidence-optimised on the reduced training set) with GAP-18's cracks ((111) and (110) cleavage, 1-10 front) and screw dislocations removed from training, from the
 calibration hold-out and from the test file, and scored the {ood_n("o3d12")} that were removed (Table 2c). The design follows
-the big-cell check of an alloy model in the ace-jax development tests (unpublished). The global scale is fitted on the
+the big-cell check of an alloy model in the ace-jax development tests [ace-jax Cantor tests]. The global scale is fitted on the
 in-distribution test split, so it is out of sample here, like the conformal ones. Over all held-out atoms one quantile covers
 {ood_v("o3d12", "one_group")} (o3d12) and {ood_v("o4d20", "one_group")} (o4d20), and the global scale {ood_v("o3d12", "global")} and
 {ood_v("o4d20", "global")}. The cracks are covered ((111) {ood_v("o3d12", "one_group", "crack_111_1-10")} and (110)
@@ -1329,8 +1329,7 @@ away from zero, can flag where such data are missing.</p>
 <p>Mondrian conformal prediction [Vovk, Gammerman and Shafer 2005], which calibrates a separate quantile in each group of a
 partition fixed in advance, is a natural extension for environments absent from training. The ace-jax force uncertainty
 provides eight such groups of atoms, set by the distortion and coordination of each atom's first shell [ace-jax]. On a
-Cantor-alloy model in the package's development tests (file <code>2026-10-03_rev2_acceptance.md</code> in <code>bench/defect_uq/results</code>),
-those groups with the hold-out transfer met their coverage targets on crack and dislocation cells left out of both training
+Cantor-alloy model in the package's development tests [ace-jax Cantor tests], those groups with the hold-out transfer met their coverage targets on crack and dislocation cells left out of both training
 and calibration: 0.90 on the cracks, 0.89 at the crack tips and 0.94 on edge and screw dislocations, at a nominal 0.90.
 That test did not compare the groups with a single quantile. On silicon here the same groups change the out-of-distribution
 coverage of the atom-weighted quantile by at most {mond_dmax} and leave the screw dislocations of o3d12 under-covered
@@ -1416,6 +1415,7 @@ sec("refs", "References", """<p class="note">Checked against publisher or reposi
 <li>F. Bigi, S. Chong, M. Ceriotti, F. Grasselli, A prediction rigidity formalism for low-cost uncertainties in trained neural networks, Mach. Learn.: Sci. Technol. 5, 045018 (2024).</li>
 <li>R. D. Cook, S. Weisberg, Residuals and Influence in Regression, Chapman and Hall (1982): predicted residuals and PRESS, Sec. 2.2; deletion of a subset of cases, \\(\\hat\\beta-\\hat\\beta_{(I)}=(X^{\\mathsf T}X)^{-1}X_I^{\\mathsf T}(I-V_I)^{-1}e_I\\), Sec. 3.6, eq. 3.6.3.</li>
 <li>ace-jax: atomic cluster expansion potentials in JAX, version 0.5.3, https://github.com/ACEsuit/ace-jax.</li>
+<li>ace-jax developers, acceptance tests of the calibrated force uncertainty on a Cantor-alloy model, https://github.com/ACEsuit/ace-jax/blob/main/bench/defect_uq/results/2026-10-03_rev2_acceptance.md (2026).</li>
 <li>W. C. Witt, C. van der Oord, E. Gelžinytė, T. Järvinen, A. Ross, J. P. Darby, C. H. Ho, W. J. Baldwin, M. Sachs, J. Kermode, N. Bernstein, G. Csányi, C. Ortner, ACEpotentials.jl: a Julia implementation of the atomic cluster expansion, J. Chem. Phys. 159, 164101 (2023).</li>
 <li>R. Drautz, Atomic cluster expansion for accurate and transferable interatomic potentials, Phys. Rev. B 99, 014104 (2019).</li>
 <li>kermodegroup demos: interactive regression demo, https://github.com/kermodegroup/demos (apps/regression-demo.py; scene lj-cr3).</li>
