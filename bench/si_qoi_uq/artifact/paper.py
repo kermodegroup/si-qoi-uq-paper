@@ -621,7 +621,7 @@ Swinburne and Perez [2025]. Following the reference package, the box is built on
 (<code>leverage_percentile = 50</code>, its default; a box from every row is unphysical here, Section 3.7). The ridge is selected
 per quantity by the CRPS on a hold-out of the training set, over relative ridges from 10<sup>−2</sup> down to 10<sup>−10</sup> of
 the largest eigenvalue, a decade above the relative ridge of about 10<sup>−11</sup> below which the box is set by roundoff
-(Section 3.7). We use ace-jax [ace-jax] from version 0.5.2, which includes the
+(Section 3.7). We use ace-jax [ace-jax] version 0.5.3, which includes the
 numerical corrections that this study prompted. B2 has no calibration step, so it tests a misspecification-aware shape without a
 fitted scale.</p>
 <p>The third baseline, B3, is the CR3 covariance with \(\lambda=1\). It isolates the effect of the scale: the difference between B3
@@ -1392,7 +1392,7 @@ development was supported by credits from Anthropic's AI for Science program. Th
 results and text, and takes full responsibility for the correctness of the resulting implementation and for the content of this
 paper.</p>""", "draft")
 
-sec("refs", "References", """<p class="note">Checked against publisher or repository records, or the full text, on 2026-11-02.</p>
+sec("refs", "References", """<p class="note">Checked against publisher or repository records, or the full text, on 2026-11-04.</p>
 <ol class="refs">
 <li>D. M. Allen, The relationship between variable selection and data augmentation and a method for prediction, Technometrics 16, 125–127 (1974). PRESS was introduced in Allen's 1971 technical report; this is its usual published citation.</li>
 <li>A. P. Bartók, J. Kermode, N. Bernstein, G. Csányi, Machine learning a general-purpose interatomic potential for silicon, Phys. Rev. X 8, 041048 (2018).</li>
@@ -1401,7 +1401,7 @@ sec("refs", "References", """<p class="note">Checked against publisher or reposi
 <li>I. R. Best, T. J. Sullivan, J. R. Kermode, Uncertainty quantification in atomistic simulations of silicon using interatomic potentials, J. Chem. Phys. 161 (2024), doi:10.1063/5.0214590.</li>
 <li>F. Bigi, S. Chong, M. Ceriotti, F. Grasselli, A prediction rigidity formalism for low-cost uncertainties in trained neural networks, Mach. Learn.: Sci. Technol. 5, 045018 (2024).</li>
 <li>R. D. Cook, S. Weisberg, Residuals and Influence in Regression, Chapman and Hall (1982): predicted residuals and PRESS, Sec. 2.2; deletion of a subset of cases, \\(\\hat\\beta-\\hat\\beta_{(I)}=(X^{\\mathsf T}X)^{-1}X_I^{\\mathsf T}(I-V_I)^{-1}e_I\\), Sec. 3.6, eq. 3.6.3.</li>
-<li>ace-jax: atomic cluster expansion potentials in JAX, https://github.com/ACEsuit/ace-jax.</li>
+<li>ace-jax: atomic cluster expansion potentials in JAX, version 0.5.3, https://github.com/ACEsuit/ace-jax.</li>
 <li>W. C. Witt, C. van der Oord, E. Gelžinytė, T. Järvinen, A. Ross, J. P. Darby, C. H. Ho, W. J. Baldwin, M. Sachs, J. Kermode, N. Bernstein, G. Csányi, C. Ortner, ACEpotentials.jl: a Julia implementation of the atomic cluster expansion, J. Chem. Phys. 159, 164101 (2023).</li>
 <li>R. Drautz, Atomic cluster expansion for accurate and transferable interatomic potentials, Phys. Rev. B 99, 014104 (2019).</li>
 <li>kermodegroup demos: interactive regression demo, https://github.com/kermodegroup/demos (apps/regression-demo.py; scene lj-cr3).</li>
