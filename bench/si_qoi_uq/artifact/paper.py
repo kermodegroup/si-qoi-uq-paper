@@ -261,7 +261,7 @@ sec("abstract", "Abstract", f"""
 atomic cluster expansion (ACE) potentials we derive calibrated uncertainties from one misspecification-robust parameter
 covariance, the delete-one-configuration jackknife. Scaled by one conformal quantile from a held-out part of the training
 set, it gives per-atom force uncertainties close to their target coverage on held-out silicon data and on cracks left out
-of the fit; screw dislocations left out are under-covered by the smaller model. With one scale fitted to the forces of a held-out test split,
+of the fit; screw dislocations left out are under-covered by the smaller of the two models. With one scale fitted to the forces of a held-out test split,
 the same parameter distribution is propagated to 21 properties of silicon, from elastic constants to defect and surface energies,
 by implicit differentiation through each relaxation and by committees, and is tested against density functional theory (DFT) without tuning on any property.
 For a smaller and a larger model the intervals cover most properties, and the larger model's are about {tight_ratio:.0f} times

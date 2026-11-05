@@ -237,7 +237,8 @@ def main():
         sys.exit("unmapped characters: " + " ".join(f"{c!r} U+{ord(c):04X}" for c in missing))
     uni = "\n".join(rf"\DeclareUnicodeCharacter{{{ord(c):04X}}}{{{UNICODE[c]}}}" for c in used)   # kernel, no package
     layout = "preprint" if "--preprint" in sys.argv else "reprint"
-    pre = rf"""\documentclass[aip,jcp,{layout},amsmath,amssymb,floatfix]{{revtex4-2}}
+    pre = rf"""\pdfoutput=1
+\documentclass[aip,jcp,{layout},amsmath,amssymb,floatfix]{{revtex4-2}}
 \usepackage[utf8]{{inputenc}}
 \usepackage[T1]{{fontenc}}
 \usepackage{{lmodern,microtype}}
