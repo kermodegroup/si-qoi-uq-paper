@@ -95,7 +95,7 @@ _lsm = {m: json.load(open(RES / f"learned_scale_{m}.json")) for m in ("o3d12", "
 _evn = json.load(open(RES / "evenness.json")) if (RES / "evenness.json").exists() else {}
 # Models whose per-atom stage (hold-out quantile, transfer, learned scale, out-of-distribution refit) has not yet been rerun on
 # the BLR posterior: their results/ files still hold the ARD run, so every number drawn from them prints as PEND.
-PENDING = {"o4d20"}
+PENDING = set()
 PEND = '<b class="pending">[o4d20 pending]</b>'
 _ard_lsm = {m: json.load(open(RES / "ard_sensitivity" / f"learned_scale_{m}.json")) for m in ("o3d12", "o4d20")
             if (RES / "ard_sensitivity" / f"learned_scale_{m}.json").exists()}   # the per-atom stage on the ARD fits (sensitivity)
@@ -132,6 +132,7 @@ ood_v = lambda m, k, c="all": PEND if m in PENDING else "–" if _ood_get(m, k, 
 _atr = json.loads((RES / "ard_transfer.json").read_text()) if (RES / "ard_transfer.json").exists() else {}
 atr = lambda m, k, fmt=".2f": PEND if m in PENDING else format(_atr[m][k], fmt).replace("-", "−") if m in _atr else "–"   # hold-out -> full transfer (analysis/ard_transfer.py)
 atr_pct = lambda m: PEND if m in PENDING else f"{100 * (_atr[m]['test_q_over_q_one'] - 1):.1f} %" if m in _atr else "–"
+lt = lambda m, ty, k="one_group": "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['per_type'][ty][k]:.2f}"   # one configuration type
 lm = lambda m, k: PEND if m in PENDING else "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all'][k]:.2f}"
 lm_seeds = lambda m: PEND if m in PENDING else "–" if m not in _lsm else "–".join(f"{x:.2f}" for x in _lsm[m]["sets"]["test"]["all"]["learned_seed_range"])
 lm_rad = lambda m, k: PEND if m in PENDING else "–" if m not in _lsm else f"{_lsm[m]['sets']['test']['all']['median_radius'][k]:.1f}"
@@ -260,7 +261,7 @@ sec("abstract", "Abstract", f"""
 atomic cluster expansion (ACE) potentials we derive calibrated uncertainties from one misspecification-robust parameter
 covariance, the delete-one-configuration jackknife. Scaled by one conformal quantile from a held-out part of the training
 set, it gives per-atom force uncertainties close to their target coverage on held-out silicon data and on cracks left out
-of the fit; screw dislocations left out are under-covered. With one scale fitted to the forces of a held-out test split,
+of the fit; screw dislocations left out are under-covered by the smaller model. With one scale fitted to the forces of a held-out test split,
 the same parameter distribution is propagated to 21 properties of silicon, from elastic constants to defect and surface energies,
 by implicit differentiation through each relaxation and by committees, and is tested against density functional theory (DFT) without tuning on any property.
 For a smaller and a larger model the intervals cover most properties, and the larger model's are about {tight_ratio:.0f} times
@@ -1177,9 +1178,6 @@ interstitials and the size-model average for the vacancy. Thin black bars: the s
 Only the four defect QoIs change.</figcaption></figure>""", "", level=4)
 
 sec("results-forces", "3.2  Calibrated per-atom forces", f"""
-<p><b>[Draft: the o4d20 per-atom stage (hold-out quantile, transfer, learned scale and out-of-distribution refit) is being
-rerun on the BLR posterior. Its numbers print as {PEND}; qualitative statements about o4d20 in this section describe the
-earlier ARD run and are to be checked. The CR3 × λ<sub>F</sub> and baseline coverages are final for both models.]</b></p>
 <p>Figure 2 and Table 2p test the per-atom force uncertainty of Section 2.5 on the 248 test configurations, with the BLR fits
 whose CR3 posteriors the QoIs use; atoms whose force rows vanish by site symmetry are dropped by the rule of Section 3.3. At a
 nominal 90 %, the CR3 shape with one hold-out quantile covers {lm("o3d12", "one_group")} of the test atoms for o3d12 and
@@ -1187,15 +1185,20 @@ nominal 90 %, the CR3 shape with one hold-out quantile covers {lm("o3d12", "one_
 fitted on {atr("o3d12", "N_fit", "d")} of the {atr("o3d12", "N", "d")} training configurations, and are carried to the full posterior by
 (N/N<sub>fit</sub>)<sup>β</sup>, with β estimated from a second, smaller hold-out fit ({atr("o3d12", "N_fit2", "d")} configurations) and
 clipped to [0, 1/2] (Section 2.5). For o4d20 that estimate gave β = {atr("o4d20", "beta")}, a factor {atr("o4d20", "factor", ".3f")}, and the
-test scores' 90 % quantile matches the transferred one to {atr("o4d20", "test_q_over_q_one", ".3f")}. For o3d12 the scale of the
+test scores' 90 % quantile is {atr("o4d20", "test_q_over_q_one", ".3f")} times the transferred one. For o3d12 the scale of the
 smaller fit came out larger ({atr("o3d12", "lam2")} against {atr("o3d12", "lam1")}), so β<sub>raw</sub> = {atr("o3d12", "beta_raw")} was
 clipped to 0 and nothing was transferred; the full fit's test scores are {atr_pct("o3d12")} larger at the 90 % quantile, which is
 the shortfall. We report this as found: the transfer rule was fixed before any test coverage was seen, and changing it now would
-be tuning on the test split. Where the transfer worked, on the earlier ARD fit of o4d20, one quantile reached the nominal level
-overall ({ard_lm("o4d20")}, Section 2.3) with no environment-dependent scale: the shape carries most of the dependence of the
-error on the environment. The BLR rerun of o4d20 is {PEND}.</p>
+be tuning on the test split. Where the transfer worked, for o4d20, one quantile reaches the nominal level overall with no
+environment-dependent scale: the shape carries most of the dependence of the error on the environment. The estimate of β is
+fragile in one respect. It is taken from RMS scales, which a few atoms with almost no CR3 variance can dominate: in the
+out-of-distribution refits below, the first group's RMS scale is {sci(_atr["ood_o4d20"]["group_lam_rms"][0], 1)} (o4d20) where its
+90 % quantile is {_atr["ood_o4d20"]["group_q"][0]:.1f}, and that refit's β = {atr("ood_o4d20", "beta")} (factor
+{atr("ood_o4d20", "factor", ".3f")}) reflects those atoms rather than the data size. An estimate from quantiles would be robust to
+them; as with the clipping, we keep the rule as it was fixed.</p>
 <p>The coverage is not even across environments, though. The point-defect cells are under-covered and the liquid and surface
-cells over-covered (Figure 2, bottom); the amorphous cells are under-covered for o3d12 (o4d20: {PEND}).
+cells over-covered (Figure 2, bottom). The amorphous cells differ between the models: under-covered for o3d12
+({lt("o3d12", "amorph")}) and over-covered for o4d20 ({lt("o4d20", "amorph")}).
 The learned scale of Section 2.5 corrects much of this in distribution: it covers {lm("o3d12", "learned")} and {lm("o4d20", "learned")}
 overall (ranges over the five hold-out splits {lm_seeds("o3d12")} and {lm_seeds("o4d20")}), with similar median region sizes
 ({lm_rad("o3d12", "learned")} against {lm_rad("o3d12", "one_group")} for o3d12, {lm_rad("o4d20", "learned")} against
@@ -1208,7 +1211,7 @@ configuration once in total is about 12 % smaller and covers only {lm("o3d12", "
 {lm("o4d20", "one_group_cfgq")}, because the many small, well-predicted cells then dominate it; the quantiles here are
 atom-weighted. The same CR3
 shape with the propagation's global λ<sub>F</sub> covers {fb("o3d12", "headline")} and {fb("o4d20", "headline")}, below the
-one quantile for o3d12 (o4d20: {PEND}) and with the same pattern across configuration types, even though λ<sub>F</sub> is fitted on these test
+one quantile for both models and with the same pattern across configuration types, even though λ<sub>F</sub> is fitted on these test
 configurations (in sample). λ<sub>F</sub> is an RMS over force components, not a quantile of the 3-D score, and the CR3
 shape is strongly anisotropic, so errors along its thin directions leave the ellipsoid. All regions in Figure 2 are
 ellipsoids of the method's own 3×3 covariance; an isotropic ball |ΔF| ≤ σ(χ<sup>2</sup><sub>3</sub>(0.9)/3)<sup>1/2</sup> of the same
@@ -1221,8 +1224,7 @@ propagation's methods: CR3 × λ<sub>F</sub> (the headline), B1 (posterior × q�
 box's uniform variance) and B3 (CR3, λ = 1); the per-atom density behind. Points below the diagonal are conservative.
 Bottom: test coverage of the 90 % region, overall and per GAP-18 configuration type with at least 300 test atoms. Every
 method's region is the same kind: the ellipsoid of its own 3×3 force covariance, e<sup>T</sup>C<sup>−1</sup>e ≤ χ<sup>2</sup><sub>3</sub>(0.9)
-(for the one quantile and the learned scale this is their conformal region). The headline's λ<sub>F</sub> is fitted on the test split itself, so its per-atom coverage here is in sample.
-<b>[Draft: the o4d20 panels' one-quantile and learned-scale traces are from the ARD run and will be replaced.]</b></figcaption></figure>
+(for the one quantile and the learned scale this is their conformal region). The headline's λ<sub>F</sub> is fitted on the test split itself, so its per-atom coverage here is in sample.</figcaption></figure>
 <div class="wrap"><table><caption>Table 2p. Test coverage of the 90 % per-atom force region per GAP-18 configuration type (types
 with at least 300 test atoms): one hold-out quantile against the learned scale (mean over five hold-out splits), and the RMS
 deviation of the per-type coverage from nominal.</caption>
@@ -1237,12 +1239,13 @@ in-distribution test split, so it is out of sample here, like the conformal ones
 {ood_v("o4d20", "global")}. The cracks are covered ((111) {ood_v("o3d12", "one_group", "crack_111_1-10")} and (110)
 {ood_v("o3d12", "one_group", "crack_110_1-10")} for o3d12; {ood_v("o4d20", "one_group", "crack_111_1-10")} and
 {ood_v("o4d20", "one_group", "crack_110_1-10")} for o4d20). The screw dislocations are under-covered for o3d12
-({ood_v("o3d12", "one_group", "screw_disloc")}; o4d20 {ood_v("o4d20", "one_group", "screw_disloc")}).</p>
-<p>Out of distribution the learned scale gains nothing. For o3d12 it covers {ood_v("o3d12", "learned")} of the held-out atoms,
+({ood_v("o3d12", "one_group", "screw_disloc")}) but not for o4d20 ({ood_v("o4d20", "one_group", "screw_disloc")}).</p>
+<p>Out of distribution the learned scale gains nothing, and it can lose. For o3d12 it covers {ood_v("o3d12", "learned")} of the held-out atoms,
 as one quantile does ({ood_v("o3d12", "one_group")}), and the two agree to 0.01 on each held-out type (Table 2c); for o4d20 it
-covers {ood_v("o4d20", "learned")}. <b>[Draft: on the earlier ARD fit of o4d20 the learned scale under-covered the (111) crack
-and the screw dislocations that one quantile covered; whether the BLR rerun repeats this is pending, and the strength of this
-paragraph depends on it.]</b> The risk is structural: a learned scale narrows the regions of environments whose training
+covers {ood_v("o4d20", "learned")} against one quantile's {ood_v("o4d20", "one_group")}, and it falls below nominal on the (111)
+crack ({ood_v("o4d20", "learned", "crack_111_1-10")} against {ood_v("o4d20", "one_group", "crack_111_1-10")}) and on the screw
+dislocations ({ood_v("o4d20", "learned", "screw_disloc")} against {ood_v("o4d20", "one_group", "screw_disloc")}), which one quantile
+covers. The earlier ARD fit of o4d20 showed the same pattern. The risk is structural: a learned scale narrows the regions of environments whose training
 counterparts the model reproduces well, mostly near-bulk ones, and atoms at dislocation cores and on crack flanks resemble those
 in descriptor space but can carry larger errors. One quantile cannot narrow selectively, and it is simpler, which is why it is the
 method here; the learned scale is a refinement for target environments that are represented in the training data.</p>
@@ -1293,8 +1296,8 @@ rows, mean and cut, equivalent evaluations of one box gave {pc_old_short}, and t
 covariance transforms consistently under a linear change of parameters, and a box does not: with the axes taken in θ or in the
 prior-scaled coefficients Γθ, the same corrections give different boxes ({pc_axes}). For forces the calibration is explicit. One conformal
 quantile on the CR3 shape covers {lm("o3d12", "one_group")} and {lm("o4d20", "one_group")} of the test atoms against a nominal 0.90 (the
-o3d12 shortfall is the hold-out transfer of Section 3.2), and holds out of distribution on the cracks, though not on the screw
-dislocations; the global force scale on the same
+o3d12 shortfall is the hold-out transfer of Section 3.2), and holds out of distribution on the cracks for both models and on
+the screw dislocations for o4d20, though not for o3d12 ({ood_v("o3d12", "one_group", "screw_disloc")}); the global force scale on the same
 kind of region covers less ({fb("o3d12", "headline")} and {fb("o4d20", "headline")}), even fitted in sample. The POPS box covers
 {fb("o3d12", "B2")} (o3d12) and {fb("o4d20", "B2")} (o4d20), the latter below nominal and unevenly (per type {fb_types("o4d20", "B2")}), and nothing in its construction aims at a target coverage. Two costs of CR3 remain. It is a sampling variance, so it needs held-out data and a
 scale; POPS needs neither in principle, although here its ridge was chosen on a hold-out of the training set. And like POPS it cannot see a bias that every configuration of a kind shares (Section 3.8).</p>
@@ -1329,9 +1332,9 @@ as part of the effective error. And twenty QoIs give coarse coverage estimates: 
 sec("conclusions", "5  Conclusions", """
 <p>For linear ACE potentials, the delete-one-configuration (CR3) jackknife covariance, scaled once, gives uncertainties close
 to their target coverage at two levels. Per atom, with one conformal quantile from a held-out part of the training set, the
-force regions come close to their target coverage on held-out silicon data and on cracks left out of the fit, though screw
-dislocations left out are under-covered; a scale learned from the site descriptor evens the coverage across environments seen
-in training but does not improve it on those left out. For derived properties, the same covariance with one scale fitted to held-out forces,
+force regions come close to their target coverage on held-out silicon data and on cracks left out of the fit, though for the
+smaller model screw dislocations left out are under-covered; a scale learned from the site descriptor evens the coverage across
+environments seen in training but does not improve it on those left out, and for the larger model lowers it. For derived properties, the same covariance with one scale fitted to held-out forces,
 propagated by implicit differentiation through each relaxation, covers most of 20 silicon QoIs against DFT, with intervals that
 shrink with the accuracy of the model. It outperforms the Bayesian posterior and the uncalibrated shape, and on these QoIs it performs
 comparably with POPS once the POPS box is numerically defined. Its advantage over POPS is not accuracy but calibration and numerical
