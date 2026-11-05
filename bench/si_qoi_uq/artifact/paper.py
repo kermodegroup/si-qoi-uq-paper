@@ -504,7 +504,7 @@ size.</p>
 <figure><img src="fig9_cr3_schematic.png" alt="Schematic of the CR3 construction on the regression demo's Lennard-Jones example: a degree-5 polynomial fit with the CR3 and posterior bands; the leave-one-point-out changes of the fit in the leading principal curves of the CR3 covariance; and a six-step flow of the computation"><figcaption>Figure 9.
 The CR3 construction on the Lennard-Jones (LJ) example of the interactive regression demo [kermodegroup demos; scene
 lj-cr3], computed exactly. (a) A degree-5 polynomial, fitted by Bayesian ridge regression with evidence-optimised
-hyperparameters to 197 nearly noiseless samples (noise standard deviation 0.011, as for DFT labels) of the smooth part of a
+hyperparameters to 197 nearly noiseless samples (noise standard deviation 0.001, as for DFT labels) of the smooth part of a
 Lennard-Jones curve, cannot follow the steep repulsive side and the well: the error is approximation error, not noise. The
 posterior band (orange; \(\sigma^2A^{-1}\) in the demo's unwhitened rows) is barely visible. The CR3 band (blue), scaled by λ from 50 held-out calibration
 points, is wide where the fit is wrong: on the steep side near x = 0 and at the right-hand end. (b) Each dot is the change of

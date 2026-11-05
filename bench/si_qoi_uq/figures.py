@@ -419,10 +419,10 @@ def _lj_demo(x):
     return np.clip(4.0 * ((1.5 / r) ** 12 - (1.5 / r) ** 6), -1.5, 1.5)
 
 
-def cr3_schematic(out, seed=0, n=500, noise=0.011, P=6, calib=0.2):
+def cr3_schematic(out, seed=0, n=500, noise=0.001, P=6, calib=0.2):
     X_MIN = 0.0                                                      # the smooth LJ part (x < 0: the clipped wall)
     """Schematic of the CR3 construction on the regression demo's LJ scene (kermodegroup/demos, ?scene=lj-cr3; labels
-    nearly noiseless, noise sd 0.011, as for DFT training data):
+    nearly noiseless, noise sd 0.001, as for DFT training data):
     n points uniform in [-10, 10] plus the two end points, kept in [0, 10], the smooth part of the curve (the demo's
     filter range with "keep inside"; its LJ test domain starts there too; x < 0 is the clipped wall), noise sd `noise`,
     an 80/20 train/calibration split, a degree P - 1 polynomial basis, the evidence-fitted Bayesian ridge, CR3 with one
