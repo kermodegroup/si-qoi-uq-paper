@@ -6,7 +6,7 @@ authors = [{ name = "James R. Kermode" }]
 license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
-    "ace-jax==0.5.2",                          # QR ARD evidence (#137) and the POPS numerics (#141)
+    "ace-jax==0.5.3",                          # QR ARD evidence (#137), POPS numerics (#141), --ard-prior fixed (#145)
     "ase>=3.23",
     "matplotlib>=3.8",
     "numpy",

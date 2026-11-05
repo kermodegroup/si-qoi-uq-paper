@@ -621,7 +621,7 @@ Swinburne and Perez [2025]. Following the reference package, the box is built on
 (<code>leverage_percentile = 50</code>, its default; a box from every row is unphysical here, Section 3.7). The ridge is selected
 per quantity by the CRPS on a hold-out of the training set, over relative ridges from 10<sup>−2</sup> down to 10<sup>−10</sup> of
 the largest eigenvalue, a decade above the relative ridge of about 10<sup>−11</sup> below which the box is set by roundoff
-(Section 3.7). We use ace-jax [ace-jax] version 0.5.2, which includes the
+(Section 3.7). We use ace-jax [ace-jax] from version 0.5.2, which includes the
 numerical corrections that this study prompted. B2 has no calibration step, so it tests a misspecification-aware shape without a
 fitted scale.</p>
 <p>The third baseline, B3, is the CR3 covariance with \(\lambda=1\). It isolates the effect of the scale: the difference between B3
@@ -1373,9 +1373,10 @@ every table and figure. Claude Code was used to implement the analysis the autho
 text. It did not generate or alter any data: every number comes from the stored results of that code. The author checked the
 code, the results and the text, including the parity tests and finite-difference checks of Section 2.7.2. Session transcripts
 are available on request.</p>
-<p><b>Code and data availability.</b> The uncertainty methods are part of ace-jax version 0.5.2 (MIT licence,
-https://github.com/ACEsuit/ace-jax); the per-atom stage at fixed hyperparameters (<code>--ard-prior fixed</code>) is
-ace-jax pull request 145 <b>[Draft: to be replaced by the release that includes it]</b>. The analysis code, the results behind every table and figure, the generator of this paper and
+<p><b>Code and data availability.</b> The uncertainty methods, including the per-atom stage at fixed hyperparameters
+(<code>--ard-prior fixed</code>), are part of ace-jax version 0.5.3 (MIT licence, https://github.com/ACEsuit/ace-jax); the
+per-atom fits were run from its development branch before the release, and the parity and transfer analyses of Section 3.2
+reproduce exactly with the release. The analysis code, the results behind every table and figure, the generator of this paper and
 the original specification of the study are at https://github.com/kermodegroup/si-qoi-uq-paper [archived on Zenodo, DOI to be
 added]. The GAP-18 database is available from its original publication [Bartók et al. 2018]. The Python 3 port of the silicon test
 framework used here is the branch py3 of https://github.com/libAtoms/silicon-testing-framework, at commit f23b1df.</p>""", "")

@@ -27,7 +27,7 @@ wheels = [
 
 [[package]]
 name = "ace-jax"
-version = "0.5.2"
+version = "0.5.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ace-jax-coupling", marker = "(platform_machine == 'arm64' and sys_platform == 'darwin') or (platform_machine == 'aarch64' and sys_platform == 'linux') or (platform_machine == 'x86_64' and sys_platform == 'linux') or (platform_machine == 'AMD64' and sys_platform == 'win32')" },
@@ -46,9 +46,9 @@ dependencies = [
     { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/56/39/4df9e947521f588a4ebaae7b37c79d4bb9ba4574c9ef1199dc8e18fba4b0/ace_jax-0.5.2.tar.gz", hash = "sha256:9666fa89c4eaa11fcf835b5da5ab9f595be4933fe1fd43e148dd9a167aac0afd", size = 407320, upload-time = "2026-11-04T07:52:55.641Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b1/37/6e8430013817928d9e1d3b03f8258b08789b593709ccc95aa6a13d9c4e62/ace_jax-0.5.3.tar.gz", hash = "sha256:b9b432a8bb0b616f9c124a6f5c11e730a1132e95f3d1d39a4dc4170a55ef0738", size = 419689, upload-time = "2026-11-05T09:28:42.844Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f2/5f/d9f034705a72d1b029307c39f18ca1a5dcaf56afdb2e3f39926a3700365b/ace_jax-0.5.2-py3-none-any.whl", hash = "sha256:4fe9af7eeeccec498ebcb8c61592d34dc781ca1f7cda79a92a7c33f8db7baa5f", size = 457272, upload-time = "2026-11-04T07:52:53.882Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/37/d8f7509fcb529a6273120a8ea19e423647ebba16b7367563a3ae1527a1a2/ace_jax-0.5.3-py3-none-any.whl", hash = "sha256:1ba4440bf24ea850307cafaa9a94afa316274e71c23e0857e63f39796e55e428", size = 470692, upload-time = "2026-11-05T09:28:40.976Z" },
 ]
 
 [[package]]
@@ -1689,7 +1689,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "ace-jax", specifier = "==0.5.2" },
+    { name = "ace-jax", specifier = "==0.5.3" },
     { name = "ase", specifier = ">=3.23" },
     { name = "matplotlib", specifier = ">=3.8" },
     { name = "numpy" },
