@@ -618,3 +618,73 @@ def all_figures(results, out, runs, models, extras, contexts=("paper", "talk")):
         json.dump({"correlation_model": m3}, open(o / "figures.json", "w"))
 
     set_context("paper")
+
+COV_METH = (("b1", "B1: posterior × q̂", CAT[1]), ("hl", "CR3 × λ$_F$ (headline)", CAT[0]), ("b2", "B2: POPS box", CAT[2]))
+
+
+def talk_cov_shapes(results, out, corr_model="o3d12", models=("o3d12", "o4d20"), floor=1e-4):
+    """Talk only (not in the paper, not called by all_figures): the shapes of the three parameter distributions
+    (results/cov_shapes_<m>.npz, analysis/cov_shapes.py).  Top: correlation matrices of corr_model, parameters sorted
+    by body order (a raw covariance shows nothing: the standard deviations span ~8 decades).  Bottom: per model, how
+    far the headline and POPS stretch or squash B1 along its principal directions (generalised eigenvalues in B1's
+    metric, each method at its own calibration); each curve ends at its rank, beyond which the width is zero, and
+    values below `floor` are drawn at it (marked ▼)."""
+    set_context("talk")
+    z = {m: np.load(results / f"cov_shapes_{m}.npz") for m in models}
+    fig = plt.figure(figsize=(12, 6.75), facecolor=SURFACE)
+    gs = fig.add_gridspec(2, 1, height_ratios=[1.15, 1], hspace=0.42)
+    top = gs[0].subgridspec(1, 4, width_ratios=[1, 1, 1, 0.045], wspace=0.08)
+    bot = gs[1].subgridspec(1, len(models), wspace=0.22)
+    c = z[corr_model]
+    bc = c["bc"]
+    edges = np.flatnonzero(np.diff(bc)) + 0.5
+    mid = (np.r_[-0.5, edges] + np.r_[edges, len(bc) - 0.5]) / 2
+    orders = [str(int(b)) for b in np.unique(bc)]
+    for j, (k, lab, col) in enumerate(COV_METH):
+        ax = fig.add_subplot(top[j])
+        im = ax.imshow(c[f"corr_{k}"], cmap="RdBu_r", vmin=-1, vmax=1, interpolation="nearest")
+        for e in edges:
+            ax.axhline(e, color=INK, lw=0.7)
+            ax.axvline(e, color=INK, lw=0.7)
+        ax.set_xticks(mid, orders)
+        ax.set_yticks(mid, orders if j == 0 else [])
+        ax.tick_params(length=0, labelsize="x-small", labelcolor=MUTED)
+        if j == 0:
+            ax.set_ylabel("body order", fontsize="x-small", color=MUTED)
+        for sp in ax.spines.values():
+            sp.set_color(col)
+            sp.set_linewidth(3)
+        ax.set_title(lab, fontsize="small", color=INK, loc="left")
+        ax.set_xlabel(f"mean |ρ| = {float(c[f'mean_abs_corr_{k}']):.2f}", fontsize="x-small", color=INK)
+    cb = fig.colorbar(im, cax=fig.add_subplot(top[3]), ticks=[-1, 0, 1])
+    cb.set_label(f"correlation, {corr_model}", fontsize="x-small", color=INK)
+    cb.ax.tick_params(labelsize="x-small", colors=MUTED, labelcolor=INK)
+    cb.outline.set_visible(False)
+    for i, m in enumerate(models):
+        ax = fig.add_subplot(bot[i])
+        _style(ax)
+        ax.grid(axis="both", color=GRID, lw=0.6)
+        p = int(z[m]["p"])
+        ax.axhline(1, color=INK, lw=1.2, ls="--", zorder=1)
+        for k, lab, col in COV_METH[1:]:
+            r = int(z[m][f"rank_{k}"])
+            s = np.asarray(z[m][f"stretch_{k}"])[:r]
+            x = np.arange(1, r + 1)
+            ax.plot(x, np.maximum(s, floor), color=col, lw=2.4, zorder=3)
+            cut = s[-1] < floor
+            ax.plot(x[-1], max(s[-1], floor), "v" if cut else "o", color=col, ms=8, mec=SURFACE, zorder=4, clip_on=False)
+            ax.annotate(f"rank {r}", (x[-1], max(s[-1], floor)), xytext=(-6, 4), textcoords="offset points", ha="right",
+                        va="bottom", fontsize="xx-small", color=col)
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlim(0.8, p * 1.5)
+        ax.set_ylim(floor, 3e2)
+        ax.set_title(f"{m} (p = {p}): width relative to B1", fontsize="x-small", color=INK, loc="left")
+        if i == 0:
+            ax.set_ylabel("width / B1 width", fontsize="x-small", color=INK)
+        ax.set_xlabel("principal direction of B1-relative shape", fontsize="x-small", color=INK)
+        if i == 0:
+            h = [plt.Line2D([], [], color=col, lw=2.4, label=lab) for k, lab, col in COV_METH[1:]]
+            h.append(plt.Line2D([], [], color=INK, lw=1.2, ls="--", label="B1 (= 1)"))
+            ax.legend(handles=h, loc="lower left", frameon=False, fontsize="xx-small")
+    _save(fig, out / "talk", "talk_cov_shapes")
