@@ -1,7 +1,8 @@
-"""Shapes of the three parameter distributions behind the propagation (talk figure only; not in the paper):
+"""Shapes of the prior and the three parameter distributions behind the propagation (talk figure only; not in the paper):
 headline lam_F^2 * CR3, B1 q_b1^2 * posterior, B2 the POPS box at the 50 % leverage cut read as a Gaussian of its
 covariance (hi - lo)^2 / 12, as in analysis/force_methods.py.  Each at its own calibration, on the readout block
-(POPS has no E0 column), parameters sorted by body order.
+(POPS has no E0 column), parameters sorted by body order.  The prior (the BLR fits' diag(dinv) at the MAP group
+precisions; no GP block) is the same for all three: its correlation matrix is the identity.
 
   corr    the correlation matrices (scale-free: per-parameter standard deviations span ~8 decades, so a raw
           covariance or Cholesky-factor heatmap shows a handful of pixels).  Saved only for p <= MAX_CORR (o3d12):
@@ -47,6 +48,11 @@ def main():
             out[f"mean_abs_corr_{k}"] = float((np.abs(C / d[:, None] / d[None, :]).sum() - p) / (p * (p - 1)))
             if p <= MAX_CORR:
                 out[f"corr_{k}"] = (C / d[:, None] / d[None, :]).astype(np.float32)
+        if lin.post.root is not None or linp.post.root is not None:
+            raise ValueError(f"{m}: prior has a GP block; its correlation is not diagonal")
+        out["mean_abs_corr_prior"] = 0.0
+        if p <= MAX_CORR:
+            out["corr_prior"] = np.eye(p, dtype=np.float32)
         np.savez_compressed(RESULTS / f"cov_shapes_{m}.npz", **out)
         print(m, {k: v for k, v in out.items() if np.ndim(v) == 0}, flush=True)
 

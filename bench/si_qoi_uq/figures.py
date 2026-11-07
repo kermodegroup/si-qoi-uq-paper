@@ -624,7 +624,8 @@ COV_METH = (("b1", "B1: posterior × q̂", CAT[1]), ("hl", "CR3 × λ$_F$ (headl
 
 def talk_cov_shapes(results, out, corr_model="o3d12", models=("o3d12", "o4d20"), floor=1e-4):
     """Talk only (not in the paper, not called by all_figures): the shapes of the three parameter distributions
-    (results/cov_shapes_<m>.npz, analysis/cov_shapes.py).  Top: correlation matrices of corr_model, parameters sorted
+    (results/cov_shapes_<m>.npz, analysis/cov_shapes.py).  Top: correlation matrices of corr_model, the prior (shared,
+    diagonal) first, parameters sorted
     by body order (a raw covariance shows nothing: the standard deviations span ~8 decades).  Bottom: per model, how
     far the headline and POPS stretch or squash B1 along its principal directions (generalised eigenvalues in B1's
     metric, each method at its own calibration); each curve ends at its rank, beyond which the width is zero, and
@@ -633,14 +634,14 @@ def talk_cov_shapes(results, out, corr_model="o3d12", models=("o3d12", "o4d20"),
     z = {m: np.load(results / f"cov_shapes_{m}.npz") for m in models}
     fig = plt.figure(figsize=(12, 6.75), facecolor=SURFACE)
     gs = fig.add_gridspec(2, 1, height_ratios=[1.15, 1], hspace=0.42)
-    top = gs[0].subgridspec(1, 4, width_ratios=[1, 1, 1, 0.045], wspace=0.08)
+    top = gs[0].subgridspec(1, 5, width_ratios=[1, 1, 1, 1, 0.045], wspace=0.08)
     bot = gs[1].subgridspec(1, len(models), wspace=0.22)
     c = z[corr_model]
     bc = c["bc"]
     edges = np.flatnonzero(np.diff(bc)) + 0.5
     mid = (np.r_[-0.5, edges] + np.r_[edges, len(bc) - 0.5]) / 2
     orders = [str(int(b)) for b in np.unique(bc)]
-    for j, (k, lab, col) in enumerate(COV_METH):
+    for j, (k, lab, col) in enumerate((("prior", "prior (all)", MUTED),) + COV_METH):
         ax = fig.add_subplot(top[j])
         im = ax.imshow(c[f"corr_{k}"], cmap="RdBu_r", vmin=-1, vmax=1, interpolation="nearest")
         for e in edges:
@@ -656,7 +657,7 @@ def talk_cov_shapes(results, out, corr_model="o3d12", models=("o3d12", "o4d20"),
             sp.set_linewidth(3)
         ax.set_title(lab, fontsize="small", color=INK, loc="left")
         ax.set_xlabel(f"mean |ρ| = {float(c[f'mean_abs_corr_{k}']):.2f}", fontsize="x-small", color=INK)
-    cb = fig.colorbar(im, cax=fig.add_subplot(top[3]), ticks=[-1, 0, 1])
+    cb = fig.colorbar(im, cax=fig.add_subplot(top[4]), ticks=[-1, 0, 1])
     cb.set_label(f"correlation, {corr_model}", fontsize="x-small", color=INK)
     cb.ax.tick_params(labelsize="x-small", colors=MUTED, labelcolor=INK)
     cb.outline.set_visible(False)
