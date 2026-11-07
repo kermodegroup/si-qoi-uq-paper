@@ -628,12 +628,13 @@ def talk_cov_shapes(results, out, corr_model="o3d12", models=("o3d12", "o4d20"),
     diagonal) first, parameters sorted
     by body order (a raw covariance shows nothing: the standard deviations span ~8 decades).  Bottom: per model, how
     far the headline and POPS stretch or squash B1 along its principal directions (generalised eigenvalues in B1's
-    metric, each method at its own calibration); each curve ends at its rank, beyond which the width is zero, and
-    values below `floor` are drawn at it (marked ▼)."""
+    metric, each method at its own calibration), computed within each body-order block so the axis can be labelled
+    by body order (whole-space directions mix them); each curve ends at its rank, beyond which the width is zero,
+    and values below `floor` are drawn at it (marked ▼)."""
     set_context("talk")
     z = {m: np.load(results / f"cov_shapes_{m}.npz") for m in models}
     fig = plt.figure(figsize=(12, 6.75), facecolor=SURFACE)
-    gs = fig.add_gridspec(2, 1, height_ratios=[1.15, 1], hspace=0.42)
+    gs = fig.add_gridspec(2, 1, height_ratios=[1.15, 1], hspace=0.62)
     top = gs[0].subgridspec(1, 5, width_ratios=[1, 1, 1, 1, 0.045], wspace=0.08)
     bot = gs[1].subgridspec(1, len(models), wspace=0.22)
     c = z[corr_model]
@@ -664,28 +665,40 @@ def talk_cov_shapes(results, out, corr_model="o3d12", models=("o3d12", "o4d20"),
     for i, m in enumerate(models):
         ax = fig.add_subplot(bot[i])
         _style(ax)
-        ax.grid(axis="both", color=GRID, lw=0.6)
-        p = int(z[m]["p"])
+        ax.grid(axis="y", color=GRID, lw=0.6)
+        zm = z[m]
+        orders = [int(b) for b in np.unique(zm["bc"])]
         ax.axhline(1, color=INK, lw=1.2, ls="--", zorder=1)
-        for k, lab, col in COV_METH[1:]:
-            r = int(z[m][f"rank_{k}"])
-            s = np.asarray(z[m][f"stretch_{k}"])[:r]
-            x = np.arange(1, r + 1)
-            ax.plot(x, np.maximum(s, floor), color=col, lw=2.4, zorder=3)
-            cut = s[-1] < floor
-            ax.plot(x[-1], max(s[-1], floor), "v" if cut else "o", color=col, ms=8, mec=SURFACE, zorder=4, clip_on=False)
-            ax.annotate(f"rank {r}", (x[-1], max(s[-1], floor)), xytext=(-6, 4), textcoords="offset points", ha="right",
-                        va="bottom", fontsize="xx-small", color=col)
-        ax.set_xscale("log")
+        for n, b in enumerate(orders):                     # one equal-width segment per body order
+            nb = int((zm["bc"] == b).sum())
+            if n:
+                ax.axvline(n, color=MUTED, lw=0.8)
+            ax.text(n + 0.5, 1.02, f"{b}-body", transform=ax.get_xaxis_transform(), ha="center", va="bottom",
+                    fontsize="xx-small", color=INK)
+            ax.text(n + 0.5, -0.04, f"{nb}", transform=ax.get_xaxis_transform(), ha="center", va="top",
+                    fontsize="xx-small", color=MUTED)
+            for k, lab, col in COV_METH[1:]:
+                r = int(zm[f"rank_{k}_b{b}"])
+                sb = np.asarray(zm[f"stretch_{k}_b{b}"])[:r]
+                if not r:
+                    continue
+                x = n + (np.arange(r) + 0.5) / nb
+                below = np.flatnonzero(sb < floor)
+                e = below[0] if len(below) else r            # stop at the floor: ▼ marks where the curve leaves it
+                ax.plot(x[:e + 1] if e < r else x, np.maximum(sb[:e + 1] if e < r else sb, floor), color=col, lw=2.0,
+                        zorder=3, solid_capstyle="butt")
+                ax.plot(x[min(e, r - 1)], floor if e < r else sb[-1], "v" if e < r else "o", color=col, ms=6,
+                        mec=SURFACE, zorder=4, clip_on=False)
+        ax.set_xlim(0, len(orders))
+        ax.set_xticks([])
         ax.set_yscale("log")
-        ax.set_xlim(0.8, p * 1.5)
         ax.set_ylim(floor, 3e2)
-        ax.set_title(f"{m} (p = {p}): width relative to B1", fontsize="x-small", color=INK, loc="left")
+        ax.set_title(f"{m}: width relative to B1, per body order", fontsize="x-small", color=INK, loc="left", pad=22)
         if i == 0:
             ax.set_ylabel("width / B1 width", fontsize="x-small", color=INK)
-        ax.set_xlabel("principal direction of B1-relative shape", fontsize="x-small", color=INK)
-        if i == 0:
-            h = [plt.Line2D([], [], color=col, lw=2.4, label=lab) for k, lab, col in COV_METH[1:]]
-            h.append(plt.Line2D([], [], color=INK, lw=1.2, ls="--", label="B1 (= 1)"))
-            ax.legend(handles=h, loc="lower left", frameon=False, fontsize="xx-small")
+    fig.text(0.5, 0.035, "principal directions, sorted within each body-order block (number of parameters below the axis);"
+             " ● rank reached, ▼ below 10$^{-4}$", ha="center", fontsize="xx-small", color=INK)
+    h = [plt.Line2D([], [], color=col, lw=2.4, label=lab) for k, lab, col in COV_METH[1:]]
+    h.append(plt.Line2D([], [], color=INK, lw=1.2, ls="--", label="B1: posterior × q̂ (= 1)"))
+    fig.legend(handles=h, loc="lower center", bbox_to_anchor=(0.5, -0.03), ncol=3, frameon=False, fontsize="x-small")
     _save(fig, out / "talk", "talk_cov_shapes")

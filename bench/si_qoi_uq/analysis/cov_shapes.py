@@ -10,6 +10,8 @@ precisions; no GP block) is the same for all three: its correlation matrix is th
   stretch the generalised eigenvalues of each covariance in B1's metric, eig(L1^-1 C L1^-T) with C1 = L1 L1^T: how far
           each method stretches (> 1) or squashes (< 1) B1's distribution along its principal directions.  Invariant
           under any linear reparameterisation.  Entries beyond the factor's rank are zero (no width at all).
+          Also per body-order block (stretch_<k>_b<n>): the same for the block's marginal covariances, so each
+          principal direction belongs to one body order (whole-space directions mix them).
 
     SIQ_RUNS=<BLR root> python -m bench.si_qoi_uq.analysis.cov_shapes o3d12 o4d20 -> results/cov_shapes_<m>.npz
 """
@@ -41,6 +43,12 @@ def main():
             s = np.linalg.svd(scipy.linalg.solve_triangular(L1, F[k], lower=True), compute_uv=False)
             out[f"stretch_{k}"] = s                        # sqrt of the generalised eigenvalues, descending
             out[f"rank_{k}"] = int((s > s[0] * 1e-8).sum())
+            for b in np.unique(out["bc"]):
+                i = out["bc"] == b
+                Lb1 = np.linalg.cholesky(F["b1"][i] @ F["b1"][i].T)
+                sb = np.linalg.svd(scipy.linalg.solve_triangular(Lb1, F[k][i], lower=True), compute_uv=False)
+                out[f"stretch_{k}_b{int(b)}"] = sb
+                out[f"rank_{k}_b{int(b)}"] = int((sb > sb[0] * 1e-8).sum()) if sb[0] > 0 else 0
         for k, L in F.items():
             C = L @ L.T
             d = np.sqrt(np.diag(C))
