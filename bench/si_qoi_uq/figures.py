@@ -620,7 +620,13 @@ def all_figures(results, out, runs, models, extras, contexts=("paper", "talk")):
 
     set_context("paper")
 
-COV_METH = (("b1", "B1: posterior × q̂", CAT[1]), ("b2", "B2: POPS box", CAT[2]), ("hl", "CR3 × λ$_F$ (headline)", CAT[0]))
+# Talk method colours: never CAT[0]/CAT[1], which the strip plots (fig6, fig8) use for the two model sizes.  B1 and POPS
+# keep their fig7 colours (green, amber).  The headline is a deep magenta outside CAT: every free CAT slot sat within
+# OKLab dE 6 of a model or method colour under simulated deutan/protan vision (CAT[5] purple: 5.5 from the model
+# blue); #a8277e is >= 14 from all four, >= 8.9 from the prior's grey, contrast 6.4:1 on white.
+METH_COL = {"headline": "#a8277e", "B1": CAT[2], "B2": CAT[3]}
+COV_METH = (("b1", "B1: posterior × q̂", METH_COL["B1"]), ("b2", "B2: POPS box", METH_COL["B2"]),
+            ("hl", "CR3 × λ$_F$ (headline)", METH_COL["headline"]))
 COV_PRIOR = ("prior", "prior", MUTED)
 
 
@@ -746,7 +752,7 @@ def talk_keynote(results, out, m="o4d20"):
     talk_strip_headline: fig6's headline row alone, counts in large type.  talk_summary_<m>: fig10 cut to one model,
     three methods (B3 dropped: near-zero bars) and the three coverages that carry the comparison (QoIs at 95 %; per-atom
     forces at 90 %, worst configuration type on the test split and held-out cracks and dislocations); same data.  The
-    target line spans only the calibrated methods: POPS has no level it aims at."""
+    legend notes that POPS has no calibration target."""
     set_context("talk")
     model_compare(results, out / "talk", ["o3d12", "o4d20"], panels=PANELS[:1], name="talk_strip_headline",
                   legend_size="small")
@@ -762,12 +768,11 @@ def talk_keynote(results, out, m="o4d20"):
         ax.spines["bottom"].set_color(MUTED)
         for yi, c in enumerate(meth):
             v, lab = fn(c)
-            ax.barh(yi, v, height=0.72, facecolor=col, edgecolor=INK, linewidth=0.8, zorder=3)
+            ax.barh(yi, v, height=0.72, facecolor=METH_COL[c[3]], edgecolor=INK, linewidth=0.8, zorder=3)
             ax.text(v - 2, yi, lab or f"{v:.0f} %", va="center", ha="right", fontsize="small", color=SURFACE, zorder=5,
                     fontweight="bold")                                      # inside the bar: clear of the nominal line
         # the target applies only to methods whose scale is set to reach it (CR3 x lam_F, B1); the POPS box has none
-        n_t = sum(1 for c in meth if c[3] != "B2")
-        ax.axvline(nom, ymin=(len(meth) - n_t) / len(meth), ymax=1, color=INK, lw=1.4, ls="--", zorder=4)
+        ax.axvline(nom, color=INK, lw=1.4, ls="--", zorder=4)
         ax.set_xlim(0, 105)
         ax.set_xticks([0, 50, 100])
         ax.set_ylim(len(y) - 0.5, -0.5)
@@ -779,7 +784,7 @@ def talk_keynote(results, out, m="o4d20"):
     axes[0].tick_params(axis="y", length=0, labelcolor=INK)
     fig.suptitle(f"{m}", x=0.01, ha="left", fontsize="medium", color=INK)
     fig.tight_layout(rect=(0, 0.05, 1, 1))
-    fig.text(0.99, 0.01, "dashed: target level of the calibrated methods; POPS has no target level", ha="right",
+    fig.text(0.99, 0.01, "dashed: target level (POPS has no calibration target)", ha="right",
              va="bottom", fontsize="x-small", color=MUTED)
     _save(fig, out / "talk", f"talk_summary_{m}")
 
@@ -807,12 +812,12 @@ def _keynote_cols(results, m):
 
 def talk_dumbbell(results, out, models=("o3d12", "o4d20")):
     """Talk only (not in the paper, not called by all_figures): the keynote comparison as one dumbbell chart, the
-    three coverages of _keynote_cols, one row per method (method colours of talk_cov_shapes), each method's two models
+    three coverages of _keynote_cols, one row per method (METH_COL), each method's two models
     as two dots joined by a line (hollow: smaller model, filled: larger; the arrow points to the larger).  The target
-    line spans only the calibrated methods: POPS has no level it aims at -> talk_dumbbell."""
+    legend notes that POPS has no calibration target -> talk_dumbbell."""
     set_context("talk")
     meth = SUMMARY_METH[:3]
-    mcol = {"headline": CAT[0], "B1": CAT[1], "B2": CAT[2]}
+    mcol = METH_COL
     vals = {m: _keynote_cols(results, m) for m in models}
     fig, axes = plt.subplots(1, 3, figsize=(12, 4.6), sharey=True, facecolor=SURFACE)
     y = np.arange(len(meth))
@@ -837,8 +842,7 @@ def talk_dumbbell(results, out, models=("o3d12", "o4d20")):
                 ax.text(v + (-4 if left else 4), yi - 0.3, l or f"{v:.0f}", ha="right" if left else "left", va="center",
                         fontsize="x-small", color=INK, zorder=5,
                         bbox=dict(boxstyle="square,pad=0.1", fc=SURFACE, ec="none"))   # target line passes behind
-        n_t = sum(1 for c in meth if c[3] != "B2")
-        ax.axvline(nom, ymin=(len(meth) - n_t) / len(meth), ymax=1, color=INK, lw=1.4, ls="--", zorder=2)
+        ax.axvline(nom, color=INK, lw=1.4, ls="--", zorder=2)
         ax.set_xlim(20, 105)
         ax.set_xticks([25, 50, 75, 100])
         ax.set_ylim(len(meth) - 0.5, -0.65)
@@ -852,7 +856,7 @@ def talk_dumbbell(results, out, models=("o3d12", "o4d20")):
     axes[0].tick_params(axis="y", length=0)
     h = [plt.Line2D([], [], ls="", marker="o", ms=11, mfc=SURFACE, mec=INK, mew=2.4, label=models[0]),
          plt.Line2D([], [], ls="", marker="o", ms=11, mfc=INK, mec=INK, mew=2.4, label=models[1]),
-         plt.Line2D([], [], color=INK, lw=1.4, ls="--", label="target (calibrated methods; POPS has none)")]
+         plt.Line2D([], [], color=INK, lw=1.4, ls="--", label="target level (POPS has no calibration target)")]
     fig.legend(handles=h, loc="lower center", ncol=3, frameon=False, fontsize="x-small", bbox_to_anchor=(0.55, -0.01))
     fig.tight_layout(rect=(0, 0.07, 1, 1))
     _save(fig, out / "talk", "talk_dumbbell")
