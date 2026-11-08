@@ -745,7 +745,8 @@ def talk_keynote(results, out, m="o4d20"):
     """Talk only (not in the paper, not called by all_figures): keynote-sized versions of two paper figures.
     talk_strip_headline: fig6's headline row alone, counts in large type.  talk_summary_<m>: fig10 cut to one model,
     three methods (B3 dropped: near-zero bars) and the three coverages that carry the comparison (QoIs at 95 %; per-atom
-    forces at 90 %, worst configuration type on the test split and held-out cracks and dislocations); same data."""
+    forces at 90 %, worst configuration type on the test split and held-out cracks and dislocations); same data.  The
+    target line spans only the calibrated methods: POPS has no level it aims at."""
     set_context("talk")
     model_compare(results, out / "talk", ["o3d12", "o4d20"], panels=PANELS[:1], name="talk_strip_headline",
                   legend_size="small")
@@ -760,9 +761,9 @@ def talk_keynote(results, out, m="o4d20"):
     def qcov(c):
         r = cov[(m, c[0], c[1])]
         return 100 * float(r["k95"]) / float(r["n"]), f"{int(float(r['k95']))}/{int(float(r['n']))}"
-    cols = (("properties (QoIs)", "coverage of DFT, nominal 95 %", lambda c: qcov(c), 95, CAT[2]),
-            ("forces, worst type", "test split, nominal 90 %", lambda c: (worst(c[3]), None), 90, CAT[5]),
-            ("forces, held out", "cracks + dislocations, nominal 90 %",
+    cols = (("properties (QoIs)", "coverage of DFT, target 95 %", lambda c: qcov(c), 95, CAT[2]),
+            ("forces, worst type", "test split, target 90 %", lambda c: (worst(c[3]), None), 90, CAT[5]),
+            ("forces, held out", "cracks + dislocations, target 90 %",
              lambda c: (100 * fm["ood"]["all"][c[3]]["coverage"], None), 90, CAT[5]))
     fig, axes = plt.subplots(1, 3, figsize=(12, 4.2), sharey=True, facecolor=SURFACE)
     y = np.arange(len(meth))
@@ -777,7 +778,9 @@ def talk_keynote(results, out, m="o4d20"):
             ax.barh(yi, v, height=0.72, facecolor=col, edgecolor=INK, linewidth=0.8, zorder=3)
             ax.text(v - 2, yi, lab or f"{v:.0f} %", va="center", ha="right", fontsize="small", color=SURFACE, zorder=5,
                     fontweight="bold")                                      # inside the bar: clear of the nominal line
-        ax.axvline(nom, color=INK, lw=1.4, ls="--", zorder=4)
+        # the target applies only to methods whose scale is set to reach it (CR3 x lam_F, B1); the POPS box has none
+        n_t = sum(1 for c in meth if c[3] != "B2")
+        ax.axvline(nom, ymin=(len(meth) - n_t) / len(meth), ymax=1, color=INK, lw=1.4, ls="--", zorder=4)
         ax.set_xlim(0, 105)
         ax.set_xticks([0, 50, 100])
         ax.set_ylim(len(y) - 0.5, -0.5)
@@ -788,5 +791,7 @@ def talk_keynote(results, out, m="o4d20"):
     axes[0].set_yticks(y, [c[4] for c in meth], fontsize="small")
     axes[0].tick_params(axis="y", length=0, labelcolor=INK)
     fig.suptitle(f"{m}", x=0.01, ha="left", fontsize="medium", color=INK)
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    fig.text(0.99, 0.01, "dashed: target level of the calibrated methods; POPS has no target level", ha="right",
+             va="bottom", fontsize="x-small", color=MUTED)
     _save(fig, out / "talk", f"talk_summary_{m}")
