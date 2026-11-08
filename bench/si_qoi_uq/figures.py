@@ -706,24 +706,25 @@ def talk_cov_shapes(results, out, corr_model="o3d12", models=("o3d12", "o4d20"),
 
 
 def talk_cov_qoi(results, out, models=("o3d12", "o4d20")):
-    """Talk only (not in the paper, not called by all_figures): the prior and the three parameter distributions
-    pushed to the QoIs through the implicit-differentiation rows (results/cov_shapes_<m>.npz, linear as the delta
-    method), as correlation matrices in the order and colours of talk_cov_shapes; one figure per model."""
+    """Talk only (not in the paper, not called by all_figures): the three parameter distributions pushed to the QoIs through the implicit-differentiation rows (results/cov_shapes_<m>.npz, linear as the delta
+    method), as correlation matrices in the order and colours of talk_cov_shapes; one figure per model.  No prior
+    panel: an uncalibrated prior pushed to the QoIs is not a distribution anyone would propagate."""
     set_context("talk")
     for m in models:
         z = np.load(results / f"cov_shapes_{m}.npz")
         keys, grp = [str(k) for k in z["qoi_keys"]], [str(g) for g in z["qoi_group"]]
         n = len(keys)
         edges = [i - 0.5 for i in range(1, n) if grp[i] != grp[i - 1]]
-        fig = plt.figure(figsize=(12, 4.4), facecolor=SURFACE)
-        gs = fig.add_gridspec(1, 5, width_ratios=[1, 1, 1, 1, 0.045], wspace=0.06)
-        for j, (k, lab, col) in enumerate((("prior", "prior", MUTED),) + COV_METH):
+        fig = plt.figure(figsize=(12, 4.9), facecolor=SURFACE)
+        gs = fig.add_gridspec(1, 4, width_ratios=[1, 1, 1, 0.045], wspace=0.06)
+        for j, (k, lab, col) in enumerate(COV_METH):
             ax = fig.add_subplot(gs[j])
             im = ax.imshow(z[f"qoi_corr_{k}"], cmap="RdBu_r", vmin=-1, vmax=1, interpolation="nearest")
             for e in edges:
                 ax.axhline(e, color=INK, lw=0.7)
                 ax.axvline(e, color=INK, lw=0.7)
-            lab_q = [short(q).replace("_", " ") for q in keys]       # talk-only tidy; short() is shared with the paper
+            lab_q = [short(q) if "$" in short(q) else short(q).replace("_", " ") for q in keys]   # talk-only tidy
+                                                                     # (short() is shared with the paper; keep mathtext)
             ax.set_xticks(range(n), lab_q, rotation=90)
             ax.set_yticks(range(n), lab_q if j == 0 else [])
             ax.tick_params(length=0, labelsize=7, labelcolor=INK)
@@ -732,7 +733,7 @@ def talk_cov_qoi(results, out, models=("o3d12", "o4d20")):
                 sp.set_linewidth(3)
             ax.set_title(f"{lab}\nmean |ρ| = {float(z[f'qoi_mean_abs_corr_{k}']):.2f}", fontsize="x-small", color=INK,
                          loc="left")
-        cb = fig.colorbar(im, cax=fig.add_subplot(gs[4]), ticks=[-1, 0, 1])
+        cb = fig.colorbar(im, cax=fig.add_subplot(gs[3]), ticks=[-1, 0, 1])
         cb.set_label(f"QoI correlation, {m}", fontsize="x-small", color=INK)
         cb.ax.tick_params(labelsize="x-small", colors=MUTED, labelcolor=INK)
         cb.outline.set_visible(False)
