@@ -536,8 +536,8 @@ The CR3 construction on the Lennard-Jones (LJ) example of the interactive regres
 lj-cr3], computed exactly. (a) A degree-5 polynomial, fitted by Bayesian ridge regression with evidence-optimised
 hyperparameters to 197 nearly noiseless samples (noise standard deviation 0.001, as for DFT labels) of the smooth part of a
 Lennard-Jones curve, cannot follow the steep repulsive side and the well: the error is approximation error, not noise. The
-posterior band (orange; \(\sigma^2A^{-1}\) in the demo's unwhitened rows) is barely visible. The CR3 band (blue), scaled by λ from 50 held-out calibration
-points, is wide where the fit is wrong: on the steep side near x = 0 and at the right-hand end. (b) Each dot is the change of
+posterior band (green; \(\sigma^2A^{-1}\) in the demo's unwhitened rows) is barely visible. The CR3 band (magenta), scaled by λ from 50 held-out calibration
+points (crosses), is wide where the fit is wrong: on the steep side near x = 0 and at the right-hand end. (b) Each dot is the change of
 the fitted curve when one training point is left out, \(-A^{-1}\tilde g_k\), in the two leading principal curves of the CR3
 covariance of the prediction; the closed form reproduces the refit to the precision the basis allows. The points on the steep
 side and in the well (x &lt; 1) move the fit most. The CR3 covariance is the sum of these shifts' outer products over the 197
