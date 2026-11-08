@@ -298,7 +298,8 @@ def summary_fig(results, out, models):
     _save(fig, out, "fig10_summary")
 
 
-def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=False, panels=PANELS):
+def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=False, panels=PANELS, name=None,
+                  legend_size="x-small"):
     """Per QoI, (Q - Q_DFT) / tolerance for each model with its 95 % interval, DFT as a cross at 0: the bigger
     model's intervals are tighter while coverage stays similar.  Symmetric-log axis, linear within +-1 tolerance.
     One row per method in `panels` (headline first, then the baselines), shared axes -> fig6_model_compare.
@@ -351,12 +352,12 @@ def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=Fa
             ax.set_title(title, color=INK, fontsize="medium", loc="left")
         hs, ls_ = ax.get_legend_handles_labels()
         keep = [i for i, l_ in enumerate(ls_) if ip == 0 or l_.startswith(tuple(order))]     # shared entries once, on top
-        ax.legend([hs[i] for i in keep], [ls_[i] for i in keep], fontsize="x-small", frameon=False, ncol=2, columnspacing=1.0,
+        ax.legend([hs[i] for i in keep], [ls_[i] for i in keep], fontsize=legend_size, frameon=False, ncol=2, columnspacing=1.0,
                   handletextpad=0.3,
                   loc="lower left" if ip == 0 else "lower right", bbox_to_anchor=(0, 1.08) if ip == 0 else (1.0, 1.0))
     axes[-1, 0].set_xticks(x, [short(k) for k in COVER_KEYS], rotation=60, ha="right")
     fig.tight_layout()
-    _save(fig, out, "fig8_model_compare_disc" if disc else "fig6_model_compare")
+    _save(fig, out, name or ("fig8_model_compare_disc" if disc else "fig6_model_compare"))
 
 
 def force_calibration(results, out, nbins=20, level=0.9, min_atoms=300):
@@ -738,3 +739,54 @@ def talk_cov_qoi(results, out, models=("o3d12", "o4d20")):
         cb.ax.tick_params(labelsize="x-small", colors=MUTED, labelcolor=INK)
         cb.outline.set_visible(False)
         _save(fig, out / "talk", f"talk_cov_qoi_{m}")
+
+
+def talk_keynote(results, out, m="o4d20"):
+    """Talk only (not in the paper, not called by all_figures): keynote-sized versions of two paper figures.
+    talk_strip_headline: fig6's headline row alone, counts in large type.  talk_summary_<m>: fig10 cut to one model,
+    three methods (B3 dropped: near-zero bars) and the three coverages that carry the comparison (QoIs at 95 %; per-atom
+    forces at 90 %, worst configuration type on the test split and held-out cracks and dislocations); same data."""
+    set_context("talk")
+    model_compare(results, out / "talk", ["o3d12", "o4d20"], panels=PANELS[:1], name="talk_strip_headline",
+                  legend_size="small")
+    cov = {(r["model"], r["method"], r["scale"]): r for r in csv.DictReader(open(results / "coverage.csv"))}
+    fm = json.load(open(results / f"force_methods_{m}.json"))
+    from scipy.stats import chi
+    k3 = chi(3).ppf(0.9)
+    b = np.load(results / f"force_baselines_{m}.npz", allow_pickle=True)
+    ty, cnt = np.unique(b["config_type"], return_counts=True)
+    worst = lambda k: 100 * min(np.mean(b[f"d_{k}"][b["config_type"] == x] <= k3) for x in ty[cnt >= 300])
+    meth = SUMMARY_METH[:3]
+    def qcov(c):
+        r = cov[(m, c[0], c[1])]
+        return 100 * float(r["k95"]) / float(r["n"]), f"{int(float(r['k95']))}/{int(float(r['n']))}"
+    cols = (("properties (QoIs)", "coverage of DFT, nominal 95 %", lambda c: qcov(c), 95, CAT[2]),
+            ("forces, worst type", "test split, nominal 90 %", lambda c: (worst(c[3]), None), 90, CAT[5]),
+            ("forces, held out", "cracks + dislocations, nominal 90 %",
+             lambda c: (100 * fm["ood"]["all"][c[3]]["coverage"], None), 90, CAT[5]))
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4.2), sharey=True, facecolor=SURFACE)
+    y = np.arange(len(meth))
+    for ax, (title, sub, fn, nom, col) in zip(axes, cols):
+        ax.set_facecolor(SURFACE)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+        ax.spines["left"].set_color(MUTED)
+        ax.spines["bottom"].set_color(MUTED)
+        for yi, c in enumerate(meth):
+            v, lab = fn(c)
+            ax.barh(yi, v, height=0.72, facecolor=col, edgecolor=INK, linewidth=0.8, zorder=3)
+            ax.text(v - 2, yi, lab or f"{v:.0f} %", va="center", ha="right", fontsize="small", color=SURFACE, zorder=5,
+                    fontweight="bold")                                      # inside the bar: clear of the nominal line
+        ax.axvline(nom, color=INK, lw=1.4, ls="--", zorder=4)
+        ax.set_xlim(0, 105)
+        ax.set_xticks([0, 50, 100])
+        ax.set_ylim(len(y) - 0.5, -0.5)
+        ax.tick_params(axis="x", labelsize="x-small", colors=MUTED, labelcolor=INK)
+        ax.set_title(f"{title}\n", fontsize="medium", color=INK, loc="left")
+        ax.text(0, 1.03, sub, transform=ax.transAxes, fontsize="x-small", color=MUTED, va="bottom")
+        ax.set_xlabel("coverage / %", fontsize="x-small", color=INK)
+    axes[0].set_yticks(y, [c[4] for c in meth], fontsize="small")
+    axes[0].tick_params(axis="y", length=0, labelcolor=INK)
+    fig.suptitle(f"{m}", x=0.01, ha="left", fontsize="medium", color=INK)
+    fig.tight_layout()
+    _save(fig, out / "talk", f"talk_summary_{m}")
