@@ -1307,7 +1307,8 @@ ellipsoids of the method's own 3×3 covariance; an isotropic ball |ΔF| ≤ σ(�
 Top: binned on predicted σ (20 equal-count bins), RMS observed |ΔF| against RMS σ, for the CR3 shape with one hold-out
 quantile (the method) and with the learned scale (σ<sub>F,i</sub> from the 90 % quantile), and for the per-atom σ of the
 propagation's methods: CR3 × λ<sub>F</sub> (the headline), B1 (posterior × q̂), B2 (POPS, 50 % leverage cut; the
-box's uniform variance) and B3 (CR3, λ = 1); the per-atom density behind. Points below the diagonal are conservative.
+box's uniform variance) and B3 (CR3, λ = 1). The grey density behind is the individual test atoms of the first of these,
+the CR3 shape with one hold-out quantile (its σ against |ΔF|); the other methods are shown by their bins only. Points below the diagonal are conservative.
 Bottom: test coverage of the 90 % region, overall and per GAP-18 configuration type with at least 300 test atoms. Every
 method's region is the same kind: the ellipsoid of its own 3×3 force covariance, e<sup>T</sup>C<sup>−1</sup>e ≤ χ<sup>2</sup><sub>3</sub>(0.9)
 (for the one quantile and the learned scale this is their conformal region). The headline's λ<sub>F</sub> is fitted on the test split itself, so its per-atom coverage here is in sample.</figcaption></figure>

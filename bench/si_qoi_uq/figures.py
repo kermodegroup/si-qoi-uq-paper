@@ -364,7 +364,8 @@ def force_calibration(results, out, nbins=20, level=0.9, min_atoms=300):
     """Per-atom force uncertainty against the observed error on the test split, per model.  Top: binned on predicted sigma
     (equal counts), RMS |error| against RMS sigma, for the CR3 shape with one hold-out conformal quantile and with the
     learned continuous scale (ARD fit, ood/learned_scale.py; sigma = radius sqrt(v) / chi_3^-1(level)), and the
-    propagation's methods on the BLR fit (analysis/force_baselines.py: CR3 x lam_F, B1, B2, B3), per-atom density behind.
+    propagation's methods on the BLR fit (analysis/force_baselines.py: CR3 x lam_F, B1, B2, B3); the grey per-atom density
+    behind is the one-quantile method's (traces[0]) only.
     Bottom: coverage at `level` overall and per GAP-18 configuration type with >= min_atoms test atoms, every method's
     region the Gaussian ellipsoid of its own 3x3 force covariance, e^T (C + eps tr C/3 I)^-1 e <= chi_3^-1(level)^2: for the
     one quantile and the learned scale that is their conformal region (s <= q); for the others d_<k> of force_baselines
