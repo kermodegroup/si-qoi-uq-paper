@@ -298,7 +298,8 @@ def summary_fig(results, out, models):
     _save(fig, out, "fig10_summary")
 
 
-def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=False, panels=PANELS):
+def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=False, panels=PANELS, name=None,
+                  legend_size="x-small"):
     """Per QoI, (Q - Q_DFT) / tolerance for each model with its 95 % interval, DFT as a cross at 0: the bigger
     model's intervals are tighter while coverage stays similar.  Symmetric-log axis, linear within +-1 tolerance.
     One row per method in `panels` (headline first, then the baselines), shared axes -> fig6_model_compare.
@@ -351,12 +352,12 @@ def model_compare(results, out, models, meth="CR3-headline", sc="lam_F", disc=Fa
             ax.set_title(title, color=INK, fontsize="medium", loc="left")
         hs, ls_ = ax.get_legend_handles_labels()
         keep = [i for i, l_ in enumerate(ls_) if ip == 0 or l_.startswith(tuple(order))]     # shared entries once, on top
-        ax.legend([hs[i] for i in keep], [ls_[i] for i in keep], fontsize="x-small", frameon=False, ncol=2, columnspacing=1.0,
+        ax.legend([hs[i] for i in keep], [ls_[i] for i in keep], fontsize=legend_size, frameon=False, ncol=2, columnspacing=1.0,
                   handletextpad=0.3,
                   loc="lower left" if ip == 0 else "lower right", bbox_to_anchor=(0, 1.08) if ip == 0 else (1.0, 1.0))
     axes[-1, 0].set_xticks(x, [short(k) for k in COVER_KEYS], rotation=60, ha="right")
     fig.tight_layout()
-    _save(fig, out, "fig8_model_compare_disc" if disc else "fig6_model_compare")
+    _save(fig, out, name or ("fig8_model_compare_disc" if disc else "fig6_model_compare"))
 
 
 def force_calibration(results, out, nbins=20, level=0.9, min_atoms=300):
@@ -618,3 +619,244 @@ def all_figures(results, out, runs, models, extras, contexts=("paper", "talk")):
         json.dump({"correlation_model": m3}, open(o / "figures.json", "w"))
 
     set_context("paper")
+
+# Talk method colours: never CAT[0]/CAT[1], which the strip plots (fig6, fig8) use for the two model sizes.  B1 and POPS
+# keep their fig7 colours (green, amber).  The headline is a deep magenta outside CAT: every free CAT slot sat within
+# OKLab dE 6 of a model or method colour under simulated deutan/protan vision (CAT[5] purple: 5.5 from the model
+# blue); #a8277e is >= 14 from all four, >= 8.9 from the prior's grey, contrast 6.4:1 on white.
+METH_COL = {"headline": "#a8277e", "B1": CAT[2], "B2": CAT[3]}
+COV_METH = (("b1", "B1: posterior × q̂", METH_COL["B1"]), ("b2", "B2: POPS box", METH_COL["B2"]),
+            ("hl", "CR3 × λ$_F$ (headline)", METH_COL["headline"]))
+COV_PRIOR = ("prior", "prior", MUTED)
+
+
+def talk_cov_shapes(results, out, corr_model="o3d12", models=("o3d12", "o4d20"), floor=1e-4):
+    """Talk only (not in the paper, not called by all_figures): the shapes of the three parameter distributions
+    (results/cov_shapes_<m>.npz, analysis/cov_shapes.py).  Top: correlation matrices of corr_model, the prior (shared,
+    diagonal) first, parameters sorted
+    by body order (a raw covariance shows nothing: the standard deviations span ~8 decades).  Bottom: per model, how
+    far the headline and POPS stretch or squash B1 along its principal directions (generalised eigenvalues in B1's
+    metric, each method at its own calibration; the prior unscaled), computed within each body-order block so the axis can be labelled
+    by body order (whole-space directions mix them); each curve ends at its rank, beyond which the width is zero,
+    and values below `floor` are drawn at it (marked ▼)."""
+    set_context("talk")
+    z = {m: np.load(results / f"cov_shapes_{m}.npz") for m in models}
+    fig = plt.figure(figsize=(12, 6.75), facecolor=SURFACE)
+    gs = fig.add_gridspec(2, 1, height_ratios=[1.15, 1], hspace=0.62)
+    top = gs[0].subgridspec(1, 5, width_ratios=[1, 1, 1, 1, 0.045], wspace=0.08)
+    bot = gs[1].subgridspec(1, len(models), wspace=0.22)
+    c = z[corr_model]
+    bc = c["bc"]
+    edges = np.flatnonzero(np.diff(bc)) + 0.5
+    mid = (np.r_[-0.5, edges] + np.r_[edges, len(bc) - 0.5]) / 2
+    orders = [str(int(b)) for b in np.unique(bc)]
+    for j, (k, lab, col) in enumerate((("prior", "prior (all)", MUTED),) + COV_METH):
+        ax = fig.add_subplot(top[j])
+        im = ax.imshow(c[f"corr_{k}"], cmap="RdBu_r", vmin=-1, vmax=1, interpolation="nearest")
+        for e in edges:
+            ax.axhline(e, color=INK, lw=0.7)
+            ax.axvline(e, color=INK, lw=0.7)
+        ax.set_xticks(mid, orders)
+        ax.set_yticks(mid, orders if j == 0 else [])
+        ax.tick_params(length=0, labelsize="x-small", labelcolor=MUTED)
+        if j == 0:
+            ax.set_ylabel("body order", fontsize="x-small", color=MUTED)
+        for sp in ax.spines.values():
+            sp.set_color(col)
+            sp.set_linewidth(3)
+        ax.set_title(lab, fontsize="small", color=INK, loc="left")
+        ax.set_xlabel(f"mean |ρ| = {float(c[f'mean_abs_corr_{k}']):.2f}", fontsize="x-small", color=INK)
+    cb = fig.colorbar(im, cax=fig.add_subplot(top[4]), ticks=[-1, 0, 1])
+    cb.set_label(f"correlation, {corr_model}", fontsize="x-small", color=INK)
+    cb.ax.tick_params(labelsize="x-small", colors=MUTED, labelcolor=INK)
+    cb.outline.set_visible(False)
+    for i, m in enumerate(models):
+        ax = fig.add_subplot(bot[i])
+        _style(ax)
+        ax.grid(axis="y", color=GRID, lw=0.6)
+        zm = z[m]
+        orders = [int(b) for b in np.unique(zm["bc"])]
+        ax.axhline(1, color=INK, lw=1.2, ls="--", zorder=1)
+        for n, b in enumerate(orders):                     # one equal-width segment per body order
+            nb = int((zm["bc"] == b).sum())
+            if n:
+                ax.axvline(n, color=MUTED, lw=0.8)
+            ax.text(n + 0.5, 1.02, f"{b}-body", transform=ax.get_xaxis_transform(), ha="center", va="bottom",
+                    fontsize="xx-small", color=INK)
+            ax.text(n + 0.5, -0.04, f"{nb}", transform=ax.get_xaxis_transform(), ha="center", va="top",
+                    fontsize="xx-small", color=MUTED)
+            for k, lab, col in (COV_PRIOR,) + COV_METH[1:]:
+                r = int(zm[f"rank_{k}_b{b}"])
+                sb = np.asarray(zm[f"stretch_{k}_b{b}"])[:r]
+                if not r:
+                    continue
+                x = n + (np.arange(r) + 0.5) / nb
+                below = np.flatnonzero(sb < floor)
+                e = below[0] if len(below) else r            # stop at the floor: ▼ marks where the curve leaves it
+                ax.plot(x[:e + 1] if e < r else x, np.maximum(sb[:e + 1] if e < r else sb, floor), color=col, lw=2.0,
+                        zorder=3, solid_capstyle="butt")
+                ax.plot(x[min(e, r - 1)], floor if e < r else sb[-1], "v" if e < r else "o", color=col, ms=6,
+                        mec=SURFACE, zorder=4, clip_on=False)
+        ax.set_xlim(0, len(orders))
+        ax.set_xticks([])
+        ax.set_yscale("log")
+        ax.set_ylim(floor, 1e7)
+        ax.set_title(f"{m}: width relative to B1, per body order", fontsize="x-small", color=INK, loc="left", pad=22)
+        if i == 0:
+            ax.set_ylabel("width / B1 width", fontsize="x-small", color=INK)
+    fig.text(0.5, 0.035, "principal directions, sorted within each body-order block (number of parameters below the axis);"
+             " ● rank reached, ▼ below 10$^{-4}$", ha="center", fontsize="xx-small", color=INK)
+    h = [plt.Line2D([], [], color=col, lw=2.4, label=lab) for k, lab, col in (COV_PRIOR,) + COV_METH[1:]]
+    h.append(plt.Line2D([], [], color=INK, lw=1.2, ls="--", label="B1: posterior × q̂ (= 1)"))
+    fig.legend(handles=h, loc="lower center", bbox_to_anchor=(0.5, -0.03), ncol=4, frameon=False, fontsize="x-small")
+    _save(fig, out / "talk", "talk_cov_shapes")
+
+
+def talk_cov_qoi(results, out, models=("o3d12", "o4d20")):
+    """Talk only (not in the paper, not called by all_figures): the three parameter distributions pushed to the QoIs through the implicit-differentiation rows (results/cov_shapes_<m>.npz, linear as the delta
+    method), as correlation matrices in the order and colours of talk_cov_shapes; one figure per model.  No prior
+    panel: an uncalibrated prior pushed to the QoIs is not a distribution anyone would propagate."""
+    set_context("talk")
+    for m in models:
+        z = np.load(results / f"cov_shapes_{m}.npz")
+        keys, grp = [str(k) for k in z["qoi_keys"]], [str(g) for g in z["qoi_group"]]
+        n = len(keys)
+        edges = [i - 0.5 for i in range(1, n) if grp[i] != grp[i - 1]]
+        fig = plt.figure(figsize=(12, 4.9), facecolor=SURFACE)
+        gs = fig.add_gridspec(1, 4, width_ratios=[1, 1, 1, 0.045], wspace=0.06)
+        for j, (k, lab, col) in enumerate(COV_METH):
+            ax = fig.add_subplot(gs[j])
+            im = ax.imshow(z[f"qoi_corr_{k}"], cmap="RdBu_r", vmin=-1, vmax=1, interpolation="nearest")
+            for e in edges:
+                ax.axhline(e, color=INK, lw=0.7)
+                ax.axvline(e, color=INK, lw=0.7)
+            lab_q = [short(q) if "$" in short(q) else short(q).replace("_", " ") for q in keys]   # talk-only tidy
+                                                                     # (short() is shared with the paper; keep mathtext)
+            ax.set_xticks(range(n), lab_q, rotation=90)
+            ax.set_yticks(range(n), lab_q if j == 0 else [])
+            ax.tick_params(length=0, labelsize=7, labelcolor=INK)
+            for sp in ax.spines.values():
+                sp.set_color(col)
+                sp.set_linewidth(3)
+            ax.set_title(f"{lab}\nmean |ρ| = {float(z[f'qoi_mean_abs_corr_{k}']):.2f}", fontsize="x-small", color=INK,
+                         loc="left")
+        cb = fig.colorbar(im, cax=fig.add_subplot(gs[3]), ticks=[-1, 0, 1])
+        cb.set_label(f"QoI correlation, {m}", fontsize="x-small", color=INK)
+        cb.ax.tick_params(labelsize="x-small", colors=MUTED, labelcolor=INK)
+        cb.outline.set_visible(False)
+        _save(fig, out / "talk", f"talk_cov_qoi_{m}")
+
+
+def talk_keynote(results, out, m="o4d20"):
+    """Talk only (not in the paper, not called by all_figures): keynote-sized versions of two paper figures.
+    talk_strip_headline: fig6's headline row alone, counts in large type.  talk_summary_<m>: fig10 cut to one model,
+    three methods (B3 dropped: near-zero bars) and the three coverages that carry the comparison (QoIs at 95 %; per-atom
+    forces at 90 %, worst configuration type on the test split and held-out cracks and dislocations); same data.  The
+    legend notes that POPS has no calibration target."""
+    set_context("talk")
+    model_compare(results, out / "talk", ["o3d12", "o4d20"], panels=PANELS[:1], name="talk_strip_headline",
+                  legend_size="small")
+    meth = SUMMARY_METH[:3]
+    cols = _keynote_cols(results, m)
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4.2), sharey=True, facecolor=SURFACE)
+    y = np.arange(len(meth))
+    for ax, (title, sub, fn, nom, col) in zip(axes, cols):
+        ax.set_facecolor(SURFACE)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+        ax.spines["left"].set_color(MUTED)
+        ax.spines["bottom"].set_color(MUTED)
+        for yi, c in enumerate(meth):
+            v, lab = fn(c)
+            ax.barh(yi, v, height=0.72, facecolor=METH_COL[c[3]], edgecolor=INK, linewidth=0.8, zorder=3)
+            ax.text(v - 2, yi, lab or f"{v:.0f} %", va="center", ha="right", fontsize="small", color=SURFACE, zorder=5,
+                    fontweight="bold")                                      # inside the bar: clear of the nominal line
+        # the target applies only to methods whose scale is set to reach it (CR3 x lam_F, B1); the POPS box has none
+        ax.axvline(nom, color=INK, lw=1.4, ls="--", zorder=4)
+        ax.set_xlim(0, 105)
+        ax.set_xticks([0, 50, 100])
+        ax.set_ylim(len(y) - 0.5, -0.5)
+        ax.tick_params(axis="x", labelsize="x-small", colors=MUTED, labelcolor=INK)
+        ax.set_title(f"{title}\n", fontsize="medium", color=INK, loc="left")
+        ax.text(0, 1.03, sub, transform=ax.transAxes, fontsize="x-small", color=MUTED, va="bottom")
+        ax.set_xlabel("coverage / %", fontsize="x-small", color=INK)
+    axes[0].set_yticks(y, [c[4] for c in meth], fontsize="small")
+    axes[0].tick_params(axis="y", length=0, labelcolor=INK)
+    fig.suptitle(f"{m}", x=0.01, ha="left", fontsize="medium", color=INK)
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
+    fig.text(0.99, 0.01, "dashed: target level (POPS has no calibration target)", ha="right",
+             va="bottom", fontsize="x-small", color=MUTED)
+    _save(fig, out / "talk", f"talk_summary_{m}")
+
+
+def _keynote_cols(results, m):
+    """The three coverages of the keynote comparison for model m, as (title, subtitle, fn(method) -> (value %, label
+    or None), target %, colour): QoIs at 95 % (results/coverage.csv); per-atom forces at 90 %, the worst configuration
+    type (>= 300 test atoms, force_baselines_<m>.npz) and the held-out cracks and dislocations (force_methods_<m>.json)."""
+    cov = {(r["model"], r["method"], r["scale"]): r for r in csv.DictReader(open(results / "coverage.csv"))}
+    fm = json.load(open(results / f"force_methods_{m}.json"))
+    from scipy.stats import chi
+    k3 = chi(3).ppf(0.9)
+    b = np.load(results / f"force_baselines_{m}.npz", allow_pickle=True)
+    ty, cnt = np.unique(b["config_type"], return_counts=True)
+    worst = lambda k: 100 * min(np.mean(b[f"d_{k}"][b["config_type"] == x] <= k3) for x in ty[cnt >= 300])
+
+    def qcov(c):
+        r = cov[(m, c[0], c[1])]
+        return 100 * float(r["k95"]) / float(r["n"]), f"{int(float(r['k95']))}/{int(float(r['n']))}"
+    return (("properties (QoIs)", "coverage of DFT, target 95 %", qcov, 95, CAT[2]),
+            ("forces, worst type", "test split, target 90 %", lambda c: (worst(c[3]), None), 90, CAT[5]),
+            ("forces, held out", "cracks + dislocations, target 90 %",
+             lambda c: (100 * fm["ood"]["all"][c[3]]["coverage"], None), 90, CAT[5]))
+
+
+def talk_dumbbell(results, out, models=("o3d12", "o4d20")):
+    """Talk only (not in the paper, not called by all_figures): the keynote comparison as one dumbbell chart, the
+    three coverages of _keynote_cols, one row per method (METH_COL), each method's two models
+    as two dots joined by a line (hollow: smaller model, filled: larger; the arrow points to the larger).  The target
+    legend notes that POPS has no calibration target -> talk_dumbbell."""
+    set_context("talk")
+    meth = SUMMARY_METH[:3]
+    mcol = METH_COL
+    vals = {m: _keynote_cols(results, m) for m in models}
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4.6), sharey=True, facecolor=SURFACE)
+    y = np.arange(len(meth))
+    for j, ax in enumerate(axes):
+        title, sub, _, nom, _ = vals[models[0]][j]
+        ax.set_facecolor(SURFACE)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+        ax.spines["left"].set_color(MUTED)
+        ax.spines["bottom"].set_color(MUTED)
+        ax.grid(axis="x", color=GRID, lw=0.6)
+        ax.set_axisbelow(True)
+        for yi, c in enumerate(meth):
+            col = mcol[c[3]]
+            (v0, l0), (v1, l1) = (vals[m][j][2](c) for m in models)
+            ax.annotate("", xy=(v1, yi), xytext=(v0, yi), zorder=3,
+                        arrowprops=dict(arrowstyle="-|>", color=col, lw=3.2, mutation_scale=16, shrinkA=7, shrinkB=8))
+            ax.plot(v0, yi, "o", ms=12, mfc=SURFACE, mec=col, mew=2.6, zorder=4)
+            ax.plot(v1, yi, "o", ms=12, mfc=col, mec=col, mew=2.6, zorder=4)
+            for v, l, other in ((v0, l0, v1), (v1, l1, v0)):          # label on the outer side of each dot
+                left = v < other or (v == other and l is l0)
+                ax.text(v + (-4 if left else 4), yi - 0.3, l or f"{v:.0f}", ha="right" if left else "left", va="center",
+                        fontsize="x-small", color=INK, zorder=5,
+                        bbox=dict(boxstyle="square,pad=0.1", fc=SURFACE, ec="none"))   # target line passes behind
+        ax.axvline(nom, color=INK, lw=1.4, ls="--", zorder=2)
+        ax.set_xlim(20, 105)
+        ax.set_xticks([25, 50, 75, 100])
+        ax.set_ylim(len(meth) - 0.5, -0.65)
+        ax.tick_params(axis="x", labelsize="x-small", colors=MUTED, labelcolor=INK)
+        ax.set_title(f"{title}\n", fontsize="medium", color=INK, loc="left")
+        ax.text(0, 1.03, sub, transform=ax.transAxes, fontsize="x-small", color=MUTED, va="bottom")
+        ax.set_xlabel("coverage / %", fontsize="x-small", color=INK)
+    axes[0].set_yticks(y, [c[4] for c in meth], fontsize="small")
+    for t, c in zip(axes[0].get_yticklabels(), meth):
+        t.set_color(mcol[c[3]])
+    axes[0].tick_params(axis="y", length=0)
+    h = [plt.Line2D([], [], ls="", marker="o", ms=11, mfc=SURFACE, mec=INK, mew=2.4, label=models[0]),
+         plt.Line2D([], [], ls="", marker="o", ms=11, mfc=INK, mec=INK, mew=2.4, label=models[1]),
+         plt.Line2D([], [], color=INK, lw=1.4, ls="--", label="target level (POPS has no calibration target)")]
+    fig.legend(handles=h, loc="lower center", ncol=3, frameon=False, fontsize="x-small", bbox_to_anchor=(0.55, -0.01))
+    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    _save(fig, out / "talk", "talk_dumbbell")

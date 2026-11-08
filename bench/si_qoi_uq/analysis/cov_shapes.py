@@ -1,0 +1,97 @@
+"""Shapes of the prior and the three parameter distributions behind the propagation (talk figure only; not in the paper):
+headline lam_F^2 * CR3, B1 q_b1^2 * posterior, B2 the POPS box at the 50 % leverage cut read as a Gaussian of its
+covariance (hi - lo)^2 / 12, as in analysis/force_methods.py.  Each at its own calibration, on the readout block
+(POPS has no E0 column), parameters sorted by body order.  The prior (the BLR fits' diag(dinv) at the MAP group
+precisions; no GP block) is the same for all three: its correlation matrix is the identity.  Its stretch relative
+to B1 is stored too (unscaled: B1 carries q_b1, the prior does not, so in directions the data leave alone the
+prior sits at 1 / q_b1).
+
+  corr    the correlation matrices (scale-free: per-parameter standard deviations span ~8 decades, so a raw
+          covariance or Cholesky-factor heatmap shows a handful of pixels).  Saved only for p <= MAX_CORR (o3d12):
+          at o4d20's p = 5476 a heatmap washes out at slide resolution.
+  stretch the generalised eigenvalues of each covariance in B1's metric, eig(L1^-1 C L1^-T) with C1 = L1 L1^T: how far
+          each method stretches (> 1) or squashes (< 1) B1's distribution along its principal directions.  Invariant
+          under any linear reparameterisation.  Entries beyond the factor's rank are zero (no width at all).
+          Also per body-order block (stretch_<k>_b<n>): the same for the block's marginal covariances, so each
+          principal direction belongs to one body order (whole-space directions mix them).
+
+  qoi     the same four distributions pushed to the QoIs through the implicit-differentiation rows G (RUNS/delta;
+          linear, as the delta method): correlation G C G^T in the paper's QoI order (propagate.KEYS), the basis-independent view.  The
+          E0 column of G is zero to roundoff, so the readout block loses nothing.
+
+    SIQ_RUNS=<BLR root> python -m bench.si_qoi_uq.analysis.cov_shapes o3d12 o4d20 -> results/cov_shapes_<m>.npz
+"""
+import json, sys
+
+import numpy as np
+
+MAX_CORR = 1000
+def _group(k):
+    return ("elastic" if k.startswith("diamond_") else "phases" if k.startswith("dE_") else
+            "defects" if k.endswith("_energy") else "planar")
+
+
+def main():
+    import jax
+    jax.config.update("jax_enable_x64", True)
+    import scipy.linalg
+    from ..run import RESULTS, RUNS, fit_dir, lin_for
+    from .force_methods import pops_factor
+    for m in sys.argv[1:]:
+        lin, linp = lin_for(m, "cr3"), lin_for(m, "kappa")
+        sc = json.load(open(RUNS / "diag" / f"{m}_scales.json"))
+        lam, q = float(sc["lam_cr3"]["F"]), float(sc["q_b1"])
+        Lb = pops_factor(fit_dir(m, "pops"))
+        p = Lb.shape[0]
+        bc = np.asarray(lin.post.body_col)[:p]
+        o = np.argsort(bc, kind="stable")
+        F = {"b1": linp.factor("posterior")[:p][o] * q, "hl": lin.factor("cr3")[:p][o] * lam, "b2": Lb[o]}
+        pp = linp.post                                     # Lambda = Gamma^2 exp(a_k): prior sd = dinv exp(-a_k / 2)
+        if pp.root is not None:
+            raise ValueError(f"{m}: prior has a GP block; its correlation is not diagonal")
+        a = dict(zip((int(g) for g in pp.groups), np.asarray(pp.h, np.float64)))
+        bcol = np.asarray(pp.body_col)[:p]
+        F["prior"] = np.diag(np.asarray(pp.dinv, np.float64)[:p] * np.exp(-0.5 * np.array([a[int(b)] for b in bcol])))[o]
+        L1 = np.linalg.cholesky(F["b1"] @ F["b1"].T)
+        out = {"bc": bc[o], "p": p, "lam_F": lam, "q_b1": q}
+        for k in ("hl", "b2", "prior"):
+            s = np.linalg.svd(scipy.linalg.solve_triangular(L1, F[k], lower=True), compute_uv=False)
+            out[f"stretch_{k}"] = s                        # sqrt of the generalised eigenvalues, descending
+            out[f"rank_{k}"] = int((s > s[0] * 1e-8).sum())
+            for b in np.unique(out["bc"]):
+                i = out["bc"] == b
+                Lb1 = np.linalg.cholesky(F["b1"][i] @ F["b1"][i].T)
+                sb = np.linalg.svd(scipy.linalg.solve_triangular(Lb1, F[k][i], lower=True), compute_uv=False)
+                out[f"stretch_{k}_b{int(b)}"] = sb
+                out[f"rank_{k}_b{int(b)}"] = int((sb > sb[0] * 1e-8).sum()) if sb[0] > 0 else 0
+        for k, L in F.items():
+            C = L @ L.T
+            d = np.sqrt(np.diag(C))
+            out[f"sd_{k}"] = d
+            out[f"mean_abs_corr_{k}"] = float((np.abs(C / d[:, None] / d[None, :]).sum() - p) / (p * (p - 1)))
+            if p <= MAX_CORR:
+                out[f"corr_{k}"] = (C / d[:, None] / d[None, :]).astype(np.float32)
+        dz = np.load(RUNS / "delta" / f"{m}.npz")
+        rows = dict(zip((str(k) for k in dz["keys"]), np.asarray(dz["G"], np.float64)))
+        from ..propagate import KEYS                     # the paper's order (Fig. 3, talk slide of the committee map)
+        keys = [k for k in KEYS if k in rows]
+        G = np.stack([rows[k] for k in keys])
+        if np.abs(G[:, p:]).max() > 1e-8 * np.abs(G).max():
+            raise ValueError(f"{m}: QoI rows depend on the E0 column")
+        G = G[:, :p][:, o]
+        out["qoi_keys"] = np.array(keys)
+        out["qoi_group"] = np.array([_group(k) for k in keys])
+        for k, L in F.items():
+            M = G @ L
+            Cq = M @ M.T
+            dq = np.sqrt(np.diag(Cq))
+            out[f"qoi_sd_{k}"] = dq
+            out[f"qoi_corr_{k}"] = Cq / dq[:, None] / dq[None, :]
+            n = len(keys)
+            out[f"qoi_mean_abs_corr_{k}"] = float((np.abs(out[f"qoi_corr_{k}"]).sum() - n) / (n * (n - 1)))
+        np.savez_compressed(RESULTS / f"cov_shapes_{m}.npz", **out)
+        print(m, {k: v for k, v in out.items() if np.ndim(v) == 0}, flush=True)
+
+
+if __name__ == "__main__":
+    main()
