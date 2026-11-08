@@ -15,6 +15,10 @@ prior sits at 1 / q_b1).
           Also per body-order block (stretch_<k>_b<n>): the same for the block's marginal covariances, so each
           principal direction belongs to one body order (whole-space directions mix them).
 
+  qoi     the same four distributions pushed to the QoIs through the implicit-differentiation rows G (RUNS/delta;
+          linear, as the delta method): correlation G C G^T in QOI_GROUPS order, the basis-independent view.  The
+          E0 column of G is zero to roundoff, so the readout block loses nothing.
+
     SIQ_RUNS=<BLR root> python -m bench.si_qoi_uq.analysis.cov_shapes o3d12 o4d20 -> results/cov_shapes_<m>.npz
 """
 import json, sys
@@ -22,6 +26,12 @@ import json, sys
 import numpy as np
 
 MAX_CORR = 1000
+QOI_GROUPS = (("phases", ("dE_bc8 (meV/at)", "dE_bcc (meV/at)", "dE_hcp (meV/at)", "dE_beta-Sn (meV/at)", "dE_fcc (meV/at)",
+                          "dE_hex_diamond (meV/at)", "dE_sh (meV/at)", "dE_st12 (meV/at)")),
+              ("elastic", ("diamond_bulk_modulus", "diamond_c11", "diamond_c12", "diamond_c44")),
+              ("planar", ("surface_100 (J/m2)", "decohesion_max_stress")),
+              ("defects", ("vacancy_energy", "tetrahedral_interstitial_energy", "hexagonal_interstitial_energy",
+                           "dumbbell_interstitial_energy")))
 
 
 def main():
@@ -64,6 +74,23 @@ def main():
             out[f"mean_abs_corr_{k}"] = float((np.abs(C / d[:, None] / d[None, :]).sum() - p) / (p * (p - 1)))
             if p <= MAX_CORR:
                 out[f"corr_{k}"] = (C / d[:, None] / d[None, :]).astype(np.float32)
+        dz = np.load(RUNS / "delta" / f"{m}.npz")
+        rows = dict(zip((str(k) for k in dz["keys"]), np.asarray(dz["G"], np.float64)))
+        keys = [k for _, ks in QOI_GROUPS for k in ks if k in rows]
+        G = np.stack([rows[k] for k in keys])
+        if np.abs(G[:, p:]).max() > 1e-8 * np.abs(G).max():
+            raise ValueError(f"{m}: QoI rows depend on the E0 column")
+        G = G[:, :p][:, o]
+        out["qoi_keys"] = np.array(keys)
+        out["qoi_group"] = np.array([g for g, ks in QOI_GROUPS for k in ks if k in rows])
+        for k, L in F.items():
+            M = G @ L
+            Cq = M @ M.T
+            dq = np.sqrt(np.diag(Cq))
+            out[f"qoi_sd_{k}"] = dq
+            out[f"qoi_corr_{k}"] = Cq / dq[:, None] / dq[None, :]
+            n = len(keys)
+            out[f"qoi_mean_abs_corr_{k}"] = float((np.abs(out[f"qoi_corr_{k}"]).sum() - n) / (n * (n - 1)))
         np.savez_compressed(RESULTS / f"cov_shapes_{m}.npz", **out)
         print(m, {k: v for k, v in out.items() if np.ndim(v) == 0}, flush=True)
 
