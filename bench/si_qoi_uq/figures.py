@@ -750,21 +750,8 @@ def talk_keynote(results, out, m="o4d20"):
     set_context("talk")
     model_compare(results, out / "talk", ["o3d12", "o4d20"], panels=PANELS[:1], name="talk_strip_headline",
                   legend_size="small")
-    cov = {(r["model"], r["method"], r["scale"]): r for r in csv.DictReader(open(results / "coverage.csv"))}
-    fm = json.load(open(results / f"force_methods_{m}.json"))
-    from scipy.stats import chi
-    k3 = chi(3).ppf(0.9)
-    b = np.load(results / f"force_baselines_{m}.npz", allow_pickle=True)
-    ty, cnt = np.unique(b["config_type"], return_counts=True)
-    worst = lambda k: 100 * min(np.mean(b[f"d_{k}"][b["config_type"] == x] <= k3) for x in ty[cnt >= 300])
     meth = SUMMARY_METH[:3]
-    def qcov(c):
-        r = cov[(m, c[0], c[1])]
-        return 100 * float(r["k95"]) / float(r["n"]), f"{int(float(r['k95']))}/{int(float(r['n']))}"
-    cols = (("properties (QoIs)", "coverage of DFT, target 95 %", lambda c: qcov(c), 95, CAT[2]),
-            ("forces, worst type", "test split, target 90 %", lambda c: (worst(c[3]), None), 90, CAT[5]),
-            ("forces, held out", "cracks + dislocations, target 90 %",
-             lambda c: (100 * fm["ood"]["all"][c[3]]["coverage"], None), 90, CAT[5]))
+    cols = _keynote_cols(results, m)
     fig, axes = plt.subplots(1, 3, figsize=(12, 4.2), sharey=True, facecolor=SURFACE)
     y = np.arange(len(meth))
     for ax, (title, sub, fn, nom, col) in zip(axes, cols):
@@ -795,3 +782,77 @@ def talk_keynote(results, out, m="o4d20"):
     fig.text(0.99, 0.01, "dashed: target level of the calibrated methods; POPS has no target level", ha="right",
              va="bottom", fontsize="x-small", color=MUTED)
     _save(fig, out / "talk", f"talk_summary_{m}")
+
+
+def _keynote_cols(results, m):
+    """The three coverages of the keynote comparison for model m, as (title, subtitle, fn(method) -> (value %, label
+    or None), target %, colour): QoIs at 95 % (results/coverage.csv); per-atom forces at 90 %, the worst configuration
+    type (>= 300 test atoms, force_baselines_<m>.npz) and the held-out cracks and dislocations (force_methods_<m>.json)."""
+    cov = {(r["model"], r["method"], r["scale"]): r for r in csv.DictReader(open(results / "coverage.csv"))}
+    fm = json.load(open(results / f"force_methods_{m}.json"))
+    from scipy.stats import chi
+    k3 = chi(3).ppf(0.9)
+    b = np.load(results / f"force_baselines_{m}.npz", allow_pickle=True)
+    ty, cnt = np.unique(b["config_type"], return_counts=True)
+    worst = lambda k: 100 * min(np.mean(b[f"d_{k}"][b["config_type"] == x] <= k3) for x in ty[cnt >= 300])
+
+    def qcov(c):
+        r = cov[(m, c[0], c[1])]
+        return 100 * float(r["k95"]) / float(r["n"]), f"{int(float(r['k95']))}/{int(float(r['n']))}"
+    return (("properties (QoIs)", "coverage of DFT, target 95 %", qcov, 95, CAT[2]),
+            ("forces, worst type", "test split, target 90 %", lambda c: (worst(c[3]), None), 90, CAT[5]),
+            ("forces, held out", "cracks + dislocations, target 90 %",
+             lambda c: (100 * fm["ood"]["all"][c[3]]["coverage"], None), 90, CAT[5]))
+
+
+def talk_dumbbell(results, out, models=("o3d12", "o4d20")):
+    """Talk only (not in the paper, not called by all_figures): the keynote comparison as one dumbbell chart, the
+    three coverages of _keynote_cols, one row per method (method colours of talk_cov_shapes), each method's two models
+    as two dots joined by a line (hollow: smaller model, filled: larger; the arrow points to the larger).  The target
+    line spans only the calibrated methods: POPS has no level it aims at -> talk_dumbbell."""
+    set_context("talk")
+    meth = SUMMARY_METH[:3]
+    mcol = {"headline": CAT[0], "B1": CAT[1], "B2": CAT[2]}
+    vals = {m: _keynote_cols(results, m) for m in models}
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4.6), sharey=True, facecolor=SURFACE)
+    y = np.arange(len(meth))
+    for j, ax in enumerate(axes):
+        title, sub, _, nom, _ = vals[models[0]][j]
+        ax.set_facecolor(SURFACE)
+        for sp in ("top", "right"):
+            ax.spines[sp].set_visible(False)
+        ax.spines["left"].set_color(MUTED)
+        ax.spines["bottom"].set_color(MUTED)
+        ax.grid(axis="x", color=GRID, lw=0.6)
+        ax.set_axisbelow(True)
+        for yi, c in enumerate(meth):
+            col = mcol[c[3]]
+            (v0, l0), (v1, l1) = (vals[m][j][2](c) for m in models)
+            ax.annotate("", xy=(v1, yi), xytext=(v0, yi), zorder=3,
+                        arrowprops=dict(arrowstyle="-|>", color=col, lw=3.2, mutation_scale=16, shrinkA=7, shrinkB=8))
+            ax.plot(v0, yi, "o", ms=12, mfc=SURFACE, mec=col, mew=2.6, zorder=4)
+            ax.plot(v1, yi, "o", ms=12, mfc=col, mec=col, mew=2.6, zorder=4)
+            for v, l, other in ((v0, l0, v1), (v1, l1, v0)):          # label on the outer side of each dot
+                left = v < other or (v == other and l is l0)
+                ax.text(v + (-4 if left else 4), yi - 0.3, l or f"{v:.0f}", ha="right" if left else "left", va="center",
+                        fontsize="x-small", color=INK, zorder=5,
+                        bbox=dict(boxstyle="square,pad=0.1", fc=SURFACE, ec="none"))   # target line passes behind
+        n_t = sum(1 for c in meth if c[3] != "B2")
+        ax.axvline(nom, ymin=(len(meth) - n_t) / len(meth), ymax=1, color=INK, lw=1.4, ls="--", zorder=2)
+        ax.set_xlim(20, 105)
+        ax.set_xticks([25, 50, 75, 100])
+        ax.set_ylim(len(meth) - 0.5, -0.65)
+        ax.tick_params(axis="x", labelsize="x-small", colors=MUTED, labelcolor=INK)
+        ax.set_title(f"{title}\n", fontsize="medium", color=INK, loc="left")
+        ax.text(0, 1.03, sub, transform=ax.transAxes, fontsize="x-small", color=MUTED, va="bottom")
+        ax.set_xlabel("coverage / %", fontsize="x-small", color=INK)
+    axes[0].set_yticks(y, [c[4] for c in meth], fontsize="small")
+    for t, c in zip(axes[0].get_yticklabels(), meth):
+        t.set_color(mcol[c[3]])
+    axes[0].tick_params(axis="y", length=0)
+    h = [plt.Line2D([], [], ls="", marker="o", ms=11, mfc=SURFACE, mec=INK, mew=2.4, label=models[0]),
+         plt.Line2D([], [], ls="", marker="o", ms=11, mfc=INK, mec=INK, mew=2.4, label=models[1]),
+         plt.Line2D([], [], color=INK, lw=1.4, ls="--", label="target (calibrated methods; POPS has none)")]
+    fig.legend(handles=h, loc="lower center", ncol=3, frameon=False, fontsize="x-small", bbox_to_anchor=(0.55, -0.01))
+    fig.tight_layout(rect=(0, 0.07, 1, 1))
+    _save(fig, out / "talk", "talk_dumbbell")
