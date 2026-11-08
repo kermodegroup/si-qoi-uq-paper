@@ -619,7 +619,8 @@ def all_figures(results, out, runs, models, extras, contexts=("paper", "talk")):
 
     set_context("paper")
 
-COV_METH = (("b1", "B1: posterior × q̂", CAT[1]), ("hl", "CR3 × λ$_F$ (headline)", CAT[0]), ("b2", "B2: POPS box", CAT[2]))
+COV_METH = (("b1", "B1: posterior × q̂", CAT[1]), ("b2", "B2: POPS box", CAT[2]), ("hl", "CR3 × λ$_F$ (headline)", CAT[0]))
+COV_PRIOR = ("prior", "prior", MUTED)
 
 
 def talk_cov_shapes(results, out, corr_model="o3d12", models=("o3d12", "o4d20"), floor=1e-4):
@@ -628,7 +629,7 @@ def talk_cov_shapes(results, out, corr_model="o3d12", models=("o3d12", "o4d20"),
     diagonal) first, parameters sorted
     by body order (a raw covariance shows nothing: the standard deviations span ~8 decades).  Bottom: per model, how
     far the headline and POPS stretch or squash B1 along its principal directions (generalised eigenvalues in B1's
-    metric, each method at its own calibration), computed within each body-order block so the axis can be labelled
+    metric, each method at its own calibration; the prior unscaled), computed within each body-order block so the axis can be labelled
     by body order (whole-space directions mix them); each curve ends at its rank, beyond which the width is zero,
     and values below `floor` are drawn at it (marked ▼)."""
     set_context("talk")
@@ -677,7 +678,7 @@ def talk_cov_shapes(results, out, corr_model="o3d12", models=("o3d12", "o4d20"),
                     fontsize="xx-small", color=INK)
             ax.text(n + 0.5, -0.04, f"{nb}", transform=ax.get_xaxis_transform(), ha="center", va="top",
                     fontsize="xx-small", color=MUTED)
-            for k, lab, col in COV_METH[1:]:
+            for k, lab, col in (COV_PRIOR,) + COV_METH[1:]:
                 r = int(zm[f"rank_{k}_b{b}"])
                 sb = np.asarray(zm[f"stretch_{k}_b{b}"])[:r]
                 if not r:
@@ -692,13 +693,13 @@ def talk_cov_shapes(results, out, corr_model="o3d12", models=("o3d12", "o4d20"),
         ax.set_xlim(0, len(orders))
         ax.set_xticks([])
         ax.set_yscale("log")
-        ax.set_ylim(floor, 3e2)
+        ax.set_ylim(floor, 1e7)
         ax.set_title(f"{m}: width relative to B1, per body order", fontsize="x-small", color=INK, loc="left", pad=22)
         if i == 0:
             ax.set_ylabel("width / B1 width", fontsize="x-small", color=INK)
     fig.text(0.5, 0.035, "principal directions, sorted within each body-order block (number of parameters below the axis);"
              " ● rank reached, ▼ below 10$^{-4}$", ha="center", fontsize="xx-small", color=INK)
-    h = [plt.Line2D([], [], color=col, lw=2.4, label=lab) for k, lab, col in COV_METH[1:]]
+    h = [plt.Line2D([], [], color=col, lw=2.4, label=lab) for k, lab, col in (COV_PRIOR,) + COV_METH[1:]]
     h.append(plt.Line2D([], [], color=INK, lw=1.2, ls="--", label="B1: posterior × q̂ (= 1)"))
-    fig.legend(handles=h, loc="lower center", bbox_to_anchor=(0.5, -0.03), ncol=3, frameon=False, fontsize="x-small")
+    fig.legend(handles=h, loc="lower center", bbox_to_anchor=(0.5, -0.03), ncol=4, frameon=False, fontsize="x-small")
     _save(fig, out / "talk", "talk_cov_shapes")

@@ -2,7 +2,9 @@
 headline lam_F^2 * CR3, B1 q_b1^2 * posterior, B2 the POPS box at the 50 % leverage cut read as a Gaussian of its
 covariance (hi - lo)^2 / 12, as in analysis/force_methods.py.  Each at its own calibration, on the readout block
 (POPS has no E0 column), parameters sorted by body order.  The prior (the BLR fits' diag(dinv) at the MAP group
-precisions; no GP block) is the same for all three: its correlation matrix is the identity.
+precisions; no GP block) is the same for all three: its correlation matrix is the identity.  Its stretch relative
+to B1 is stored too (unscaled: B1 carries q_b1, the prior does not, so in directions the data leave alone the
+prior sits at 1 / q_b1).
 
   corr    the correlation matrices (scale-free: per-parameter standard deviations span ~8 decades, so a raw
           covariance or Cholesky-factor heatmap shows a handful of pixels).  Saved only for p <= MAX_CORR (o3d12):
@@ -37,9 +39,15 @@ def main():
         bc = np.asarray(lin.post.body_col)[:p]
         o = np.argsort(bc, kind="stable")
         F = {"b1": linp.factor("posterior")[:p][o] * q, "hl": lin.factor("cr3")[:p][o] * lam, "b2": Lb[o]}
+        pp = linp.post                                     # Lambda = Gamma^2 exp(a_k): prior sd = dinv exp(-a_k / 2)
+        if pp.root is not None:
+            raise ValueError(f"{m}: prior has a GP block; its correlation is not diagonal")
+        a = dict(zip((int(g) for g in pp.groups), np.asarray(pp.h, np.float64)))
+        bcol = np.asarray(pp.body_col)[:p]
+        F["prior"] = np.diag(np.asarray(pp.dinv, np.float64)[:p] * np.exp(-0.5 * np.array([a[int(b)] for b in bcol])))[o]
         L1 = np.linalg.cholesky(F["b1"] @ F["b1"].T)
         out = {"bc": bc[o], "p": p, "lam_F": lam, "q_b1": q}
-        for k in ("hl", "b2"):
+        for k in ("hl", "b2", "prior"):
             s = np.linalg.svd(scipy.linalg.solve_triangular(L1, F[k], lower=True), compute_uv=False)
             out[f"stretch_{k}"] = s                        # sqrt of the generalised eigenvalues, descending
             out[f"rank_{k}"] = int((s > s[0] * 1e-8).sum())
@@ -56,11 +64,6 @@ def main():
             out[f"mean_abs_corr_{k}"] = float((np.abs(C / d[:, None] / d[None, :]).sum() - p) / (p * (p - 1)))
             if p <= MAX_CORR:
                 out[f"corr_{k}"] = (C / d[:, None] / d[None, :]).astype(np.float32)
-        if lin.post.root is not None or linp.post.root is not None:
-            raise ValueError(f"{m}: prior has a GP block; its correlation is not diagonal")
-        out["mean_abs_corr_prior"] = 0.0
-        if p <= MAX_CORR:
-            out["corr_prior"] = np.eye(p, dtype=np.float32)
         np.savez_compressed(RESULTS / f"cov_shapes_{m}.npz", **out)
         print(m, {k: v for k, v in out.items() if np.ndim(v) == 0}, flush=True)
 
