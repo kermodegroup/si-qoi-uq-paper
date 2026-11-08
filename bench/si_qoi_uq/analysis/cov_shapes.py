@@ -16,7 +16,7 @@ prior sits at 1 / q_b1).
           principal direction belongs to one body order (whole-space directions mix them).
 
   qoi     the same four distributions pushed to the QoIs through the implicit-differentiation rows G (RUNS/delta;
-          linear, as the delta method): correlation G C G^T in QOI_GROUPS order, the basis-independent view.  The
+          linear, as the delta method): correlation G C G^T in the paper's QoI order (propagate.KEYS), the basis-independent view.  The
           E0 column of G is zero to roundoff, so the readout block loses nothing.
 
     SIQ_RUNS=<BLR root> python -m bench.si_qoi_uq.analysis.cov_shapes o3d12 o4d20 -> results/cov_shapes_<m>.npz
@@ -26,12 +26,9 @@ import json, sys
 import numpy as np
 
 MAX_CORR = 1000
-QOI_GROUPS = (("phases", ("dE_bc8 (meV/at)", "dE_bcc (meV/at)", "dE_hcp (meV/at)", "dE_beta-Sn (meV/at)", "dE_fcc (meV/at)",
-                          "dE_hex_diamond (meV/at)", "dE_sh (meV/at)", "dE_st12 (meV/at)")),
-              ("elastic", ("diamond_bulk_modulus", "diamond_c11", "diamond_c12", "diamond_c44")),
-              ("planar", ("surface_100 (J/m2)", "decohesion_max_stress")),
-              ("defects", ("vacancy_energy", "tetrahedral_interstitial_energy", "hexagonal_interstitial_energy",
-                           "dumbbell_interstitial_energy")))
+def _group(k):
+    return ("elastic" if k.startswith("diamond_") else "phases" if k.startswith("dE_") else
+            "defects" if k.endswith("_energy") else "planar")
 
 
 def main():
@@ -76,13 +73,14 @@ def main():
                 out[f"corr_{k}"] = (C / d[:, None] / d[None, :]).astype(np.float32)
         dz = np.load(RUNS / "delta" / f"{m}.npz")
         rows = dict(zip((str(k) for k in dz["keys"]), np.asarray(dz["G"], np.float64)))
-        keys = [k for _, ks in QOI_GROUPS for k in ks if k in rows]
+        from ..propagate import KEYS                     # the paper's order (Fig. 3, talk slide of the committee map)
+        keys = [k for k in KEYS if k in rows]
         G = np.stack([rows[k] for k in keys])
         if np.abs(G[:, p:]).max() > 1e-8 * np.abs(G).max():
             raise ValueError(f"{m}: QoI rows depend on the E0 column")
         G = G[:, :p][:, o]
         out["qoi_keys"] = np.array(keys)
-        out["qoi_group"] = np.array([g for g, ks in QOI_GROUPS for k in ks if k in rows])
+        out["qoi_group"] = np.array([_group(k) for k in keys])
         for k, L in F.items():
             M = G @ L
             Cq = M @ M.T
