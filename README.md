@@ -1,8 +1,10 @@
 # Jackknife-conformal uncertainty for linear ACE potentials: calibrated forces and silicon properties compared with Bayesian and POPS baselines
 
 Analysis code, results, figures and paper source for J. R. Kermode, *Jackknife-conformal uncertainty for linear ACE potentials:
-calibrated forces and silicon properties compared with Bayesian and POPS baselines* (in preparation).
+calibrated forces and silicon properties compared with Bayesian and POPS baselines*,
+[arXiv:2611.08678](https://arxiv.org/abs/2611.08678).
 
+[![arXiv](https://img.shields.io/badge/arXiv-2611.08678-b31b1b.svg)](https://arxiv.org/abs/2611.08678)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23986930.svg)](https://doi.org/10.5281/zenodo.23986930)
 Release v1.0.0, the version used in the paper, is archived on Zenodo at
 [10.5281/zenodo.23986930](https://doi.org/10.5281/zenodo.23986930); all versions:
