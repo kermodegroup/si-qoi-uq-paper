@@ -73,14 +73,25 @@ and divacancies, posterior ("Bayesian shape plus rescale") with a conformal scal
 off the slide: DFT barrier ≈ 0.30 eV (3.63 → ≈ 3.93 eV), GAP-18 ≈ 0.21 eV, ACE ≈ 0.12 eV with a band that does
 not reach DFT at the saddle.
 
-**Reference to reconcile first.** Best et al. (arXiv:2402.15419, §III.4, Fig. 8) give E_b^DFT = 0.30 eV
-(E_vac 3.63 eV; their Fig. 6 caption has 3.67 eV), GAP-18 0.22 eV, ACE 0.12 ± 0.12 eV; ASE NEB with 11 images, no
-climbing image mentioned; the source of the DFT curve, the cell, the end-point relaxation and the DFT settings are
-not stated (Best's thesis or data may have them). silicon-testing-framework
-`test-results/model-CASTEP_ASE-test-vacancy-path-properties.json` gives a DFT path 3.598 → 4.252 eV, a barrier of
-0.654 eV, about twice that. Both may be right for different protocols (the harness test is 63 atoms, 9 + 2 images,
-MDMin plain NEB; which path the CASTEP numbers are for needs checking). Fix one reference value with its protocol
-before computing any prediction, and use the same protocol for the model.
+**Reference (settled 2026-11-10).** The GAP-18 paper's run of the framework's `vacancy-path-ref` test with CASTEP
+(`/storage/eng/essswb/silicon-gap/test-results/model-CASTEP_socket-test-vacancy-path-ref-properties.json`):
+E_vac 3.627 eV, saddle 3.925 eV, **E_b^DFT = 0.299 eV**. It is the curve on Best et al.'s Fig. 8 (0.30 eV, 3.63 eV),
+and the framework's GAP-18 run of the same test (`test-runner/model-GAP18_py3-test-vacancy-path-ref`) gives 0.218 eV,
+Best's 0.22. Protocol: 2×2×2 diamond cell minus one atom (63 atoms) at the model's own a0; end points relaxed
+(fmax 1e-3); 9 interior images + 2 end points, linear interpolation, 0.05 Å rattle; plain NEB (k = 0.1, MDMin
+dt 0.05; fmax 0.05 in the 2018 quippy run, 0.01 in the py3 port); CASTEP PW91, 250 eV, MP spacing 0.03 Å⁻¹,
+non-spin-polarised (also the training labels' settings).
+
+The 0.653 eV path (`test-results/model-CASTEP_ASE-test-vacancy-path-properties.json`, from the 2018 import, from a
+`vacancy-path` test that is not in the repository) is not the reference. Its end points agree with the reference
+to 0.03 eV (3.598 vs 3.627), so no shift by the formation energy explains it; its interior is higher. Likely an
+unconverged or unrelaxed path: the framework's `no-relax-neb` results are above the `ref` ones for every model
+that has both (DFTB 0.35 vs 0.04, MEAM 0.31 vs 0.16, TersoffScr 1.00 vs 0.40, SW 0.55 vs 0.52). Not used.
+
+**The saddle is the middle image.** The hop is symmetric, and both reference paths peak at image 5 of 0–10. With an
+odd number of images the middle image lies on the symmetry plane, where the force along the path vanishes by
+symmetry, so the converged middle image is the saddle, a stationary point, with no climbing image needed (check
+that the model's path is symmetric and peaks there). This keeps the reference protocol exactly.
 
 **No differentiation through the NEB.** A converged climbing image is a stationary point (∇ₓE = 0), as a minimum
 is, so the envelope theorem in `delta.py` carries over unchanged:
@@ -90,7 +101,8 @@ is, so the envelope theorem in `delta.py` carries over unchanged:
 with Φ the summed site descriptor. The harness's `vacancy-path-*` tests are plain NEBs with MDMin (no climbing
 image), whose barrier is a max over images: a non-smooth step, committee only (as γ_us). So:
 
-1. Climbing-image NEB with the mean model (ASE, tight fmax) in the reference protocol's cell, at o3d12 and o4d20.
+1. The `vacancy-path-ref` protocol with the mean model (plain NEB, fmax 0.01 or tighter), at o3d12 and o4d20; check
+   the path is symmetric and peaks at the middle image (else climbing image on that image).
 2. Delta rows as above; check them against a λ = 1 committee of NEB reruns (the 10 % agreement rule).
 3. Coverage and |z| for CR3 × λ_F, B1 and POPS against the fixed DFT barrier.
 
