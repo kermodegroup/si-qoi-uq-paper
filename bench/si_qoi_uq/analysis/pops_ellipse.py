@@ -72,6 +72,12 @@ def main():
     fout = fit_dir(m, "cr3").parent / f"pops_ellipse{sfx}.npz"
 
     def design():
+        import os
+        cache = os.environ.get("POPS_DESIGN_CACHE")              # node-local scratch (e.g. /tmp on mnf148): the o4d20 design
+        if cache and pathlib.Path(cache, f"{m}_X.npy").exists():  # takes ~30 min to build; never on /storage (quota)
+            X, y = np.load(pathlib.Path(cache, f"{m}_X.npy"), mmap_mode="r"), np.load(pathlib.Path(cache, f"{m}_y.npy"))
+            print(f"{m}: design from {cache}: {X.shape}", flush=True)
+            return np.ascontiguousarray(X), y
         argv = shlex.split(open(ACC / m / "cmd.txt").read().strip())[1:]
         argv[argv.index("--out") + 1] = "/tmp/unused"
         a = cli._parse(argv)
@@ -90,6 +96,9 @@ def main():
         X, y = X[live], y[live] - X[live] @ th
         print(f"{m}: design {X.shape} ({X.nbytes / 2 ** 30:.1f} GiB), {time.time() - t0:.0f} s; weighted residual RMS "
               f"{np.sqrt(np.mean(y ** 2)):.3f}", flush=True)
+        if cache:
+            pathlib.Path(cache).mkdir(parents=True, exist_ok=True)
+            np.save(pathlib.Path(cache, f"{m}_X.npy"), X); np.save(pathlib.Path(cache, f"{m}_y.npy"), y)
         return X, y
 
     if fout.exists():

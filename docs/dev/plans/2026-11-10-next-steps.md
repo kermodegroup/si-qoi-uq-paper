@@ -85,7 +85,7 @@ not finite data. A better *shape* could still help, so measure it.
 Decision: if 3 covers and 2 does not, the lesson for POPS is "calibrate the scale". That supports our
 construction rather than competing with it.
 
-**Results, o3d12 (2026-11-10; `analysis/pops_ellipse.py` → `results/pops_ellipse_o3d12*.json`; o4d20 running).**
+**Results (2026-11-10; `analysis/pops_ellipse.py` → `results/pops_ellipse_<m>*.json`).** o3d12 first, then o4d20 below.
 popsregression `ellipse-ev` (6d61264), `POPSRegression(posterior="ellipsoid")`, package defaults (rank 32). Inputs: all 474,493
 training E/F/V rows of the cr3 fit, weighted as the fit weights them, with targets the residuals about θ̂ (the package's centre
 moves θ̂ by 1e-4 relative; test force RMSE 0.1584 → 0.1581). Read as a Gaussian, Σ = B/(P + 2), as the package's own sigma.
@@ -111,7 +111,14 @@ Reading (o3d12):
 - With one per-atom scale (plan step 3) the shape is wrong for forces: 0.05–0.19 per-atom coverage at a nominal 0.90. Every
   force direction is tiny next to the blown-up ones that set the scale.
 - The package's own hypercube baseline reproduces the paper's B2 (0.94 against 0.947; QoIs 13/17).
-- Decision (plan): neither 2 nor 3 covers. The lesson is not "calibrate the scale": at this conditioning the ellipsoid needs
+- **o4d20** (defaults only; 474,493 × 5,477 rows, 19.4 GiB, ~190 GB peak; sklearn's BayesianRidge SVD routed to NumPy's
+  ILP64 LAPACK because SciPy's LP64 refuses 2.6e9 elements; fit 62 min, 66 iterations, every training row covered). It fails the
+  same way. The bare QoI σ is 1.5e11 × tol (median); the data span at the package's threshold is rank 39 of 5,477
+  (max eig G 2.7e18), with 75 % of the trace outside it. With one per-atom scale, per-atom coverage is 0.42 (span: 0.38) at a
+  nominal 0.90. The QoIs then cover 14/17 (span 15/17) at median σ/tol 0.71 (0.65), against the headline's 12/17 at 0.53. But that
+  scale makes the force regions wrong, so it is not a calibrated method. The package's own hypercube baseline covers 0.58 per atom
+  (paper B2, the ace-jax box with its held-out ridge: 0.84) and 10/17 QoIs at σ/tol 0.23.
+- Decision (plan), both models: neither 2 nor 3 covers. The lesson is not "calibrate the scale": at this conditioning the ellipsoid needs
   a prior or ridge on its widths in parameter space, as the hypercube needed a ridge. That is a POPS-package issue to report
   upstream (Swinburne), not a competitor to CR3.
 
