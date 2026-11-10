@@ -170,6 +170,18 @@ jackknife is centred, so a bias shared by every interstitial snapshot moves no l
 o3d12: one β-tin cell dominates the vacancy, tetrahedral, hexagonal and barrier σ: those widths (e.g. barrier 0.48
 eV) are an accident of one high-influence configuration, not information about defects.
 
+**The β-tin cell at o3d12** (`analysis/bt_cell.py`, `results/bt_cell_o3d12.json`): its column removed (rest
+re-centred) and λ_F recomputed on the test split. λ_F 5.79 → 8.10 (+40 %): the cell also carries much of the test
+force variance, so most QoI σ widen ×1.36–1.40. The vacancy formation energy σ halves (0.54 → 0.27 eV, z 1.63 →
+3.23: covered → missed), the barrier's too (0.48 → 0.22, still covered), tetrahedral ×0.81 (z 2.07 → 2.56), dumbbell
+×1.39 (z 3.38 → 2.43, still missed). Delta-σ coverage of these 18 QoIs: 15 → 14. o3d12's vacancy coverage without
+the discrepancy term rests on this one cell.
+
+**Type-level jackknife** (existing `results/type_jackknife_<m>.*`, 27 clusters = config types; RECON 2026-11-02):
+o4d20 covers every defect without the term (interstitial z −0.33 to −0.47) but with σ 0.78–1.47 eV against errors
+0.37–0.60 eV: 16/17 at both 68 % and 95 %, median σ/tol 1.77 (CR3 0.53), so it over-covers. o3d12: the interstitials
+still miss (z −2.1 to −2.5). Neither route removes the need for the discrepancy term at both sizes.
+
 ## §4 Multivariate conformal prediction with the CR3 covariance
 
 K. Fisher, M. Herbst, J. Kermode, Y. Marzouk, arXiv:2609.31384 (2026): a GAP (SOAP, polynomial kernel)
