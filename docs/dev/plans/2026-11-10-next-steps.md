@@ -182,6 +182,27 @@ o4d20 covers every defect without the term (interstitial z −0.33 to −0.47) b
 0.37–0.60 eV: 16/17 at both 68 % and 95 %, median σ/tol 1.77 (CR3 0.53), so it over-covers. o3d12: the interstitials
 still miss (z −2.1 to −2.5). Neither route removes the need for the discrepancy term at both sizes.
 
+**Interstitial trajectories as clusters** (`analysis/traj_jackknife.py`, `results/traj_jackknife_<m>.json`). No
+trajectory tag in the extxyz; snapshots of one fixed-cell MD run share their cell exactly, so interstitial clusters are
+(type, cell): three trajectories of 21, 20 and 19 snapshots plus 43 single variable-cell snapshots; every other
+configuration stays its own cluster (2170 clusters against CR3's 2227). Exact leave-group-out with CR3's leverage
+correction, A never formed; validated against the stored CR3 columns (centring-vector check 2.7e-6 / 2.1e-9). λ_F
+recalibrated (5.79 → 5.71, 6.18 → 5.89). Delta σ, no discrepancy term:
+
+| | o3d12 σ ratio / z (CR3 → traj) | o4d20 σ ratio / z (CR3 → traj) |
+|---|---|---|
+| dumbbell | ×1.17 / 3.38 → 2.88 | ×1.70 / 2.10 → **1.24** |
+| hexagonal | ×1.24 / 2.77 → 2.23 | ×1.36 / 2.34 → **1.73** |
+| tetrahedral | ×1.19 / 2.07 → **1.74** | ×1.49 / 3.44 → 2.31 |
+| vacancy | ×1.02 / 1.63 → 1.59 | ×1.51 / 1.49 → 0.99 |
+| 95 % covered (17 delta QoIs) | 14 → 15 | 12 → 15 |
+
+Other QoIs change little (β-Sn, sh, elastic ×1.1–1.7 wider at o4d20, none lose coverage). The trajectory clusters
+close about half of the interstitial gap: 1 of 3 interstitials covered without the term at o3d12, 2 of 3 at o4d20.
+Not enough to drop the term. Caveat: the grouping was applied to the interstitials only, after seeing them fail;
+the same (type, cell) rule over all types also groups whole surface, sp and sp2 types (fixed boxes, not trajectories:
+626 of 2227 configurations in multi-configuration groups), so it does not generalise as written.
+
 ## §4 Multivariate conformal prediction with the CR3 covariance
 
 K. Fisher, M. Herbst, J. Kermode, Y. Marzouk, arXiv:2609.31384 (2026): a GAP (SOAP, polynomial kernel)
