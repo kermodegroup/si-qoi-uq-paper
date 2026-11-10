@@ -73,11 +73,14 @@ and divacancies, posterior ("Bayesian shape plus rescale") with a conformal scal
 off the slide: DFT barrier ≈ 0.30 eV (3.63 → ≈ 3.93 eV), GAP-18 ≈ 0.21 eV, ACE ≈ 0.12 eV with a band that does
 not reach DFT at the saddle.
 
-**Reference to reconcile first.** silicon-testing-framework `test-results/model-CASTEP_ASE-test-vacancy-path-properties.json`
-gives a DFT path 3.598 → 4.252 eV, a barrier of 0.654 eV, about twice the slide's value. They probably differ in
-the protocol (supercell, images, relaxation of the end points or of the path, k-points). Fix one reference value with
-its protocol, from the Best et al. paper or its data, before computing any prediction, and use the same
-protocol for the model.
+**Reference to reconcile first.** Best et al. (arXiv:2402.15419, §III.4, Fig. 8) give E_b^DFT = 0.30 eV
+(E_vac 3.63 eV; their Fig. 6 caption has 3.67 eV), GAP-18 0.22 eV, ACE 0.12 ± 0.12 eV; ASE NEB with 11 images, no
+climbing image mentioned; the source of the DFT curve, the cell, the end-point relaxation and the DFT settings are
+not stated (Best's thesis or data may have them). silicon-testing-framework
+`test-results/model-CASTEP_ASE-test-vacancy-path-properties.json` gives a DFT path 3.598 → 4.252 eV, a barrier of
+0.654 eV, about twice that. Both may be right for different protocols (the harness test is 63 atoms, 9 + 2 images,
+MDMin plain NEB; which path the CASTEP numbers are for needs checking). Fix one reference value with its protocol
+before computing any prediction, and use the same protocol for the model.
 
 **No differentiation through the NEB.** A converged climbing image is a stationary point (∇ₓE = 0), as a minimum
 is, so the envelope theorem in `delta.py` carries over unchanged:
@@ -122,6 +125,42 @@ Steps:
 
 Decision: if QoI coverage holds and the scores favour CR3 over B1, it strengthens the paper's covariance-shape
 argument. If not, it is a one-paragraph negative result.
+
+## §0 results (2026-11-10)
+
+**Per-type per-atom force coverage** (Gaussian 90 % ellipsoid of each method's own 3×3 covariance,
+`results/force_baselines_<m>.npz`; headline / B1 / B2):
+
+| type | atoms | o3d12 | o4d20 |
+|---|---|---|---|
+| surface_111_pandey | 480 | 0.90 / 0.65 / 0.93 | 1.00 / 0.63 / 0.58 |
+| surface_111 | 480 | 0.91 / 0.65 / 0.93 | 0.99 / 0.66 / 0.59 |
+| 111adatom (1 cfg) | 146 | 0.57 / 0.56 / 0.99 | 0.64 / 0.31 / 0.82 |
+| crack_111 (1 cfg) | 192 | 0.84 / 0.52 / 0.84 | 0.86 / 0.42 / 0.45 |
+| all | 17537 | 0.79 / 0.72 / 0.95 | 0.88 / 0.60 / 0.84 |
+
+The headline covers the Pandey and other (111) surfaces; the one adatom configuration (the dangling-bond
+environment of §1) is where it under-covers at both sizes. One configuration: a lead for §1, not a result.
+
+**Configuration-level Mahalanobis scores** (`analysis/config_mahal.py`, `results/config_mahal_<m>.npz`). Whitening
+every direction is meaningless (near-null directions dominate: median r/d 10³–10⁶), so directions are cut at 99 %
+of the trace and the error is compared with the variance per trace band.
+
+- o3d12, all three methods: the dominant directions (first 50 % of the trace) carry far less error than predicted
+  (median band ratio 0.09 headline, 0.42 B1, 0.08 B2), the tail 3–9× more. An isotropic term (label noise) fits
+  this: ε = 0.01 of the mean variance, ≈ 0.016 eV/Å per component, 10 % of the force RMSE, brings the median
+  headline r/D to 1.29 (B1 1.83, B2 3.07).
+- o4d20: medians over configurations (dominated by small bulk cells) put B1 closest (band ratios 0.7, 1.03,
+  1.16, 1.76), the headline too wide (0.25–0.5), B2 over-concentrated (0.09 → 33).
+- Atom-weighted by type, the large cells decide it: in point-defect cells the error in the 99 % directions is
+  1.7–2.8× (variance) what the headline predicts, 2.4–6.0× for B1; joint 90 % χ² coverage per configuration
+  is 0.02–0.15 for the headline and B1 there, against 0.86–0.92 for bulk phases. POPS at o3d12 is the exception
+  (0.95 on defects), at o4d20 not (0.05).
+
+Consequences for §4: a whole-configuration Mahalanobis score on CR3 needs a white nugget term, Σ = λ²(M Mᵀ) + ν I
+with ν from validation data, and the joint guarantee is far from met in the defect cells, whose errors are less
+concentrated across atoms than every covariance here says. The per-atom 3×3 ellipsoid (the current method) avoids
+this. §4 then becomes: does Σ + νI with a conformal scale cover the defect cells and the QoIs?
 
 ## Summary
 
