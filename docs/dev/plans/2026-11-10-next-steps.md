@@ -131,6 +131,18 @@ Next: (a) climbing-image refinement from each converged band, recording the sadd
 protocol's max; (b) delta rows Φ(x_s) − Φ(x_min) + a₀ term; (c) a λ = 1 committee of `vacancy-path-ref` runs to
 validate them; (d) coverage of CR3 × λ_F, B1, POPS against 0.299 eV.
 
+**Climbing image and delta rows (2026-11-10, `analysis/vacancy_barrier.py`, `results/vacancy_barrier.json`;
+rows `$SIQ_RUNS/delta/<m>_<v>_vacancy_barrier_row.npy`).** CI-NEB from the converged band (FIRE to fmax 1e-3: 121 /
+140 steps), then Newton to |∇E| < 1e-11; saddles index 1, minima index 0. o3d12 saddle at image 4 (off-centre), o4d20
+at the middle image. Refined barriers within 0.8 meV of the protocol's max.
+
+| | Eb | Eb − DFT | headline σ / z | B1 σ / z | B2 σ / z | B3 z |
+|---|---|---|---|---|---|---|
+| o3d12 | 0.239 | −0.060 | 0.48 / 0.13 | 0.145 / 0.42 | 0.23 / 0.26 | 0.73 |
+| o4d20 | 0.098 | −0.201 | 0.087 / 2.31 | 0.044 / 4.55 | 0.101 / 1.99 | 14.3 |
+
+Provisional (delta σ, before the committee check). No discrepancy term.
+
 ## §4 Multivariate conformal prediction with the CR3 covariance
 
 K. Fisher, M. Herbst, J. Kermode, Y. Marzouk, arXiv:2609.31384 (2026): a GAP (SOAP, polynomial kernel)
