@@ -108,6 +108,29 @@ image), whose barrier is a max over images: a non-smooth step, committee only (a
 
 Cost: a few days of compute. The cleanest extension of the paper, and possibly a short note on its own.
 
+**Mean-model runs (2026-11-10, mnf148).** `python -m bench.si_qoi_uq.harness run $SIQ_RUNS/samples/<m>_{cr3,pops}.npz
+--mean --tests vacancy-path-ref` (the framework's test unmodified, py3 port: MDMin to fmax 0.01; converged, final
+fmax 0.0068 / 0.0100 eV/Å). Harness venv `/storage/eng/essswb/venvs/si-tests` had gone; rebuilt from the repo's
+`uv.lock` (ace-jax 0.5.3, ASE 3.29.0, Python 3.14) plus spglib, phonopy and matscipy, the framework's imports.
+
+| | E_vac (63 at.) | barrier | peak image | path (eV above image 0) |
+|---|---|---|---|---|
+| DFT (CASTEP) | 3.627 | **0.299** | 5 | 0 .026 .095 .199 .285 .299 .234 .135 .054 .012 0 |
+| GAP-18 | 3.626 | 0.218 | 5 | 0 .019 .063 .118 .199 .218 .154 .089 .046 .010 0 |
+| o3d12 θ̂ | 2.823 | 0.238 | 4 | 0 .029 .111 .198 .238 .233 .230 .156 .076 .014 0 |
+| o4d20 θ̂ | 3.578 | 0.098 | 5 | 0 .007 .025 .063 .096 .098 .081 .039 .016 .004 0 |
+
+The POPS means give the same paths to 10⁻³ eV (their coefficients differ from θ̂ by ≤ 0.004 / 0.1; the 215-atom
+vacancy energies already agreed to 4×10⁻⁴ eV). o4d20 misses the barrier by −0.20 eV (as Best et al.'s ACE, 0.12 eV),
+o3d12 by −0.06 eV with a vacancy formation energy 0.80 eV low. The o3d12 path is flat-topped and asymmetric (images
+4–6 within 8 meV, peak at 4): the middle image is not its saddle, so its delta row needs a climbing-image refinement
+(from the converged band), and the protocol's max over images is then a non-smooth step there (committee check).
+o4d20 is symmetric with its peak at the middle image, as the reference.
+
+Next: (a) climbing-image refinement from each converged band, recording the saddle and its distance from the
+protocol's max; (b) delta rows Φ(x_s) − Φ(x_min) + a₀ term; (c) a λ = 1 committee of `vacancy-path-ref` runs to
+validate them; (d) coverage of CR3 × λ_F, B1, POPS against 0.299 eV.
+
 ## §4 Multivariate conformal prediction with the CR3 covariance
 
 K. Fisher, M. Herbst, J. Kermode, Y. Marzouk, arXiv:2609.31384 (2026): a GAP (SOAP, polynomial kernel)
