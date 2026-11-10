@@ -282,6 +282,37 @@ Steps:
 Decision: if QoI coverage holds and the scores favour CR3 over B1, it strengthens the paper's covariance-shape
 argument. If not, it is a one-paragraph negative result.
 
+**Results, steps 1–3 (2026-11-10; `analysis/mv_conformal.py` → `results/mv_conformal_<m>.json`).** Score
+s_c = (e_cᵀ Σ_c⁻¹ e_c / D_c)^½ over all live force components of a test configuration, Σ_c = λ² M_c M_cᵀ + ν² I, M_c = F_c L.
+(λ, ν) come from maximum Gaussian likelihood on a calibration half of the test split, then one conformal quantile q (α = 0.1);
+joint coverage is measured on the other half, over 200 random splits. The region's parameter part, λ_mv = q λ, replaces λ_F for the
+QoIs (delta method, no discrepancy term; λ_mv and ν from the whole test split). No QoI enters.
+
+| | o3d12 CR3 | o3d12 B1 | o4d20 CR3 | o4d20 B1 |
+|---|---|---|---|---|
+| ν (eV/Å per component, in the region) / ν over the RMS error | 0.131 / 0.56 | 0.123 / 0.53 | 0.039 / 0.38 | 0.004 / 0.04 |
+| λ_mv (paper scale λ_F or q̂_B1) | 14.2 (5.82) | 89.5 (39.8) | **8.27 (6.17)** | 26.6 (8.87) |
+| joint 90 % coverage, held-out halves (mean; 5–95 %) | 0.90 (0.84–0.96) | 0.90 | 0.90 (0.84–0.96) | 0.90 |
+| by kind: bulk / point defect / surface / extended (n per half 80 / 20 / 8 / 3) | 0.93 / 1.00 / 0.40 / 0.69 | 0.92 / 1.00 / 0.44 / 0.73 | 0.95 / 0.96 / 0.28 / 0.62 | 0.99 / 0.66 / 1.00 / 0.88 |
+| QoIs covered at 95 % (paper scale) of 17 | 17 (14) | 15 (13) | **16 (12)** | 16 (10) |
+| median σ/tol (paper scale) | 5.78 (2.37) | 3.85 | **0.72 (0.53)** | 1.08 |
+| defect z: dumbbell / hexagonal / tetrahedral / vacancy | 1.4 / 1.1 / 0.8 / 0.7 | 2.3 / 1.8 / 1.8 / 2.0 | 1.6 / 1.8 / 2.6 / 1.1 | 1.7 / 1.8 / 3.0 / 1.0 |
+
+Reading:
+- The joint guarantee holds on average by construction, but not by kind. Surfaces are under-covered for CR3 at both sizes
+  (0.28–0.40), and point defects for B1 at o4d20 (0.66). With 8 surface configurations per half these are coarse.
+- At o4d20 the CR3 shape needs only a small nugget, and its joint scale is 1.34 × λ_F. That covers 16 of 17 QoIs **without
+  the discrepancy term**, at median σ/tol 0.72, narrower than the type-level jackknife (1.77) for the same coverage. Only the
+  tetrahedral interstitial misses (z 2.6), the QoI the difference rows could not fix either. B1 needs 3 × its scale for the
+  same coverage and gives wider QoI intervals (1.08).
+- At o3d12 the nugget is half the error, and λ_mv is 2.4 × λ_F. Every QoI is covered, but at σ/tol 5.8: wide, not informative.
+- Why the joint scale is larger than λ_F: λ_F is a per-component RMS, set mostly by small bulk cells. The whole-configuration
+  likelihood weighs the large cells, where §0 found 1.7–2.8 × the variance in the leading directions. The nugget takes the white
+  part, so λ is fitted to the correlated part, which is what propagates to QoIs.
+- Decision (plan): QoI coverage holds and the scores favour CR3 over B1 at o4d20 (narrower intervals for the same coverage;
+  B1 under-covers the defect cells). This is a candidate replacement for λ_F at o4d20 that removes most of the need for the
+  discrepancy term. Caveat: the shape was chosen on the same test split as λ_F, after §0 showed the nugget was needed.
+
 ## §0 results (2026-11-10)
 
 **Per-type per-atom force coverage** (Gaussian 90 % ellipsoid of each method's own 3×3 covariance,
