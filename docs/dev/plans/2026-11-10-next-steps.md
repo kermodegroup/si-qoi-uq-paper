@@ -43,6 +43,26 @@ Steps:
 3. Only if 1–2 show large misses that the covariance does not explain: spin-polarised CASTEP on 5–10
    Pandey and DAS configurations, to measure the size of the effect directly (needs DFT time).
 
+**Results, steps 1–2 (2026-11-10; `analysis/s111.py` → `results/s111.json`).**
+- Correction to step 1: `surface-energy-111-relaxed` is a perturbed and relaxed **1×1** cell, which cannot form the 2×1
+  Pandey chain, so no harness test gives a Pandey energy. The CASTEP reference exists only for the 1×1 value (0.0980 eV/Å²).
+  For DAS there is no CASTEP value. The framework's DFT_literature reference (Solares et al. 2005, shifted to the CASTEP 1×1)
+  uses a different functional and protocol, so DAS is scored on order and differences.
+- Harness: under ASE ≥ 3.23 the unmodified DAS test failed (`KeyError: 'move_mask'`: the extxyz reader turns the column into
+  FixAtoms). `harness.py` now restores the array on read and drops it on write.
+- Rows: the envelope theorem on the recorded relaxed slabs, plus the a0 term; e111 (unrelaxed) is rebuilt with ASE. Every
+  Q from the rows matches the harness value to 1e-5.
+- 1×1 (CR3 × λ_F, z against CASTEP): o3d12 0.0826 ± 0.0103 (z +1.49); o4d20 0.0945 ± 0.0043 (z +0.81) eV/Å².
+- DAS: every absolute value is within 0.7 σ of the literature for both models. o4d20 is almost exact
+  (0.0888 / 0.0862 / 0.0859 / 0.0861 against 0.0880 / 0.0863 / 0.0860 / 0.0868). The mean order is right for o4d20
+  (7×7 lowest, as GAP-18 has it) but wrong for o3d12 (energies fall monotonically to 9×9).
+- The order is not resolved by either covariance. Differences (meV/Å²; literature in brackets): o3d12 5−3 −6.8 ± 3.7 (−1.7),
+  7−5 −1.5 ± 1.9 (−0.3), 9−7 −0.4 ± 1.2 (+0.8); o4d20 −2.7 ± 6.0, −0.2 ± 4.1, +0.2 ± 2.7. The sizes are correlated at
+  0.97–1.00, but the difference σ is still larger than the differences. P(7×7 lowest) is 0.15 (o3d12) and 0.05 (o4d20),
+  below the 0.25 of a random order: the intervals say "order unknown", and every literature difference is within 1.4 σ.
+- Reading for the talk question: no miss that the covariance does not explain, so step 3 (spin-polarised DFT) is not
+  triggered. The fine detail (the 7×7 minimum, ~0.3–0.8 meV/Å²) is below what either model's parameter uncertainty resolves.
+
 ## §2 Does the POPS ellipsoid fix held-out coverage on forces and relaxed defect energies?
 
 `POPS-UQ/popsregression` branch `ellipse-ev` (107 commits ahead of main): `POPSRegression(posterior="ellipsoid")`,
@@ -202,6 +222,35 @@ close about half of the interstitial gap: 1 of 3 interstitials covered without t
 Not enough to drop the term. Caveat: the grouping was applied to the interstitials only, after seeing them fail;
 the same (type, cell) rule over all types also groups whole surface, sp and sp2 types (fixed boxes, not trajectories:
 626 of 2227 configurations in multi-configuration groups), so it does not generalise as written.
+
+**Defect-bulk difference rows in the fit** (`analysis/diff_rows_post.py`, `results/diff_rows_post_<m>.json`; question:
+can the fit itself get the defects right, so the discrepancy term is not needed?). The rows are the regression form of the
+headline discrepancy estimator, one row per training defect cell, d_i = b_i − n_i (bulk thermal trend at x_i): 103 interstitial,
+190 vacancy and 70 divacancy cells. They are added to the stored cr3 posterior (MAP hyperparameters, ARD prior) as an exact rank-363
+update, at k × each cell's own energy-row weight. k is a sweep, not a choice. QoIs move linearly through the delta rows.
+The harness check on the relaxed defects (`RUNS/samples/<m>_drp_k<k>.npz`) matches to 0.01 eV for o4d20 at k = 3 and 10, and is off
+by up to 0.23 eV for o3d12 at k = 10, where |Δθ|/|θ| = 0.28 (harness values below where run).
+
+| o4d20, k | 0 | 1 | 3 | 10 | 30 | 100 | 300 |
+|---|---|---|---|---|---|---|---|
+| test F (eV/Å) | 0.0816 | 0.0819 | 0.0833 | 0.0899 | 0.1002 | 0.1097 | 0.1129 |
+| test E (meV/atom) | 3.50 | 3.54 | 3.62 | 3.88 | 4.30 | 4.80 | 5.00 |
+| interstitial training intercept (eV) | +0.385 | +0.181 | +0.057 | +0.010 | +0.001 | 0.000 | 0.000 |
+| err/tol dumbbell / hexagonal / tetrahedral | 3.7 / 4.1 / 6.0 | 2.7 / 3.1 / 4.9 | 0.9 / 2.0 / 3.8 | −0.2 / 1.2 / 3.7 | −0.8 / 0.8 / 4.0 | −0.8 / 0.7 / 4.1 | −0.8 / 0.7 / 4.1 |
+| err/tol vacancy | 1.1 | 0.6 | 0.3 | 0.7 | 1.0 | 1.4 | 1.4 |
+| within tol / covered 95 % (headline σ), of 17 | 13 / 12 | 14 / 15 | 15 / 15 | 15 / 15 | 15 / 15 | 12 / 11 | 12 / 10 |
+
+o3d12 (test F 0.158 at k = 0): k = 3 leaves the interstitials at 7.9–8.9 × tol (test F +4 %). At k = 10 (test F +17 %, E +22 %), the harness
+gives dumbbell / hexagonal / tetrahedral 5.4 / 3.5 / 6.7 × tol and vacancy 1.9. Larger k doubles the test errors (|Δθ| > |θ|).
+
+Reading: no. For o4d20 the rows drive the training interstitial intercept to zero by k ≈ 10. The dumbbell, hexagonal and vacancy
+QoIs then move within tolerance, and the test errors grow modestly (F +2 % at k = 3, +10 % at k = 10). But the **tetrahedral interstitial stays at
+3.7–4.1 × tol for every k** (0.37–0.41 eV), outside the headline 95 % interval (σ 0.17 eV, z ≈ 2.2). The hot training snapshots
+constrain the class's defect-bulk contrast as a whole, not each relaxed geometry; a bias specific to the tetrahedral site
+remains. For o3d12 the rows cannot fix the defects without wrecking the fit. Caveats: the CR3 σ at k > 0 would come from the
+augmented fit, not computed here, and a refit with these rows would also re-estimate the hyperparameters. So the discrepancy
+term (or relaxed-defect training data) stays. A k ≈ 3 fit is a reasonable o4d20 variant if one wants better defects at
+2 % force cost, but choosing it would use the QoIs.
 
 ## §4 Multivariate conformal prediction with the CR3 covariance
 
