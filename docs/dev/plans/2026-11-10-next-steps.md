@@ -141,7 +141,34 @@ at the middle image. Refined barriers within 0.8 meV of the protocol's max.
 | o3d12 | 0.239 | −0.060 | 0.48 / 0.13 | 0.145 / 0.42 | 0.23 / 0.26 | 0.73 |
 | o4d20 | 0.098 | −0.201 | 0.087 / 2.31 | 0.044 / 4.55 | 0.101 / 1.99 | 14.3 |
 
-Provisional (delta σ, before the committee check). No discrepancy term.
+Committee check (K = 200 per method and model, `analysis/vacancy_barrier_committee.py`,
+`results/vacancy_barrier_committee.json`): delta / committee σ ratios 1.01–1.06, so the delta σ stand (10 % rule).
+o3d12's committee peak moves between images 4–6 (163 / 18 / 19) without changing σ. No discrepancy term: the
+vacancy term is a formation-energy offset and cancels in E_s − E_m.
+
+**Descriptor novelty of the saddle** (`analysis/barrier_novelty.py`): at o4d20 the migrating atom's novelty grade is
+1.02 (88th percentile of test atoms), all saddle atoms are supported, per-atom σ median. The saddle is not missing
+from training (hot 63-atom vacancy snapshots reach it), so B1's small σ is consistent and the miss is model-form
+error on seen environments.
+
+**Which configurations carry the CR3 σ** (`analysis/barrier_influence.py`, `results/barrier_influence.json`;
+b_k = g · l_k per training configuration, Σ b_k² = the B3 variance to 0.1 % at o4d20, ≤ 6 % at o3d12 (replay)).
+Share of the variance (enrichment over the type's share of configurations):
+
+| QoI | o4d20 | o3d12 |
+|---|---|---|
+| barrier | vacancy 0.49 (×6), of which s ≥ 0.4 cells 0.31 (27 cells); divacancy 0.25 | one `bt` cell (#996) 0.89 |
+| vacancy energy | vacancy 0.35 (×4), divacancy 0.14 | the same `bt` cell 0.87 |
+| dumbbell | interstitial 0.36 (×8) | surface_110 / 111, screw dislocation; interstitial < 0.04 |
+| hexagonal | interstitial 0.34 (×7) | `bt` 0.49, surface_111 0.21 |
+| tetrahedral | interstitial 0.42 (×9) | `bt` 0.67 |
+| controls: C44 / surface_100 | spread / surface_001 0.71 (×61) | crack, dia / surface_110 0.32 |
+
+o4d20: every defect σ comes mostly from its own defect class, the barrier's from near-saddle vacancy cells; the
+"right" configurations, yet the interstitials still miss without the discrepancy term (λ_F z −2.1 to −2.7): the
+jackknife is centred, so a bias shared by every interstitial snapshot moves no leave-one-out fit and adds no width.
+o3d12: one β-tin cell dominates the vacancy, tetrahedral, hexagonal and barrier σ: those widths (e.g. barrier 0.48
+eV) are an accident of one high-influence configuration, not information about defects.
 
 ## §4 Multivariate conformal prediction with the CR3 covariance
 
