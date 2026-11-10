@@ -1211,6 +1211,42 @@ z RMS 0.85–1.13 for those cells). The error grows towards the cold limit, and 
 a bias that all interstitial clusters share. With per-atom energy weighting, 0.4–1.6 eV in a 217-atom cell costs only
 2–7 meV/atom in the fit.</p>""", "drafted", level=3)
 
+# trajectory clusters (analysis/traj_jackknife.py) and the type-level jackknife (analysis/type_jackknife.py), delta method,
+# CR3 x lam_F, no discrepancy term
+tj = {m: json.load(open(RES / f"traj_jackknife_{m}.json")) for m in models if (RES / f"traj_jackknife_{m}.json").exists()}
+tyj = {m: json.load(open(RES / f"type_jackknife_{m}.json")) for m in models if (RES / f"type_jackknife_{m}.json").exists()}
+INTER = ("dumbbell_interstitial_energy", "hexagonal_interstitial_energy", "tetrahedral_interstitial_energy")
+_tj_ratio = lambda m, inter: [v["sigma"]["traj"] / v["sigma"]["cr3"] for q, v in tj[m]["qoi"].items() if (q in INTER) == inter]
+_tj_z = lambda m, k: " / ".join(f"{abs(tj[m]['qoi'][q]['z'][k]):.1f}" for q in INTER)
+_tj_miss = sum(not tj[m]["qoi"][q]["covered95"]["traj"] for m in tj for q in INTER)
+if len(tj) == 2:
+    _g = tj["o4d20"]["group_sizes"]
+    traj_p = f"""<p><b>Correlation within a trajectory.</b> CR3 deletes one configuration at a time, so it treats the
+{sum(_g)} training interstitial snapshots as independent. Most of them are not: {sum(s for s in _g if s > 1)} come from
+{("one", "two", "three", "four")[sum(s > 1 for s in _g) - 1]} fixed-cell molecular-dynamics runs of {", ".join(str(s) for s in _g if s > 1).rsplit(", ", 1)[0]} and {[s for s in _g if s > 1][-1]} snapshots, identified by
+their identical cells, and the other {sum(s == 1 for s in _g)} each have their own cell. We deleted each run as one cluster,
+exactly, with the cluster form of the leverage correction (Section 2.4), kept every other configuration as its own cluster, and refitted
+λ<sub>F</sub> on the test split ({tj["o3d12"]["lam_F"]["cr3"]:.2f} → {tj["o3d12"]["lam_F"]["traj"]:.2f} for o3d12,
+{tj["o4d20"]["lam_F"]["cr3"]:.2f} → {tj["o4d20"]["lam_F"]["traj"]:.2f} for o4d20). The interstitial σ grow by factors of
+{min(_tj_ratio("o3d12", True)):.2f}–{max(_tj_ratio("o3d12", True)):.2f} (o3d12) and {min(_tj_ratio("o4d20", True)):.2f}–{max(_tj_ratio("o4d20", True)):.2f}
+(o4d20); the other σ change by factors of {min(min(_tj_ratio(m, False)) for m in tj):.2f}–{max(max(_tj_ratio(m, False)) for m in tj):.2f}.
+Without the discrepancy term, the interstitial |z| (dumbbell / hexagonal / tetrahedral) fall from {_tj_z("o3d12", "cr3")} to
+{_tj_z("o3d12", "traj")} for o3d12 and from {_tj_z("o4d20", "cr3")} to {_tj_z("o4d20", "traj")} for o4d20. Delta-method coverage at
+95 % rises from {tj["o3d12"]["covered95"]["cr3"]} to {tj["o3d12"]["covered95"]["traj"]} of {tj["o3d12"]["covered95"]["n"]} QoIs
+(o3d12) and from {tj["o4d20"]["covered95"]["cr3"]} to {tj["o4d20"]["covered95"]["traj"]} (o4d20), and no QoI loses coverage.
+Correlation within a trajectory therefore explains part of the under-coverage, but {_tj_miss} of the six interstitial QoIs stay
+outside their 95 % intervals. The rest is the bias that all the runs and single snapshots share, which only a cluster as large
+as the whole class can see. Leaving out each of the {tyj["o4d20"]["n_types"]} configuration types in turn does cover the
+defects for o4d20 ({tyj["o4d20"]["type/lam_F"]["k95"]} of {tyj["o4d20"]["type/lam_F"]["n"]} QoIs at 95 %), but with
+{tyj["o4d20"]["n_types"]} clusters the scale is noisy and every interval widens (median σ/tol
+{tyj["o4d20"]["type/lam_F"]["median_sigma_over_tol"]:.2f} against {tyj["o4d20"]["cr3/lam_F"]["median_sigma_over_tol"]:.2f}), and for
+o3d12 it still misses the interstitials ({tyj["o3d12"]["type/lam_F"]["k95"]} of {tyj["o3d12"]["type/lam_F"]["n"]}). The trajectory
+clusters were defined for the interstitials after their misses had been seen. The same rule (one configuration type, one cell)
+applied to every type would also merge whole surface and sp/sp2 types, whose identical cells are fixed simulation boxes, not
+trajectories. We therefore report the trajectory clusters as a diagnostic, not as a method; a general version needs the
+trajectory of each configuration from the provenance of the dataset.</p>"""
+    sec("results-defects-traj", "", traj_p, "", level=0)
+
 sec("results-defects2", "", f"""
 <div class="wrap"><table><caption>Table 7a. The bias r*<sub>t</sub> and its standard error s*<sub>t</sub> in the headline discrepancy term
 (Section 2.7.4; DFT training labels only). Every row is an extrapolation of the training residuals to zero thermal amplitude
