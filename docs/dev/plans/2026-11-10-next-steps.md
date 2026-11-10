@@ -252,6 +252,35 @@ augmented fit, not computed here, and a refit with these rows would also re-esti
 term (or relaxed-defect training data) stays. A k ≈ 3 fit is a reasonable o4d20 variant if one wants better defects at
 2 % force cost, but choosing it would use the QoIs.
 
+**Elastic dipole tensors and relaxation volumes** (`analysis/defect_dipole.py`, `results/defect_dipole.json`; question: is
+the dipole tensor, or the relaxation volume, a descriptor that flags the under-covered interstitials?).
+(a) Relaxed QoI defects (216-site cell at a0, cell fixed): P = W_def − (n/n_b) W_bulk, ΔV = tr P / 3B with the model's own B.
+The rows come from implicit differentiation, with the relaxation and a0 terms. Check: the bulk's total row vanishes (CR3 σ
+6e-4 / 2e-4 eV), and o3d12's values are identical with the chunked Jacobians.
+
+| ΔV/Ω (CR3 × λ_F σ) | vacancy | tetrahedral | hexagonal | dumbbell |
+|---|---|---|---|---|
+| o3d12 | −1.05 ± 0.31 | +0.65 ± 0.59 | +0.62 ± 0.36 | +0.84 ± 0.37 |
+| o4d20 | −0.73 ± 0.28 | +0.62 ± 0.22 | +0.65 ± 0.19 | +0.69 ± 0.19 |
+
+(b) Training labels, stress channel. Each cell's virial residual (DFT − model) minus n × the bulk per-atom thermal trend,
+regressed on F_rms², intercept of tr P (eV). Interstitials: o3d12 −15 ± 11 (hot-cell mean −35), o4d20 +4 ± 7 (hot mean −21).
+Vacancy, 215-atom cells: −1.6 ± 2.3 / −4.7 ± 0.9; 63-atom cells: +6.4 ± 0.6 / +1.4 ± 0.3. Only the 43 variable-cell interstitial
+snapshots carry virials.
+
+Reading: no, not as a flag for the interstitial miss.
+- The three interstitial sites have the same relaxation volume within σ in both models (0.62–0.84 Ω), and the two models
+  agree. The tetrahedral site, whose energy error survives the difference rows, does not stand out.
+- In the stress channel the cold-limit interstitial residual is consistent with zero for both models (0.4σ to 1.3σ). The
+  energy channel's intercept is +1.6 ± 0.06 / +0.39 ± 0.03 eV. So the bias the discrepancy term measures is an energy
+  bias that the stress labels do not show. That fits the per-atom energy-weighting explanation: energies of large cells are
+  weakly weighted, stresses are not.
+- The hot cells do carry a large stress residual (−21 to −35 eV in tr P: the model's hot interstitials push outward more
+  than DFT), but it is thermal and extrapolates away.
+- The vacancy size split seen in energies appears in stress too (63 against 215 atoms differ by 6–8 eV in both models).
+- Without DFT relaxation volumes for the harness defects, (a) is not scored. The literature values would make ΔV a
+  stress-type QoI.
+
 ## §4 Multivariate conformal prediction with the CR3 covariance
 
 K. Fisher, M. Herbst, J. Kermode, Y. Marzouk, arXiv:2609.31384 (2026): a GAP (SOAP, polynomial kernel)
