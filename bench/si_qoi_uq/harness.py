@@ -67,7 +67,12 @@ def _strip_calc_write():
     orig = aio.write
 
     def write(fileobj, images, *a, **k):
-        strip = lambda at: (lambda c: (setattr(c, "calc", None), c)[1])(at.copy())
+        def strip(at):
+            c = at.copy()
+            c.calc = None
+            if "move_mask" in c.arrays and c.constraints:     # the writer makes move_mask from the constraint itself
+                del c.arrays["move_mask"]                     # (_move_mask_read restored the array for the DAS test)
+            return c
         if isinstance(images, (list, tuple)):
             images = [strip(x) for x in images]
         elif hasattr(images, "get_positions"):
@@ -75,6 +80,32 @@ def _strip_calc_write():
         return orig(fileobj, images, *a, **k)
     write._siq = True
     aio.write = write
+
+
+def _move_mask_read():
+    """ASE >= 3.23's extxyz reader turns a 'move_mask' column into a FixAtoms constraint and drops the array, which the
+    (111) DAS test (surface-energy-111-2n+1_x_2n+1-relaxed) reads as atoms.arrays['move_mask'] (written for ASE 3.x
+    before that change).  Restore the array from the constraint (1 = free, 0 = fixed); nothing else changes."""
+    import ase.io as aio
+    from ase.constraints import FixAtoms
+    if getattr(aio.read, "_siq", False):
+        return
+    orig = aio.read
+
+    def fix(at):
+        if hasattr(at, "arrays") and "move_mask" not in at.arrays and any(isinstance(c, FixAtoms) for c in at.constraints):
+            mm = np.ones(len(at), int)
+            for c in at.constraints:
+                if isinstance(c, FixAtoms):
+                    mm[c.index] = 0
+            at.new_array("move_mask", mm)
+        return at
+
+    def read(*a, **k):
+        out = orig(*a, **k)
+        return [fix(x) for x in out] if isinstance(out, list) else fix(out)
+    read._siq = True
+    aio.read = read
 
 
 def _record_relaxations(store):
@@ -118,6 +149,7 @@ def run(samples_npz, ks, tests=TESTS, root=ROOT, force=False, mean=False, record
         if str(d) not in sys.path:
             sys.path.insert(0, str(d))
     _strip_calc_write()
+    _move_mask_read()
     store = {"on": mean or record, "frames": []}
     _record_relaxations(store)
     runner = root / "test-runner"
@@ -151,6 +183,9 @@ def run(samples_npz, ks, tests=TESTS, root=ROOT, force=False, mean=False, record
                     json.dump(props, fh, default=lambda o: o.tolist() if hasattr(o, "tolist") else float(o))
             except Exception as e:                        # a failed (sample, test) is recorded, not fatal
                 log(f"FAIL {name} {t}: {type(e).__name__}: {e}")
+                import traceback
+                with open(runner / f"model-{name}-test-{t}.txt", "a") as fh:
+                    traceback.print_exc(file=fh)
             finally:
                 os.chdir(cwd)
                 sys.path[:] = path0
