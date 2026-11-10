@@ -121,6 +121,15 @@ Reading (o3d12):
 - Decision (plan), both models: neither 2 nor 3 covers. The lesson is not "calibrate the scale": at this conditioning the ellipsoid needs
   a prior or ridge on its widths in parameter space, as the hypercube needed a ridge. That is a POPS-package issue to report
   upstream (Swinburne), not a competitor to CR3.
+- The smoothness prior as that width prior (o3d12, `--smooth-prior`; `results/pops_ellipse_o3d12_sp[_pac].json`): columns
+  rescaled X Λ^-1/2, Λ the cr3 fit's own prior precision at the MAP (`linear_prior_diag`), whiten_ridge 1/N, so the package
+  whitens with (XᵀX + Λ)/N, the BLR posterior precision (no free knob). It does not define the ellipsoid: 99.0 % of its trace
+  stays outside the data span, its own scale is 4e-12, QoI σ ~1e11 × tol, and with one scale per-atom coverage is 0.04 (0.13–0.19
+  without the prior). The prior only sets the whitening coordinates; the objective has no term in U, so nothing bounds the free
+  directions. The PAC-Bayes layer changes nothing (the package: `pac_bayes=True` never changes `coef_`/`U_`; τ² 8e21, KL 7.8e4):
+  the result is bit-identical. The prior does change the package's hypercube baseline: per-atom coverage 0.98 (0.94 without;
+  paper B2 0.947), QoIs 13/17 at σ/tol 2.46 (headline 14/17 at 2.37). Conclusion unchanged and sharpened: the prior has to enter
+  the ellipsoid objective itself (e.g. a −log det or tr(Λ B) term), a package change. o4d20 not run (same mechanism).
 
 ## §3 Does CR3 fix the under-coverage of the vacancy migration barrier?
 

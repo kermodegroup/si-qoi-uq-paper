@@ -22,6 +22,9 @@ of test force components, and the delta-method QoIs (17 with DFT; z, 95 % covera
 
     SIQ_RUNS=<BLR root> PYTHONPATH=<popsregression checkout> python -m bench.si_qoi_uq.analysis.pops_ellipse o3d12|o4d20
         [--whiten-ridge-rel r]   (a sweep; r is not selected on anything: every value is reported)
+        [--smooth-prior]   the fit's own prior (linear_prior_diag at the MAP: smoothness prior x sigma_c x ARD groups) as the
+                 width prior: columns rescaled X Lambda^-1/2 and whiten_ridge 1/N, so the package's G is (X^T X + Lambda) / N
+                 in model coordinates, the BLR posterior precision behind CR3 (no free knob); results mapped back by Lambda^-1/2
         -> RUNS/fits/<m>/pops_ellipse.npz, results/pops_ellipse_<m>.json
 """
 import csv, json, pathlib, shlex, sys, time
@@ -48,6 +51,7 @@ def main():
     from ace_jax.fit.data import build_dataset, load_configs
     from ace_jax.fit.hypers import Hypers
     from ace_jax.fit.inducing import GPConfig
+    from ace_jax.fit.objective import linear_prior_diag
     from ace_jax.fit.pipeline import load_fit_data
     from ace_jax.fit.pipeline.problem import build_problem
     from ace_jax.fit.rows import chunked_rows_fn
@@ -63,8 +67,13 @@ def main():
     pac = "--pac-bayes" in args        # the PAC-Bayes layer (package defaults): a Gaussian hyperprior ridge on the ellipsoid's
     if pac:                            # parameters, which also bounds U in directions no training row touches
         args.remove("--pac-bayes")
+    sp = "--smooth-prior" in args
+    if sp:
+        args.remove("--smooth-prior")
+    if sp and wr_rel is not None:
+        raise SystemExit("--smooth-prior fixes whiten_ridge at 1/N; do not combine it with --whiten-ridge-rel")
     m = args[0]
-    sfx = ("" if wr_rel is None else f"_wr{wr_rel:g}") + ("_pac" if pac else "")
+    sfx = ("" if wr_rel is None else f"_wr{wr_rel:g}") + ("_sp" if sp else "") + ("_pac" if pac else "")
     t0 = time.time()
     lin = lin_for(m, "cr3")
     th = np.asarray(lin.theta_hat, np.float64)
@@ -77,7 +86,7 @@ def main():
         if cache and pathlib.Path(cache, f"{m}_X.npy").exists():  # takes ~30 min to build; never on /storage (quota)
             X, y = np.load(pathlib.Path(cache, f"{m}_X.npy"), mmap_mode="r"), np.load(pathlib.Path(cache, f"{m}_y.npy"))
             print(f"{m}: design from {cache}: {X.shape}", flush=True)
-            return np.ascontiguousarray(X), y
+            return np.ascontiguousarray(X), y, np.load(pathlib.Path(cache, f"{m}_lam.npy"))
         argv = shlex.split(open(ACC / m / "cmd.txt").read().strip())[1:]
         argv[argv.index("--out") + 1] = "/tmp/unused"
         a = cli._parse(argv)
@@ -85,6 +94,8 @@ def main():
         data = load_fit_data(cfg, train=a.train, test=a.test)
         prob = build_problem(cfg, data).prob
         theta = Hypers(**json.load(open(ACC / m / "theta_map.json")))
+        lam_p = np.asarray(linear_prior_diag(theta, prob), np.float64)  # prior precision diag at the MAP
+        assert lam_p.shape == (n,) and np.all(lam_p > 0), lam_p.shape
         sig = {q: float(np.exp(getattr(theta, f"log_sigma_{q}"))) for q in "EFV"}
         tr = rows_of(prob, data.ds_train, data.train, None)
         assert tr["E"].shape[1] == n
@@ -99,20 +110,27 @@ def main():
         if cache:
             pathlib.Path(cache).mkdir(parents=True, exist_ok=True)
             np.save(pathlib.Path(cache, f"{m}_X.npy"), X); np.save(pathlib.Path(cache, f"{m}_y.npy"), y)
-        return X, y
+            np.save(pathlib.Path(cache, f"{m}_lam.npy"), lam_p)
+        return X, y, lam_p
 
     if fout.exists():
         z = dict(np.load(fout))
         print(f"{m}: ellipsoid from {fout}", flush=True)
         if "G_evals" not in z:                                     # the data span, for the projected ellipsoid
-            X, _ = design()
+            X, _, _ = design()
             z["G_evals"], z["G_evecs"] = np.linalg.eigh(X.T @ X / X.shape[0])
             del X
             np.savez(fout, **z)
     else:
-        X, y = design()
-        ge, gv = np.linalg.eigh(X.T @ X / X.shape[0])
+        X, y, lam_p = design()
+        ge, gv = np.linalg.eigh(X.T @ X / X.shape[0])              # model coordinates (the data span)
         opts = None if wr_rel is None else {"whiten_ridge": wr_rel * float(ge.max())}
+        dinv = np.ones(n)
+        if sp:                                                    # beta = Lambda^1/2 theta: the prior is the identity there
+            dinv = 1.0 / np.sqrt(lam_p)
+            X *= dinv[None, :]
+            opts = {"whiten_ridge": 1.0 / X.shape[0]}
+            print(f"{m}: smooth prior: Lambda in [{lam_p.min():.3g}, {lam_p.max():.3g}], whiten_ridge 1/N", flush=True)
         if X.size >= 2 ** 31:           # SciPy's LP64 LAPACK refuses > 2^31 elements (o4d20: 2.6e9); sklearn's BayesianRidge
             import types as _t           # pre-fit calls scipy.linalg.svd on X: route that one call to NumPy's ILP64 SVD
             import scipy.linalg as _sl
@@ -124,14 +142,15 @@ def main():
         est.fit(X, y)
         eng = est.ellipsoid_                                                        # the fitted _EllipsoidPosterior
         P = int(eng._ball_dim)
-        delta = np.asarray(est.coef_, np.float64)
+        delta = dinv * np.asarray(est.coef_, np.float64)
+        Dm = np.diag(dinv)
         info = {"P": int(P), "N": int(X.shape[0]), "rank": int(eng.U_.shape[1]), "coverage_fraction": float(eng.coverage_fraction_),
                 "objective": float(eng.objective_), "n_iter": int(eng.n_iter_), "fit_s": time.time() - t0,
                 "delta_rel": float(np.linalg.norm(delta) / np.linalg.norm(th)), "mode_threshold": float(eng.mode_threshold),
-                "whiten_ridge": float(eng.whiten_ridge), "whiten_ridge_rel": wr_rel, "pac_bayes": pac,
+                "whiten_ridge": float(eng.whiten_ridge), "whiten_ridge_rel": wr_rel, "pac_bayes": pac, "smooth_prior": sp,
                 **({"tau2": float(eng.tau2_), "bound": float(eng.bound_), "kl": float(eng.kl_)} if pac else {}), "G_eig_max": float(ge.max())}
-        z = dict(Sigma_e=np.asarray(eng.ellipsoid_B_) / (P + 2.0),                # as POPSRegression's own sigma
-                 B0=eng._whiten_W @ np.asarray(eng.baseline_B0_) @ eng._whiten_W,    # whitened -> model coordinates
+        z = dict(Sigma_e=Dm @ (np.asarray(eng.ellipsoid_B_) / (P + 2.0)) @ Dm,    # as POPSRegression's own sigma; beta -> theta
+                 B0=Dm @ eng._whiten_W @ np.asarray(eng.baseline_B0_) @ eng._whiten_W @ Dm,    # whitened -> model coordinates
                  delta=delta, info=json.dumps(info), G_evals=ge, G_evecs=gv)
         del X, y
         np.savez(fout, **z)
