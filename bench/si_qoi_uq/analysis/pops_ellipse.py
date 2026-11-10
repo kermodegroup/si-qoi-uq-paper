@@ -25,6 +25,9 @@ of test force components, and the delta-method QoIs (17 with DFT; z, 95 % covera
         [--smooth-prior]   the fit's own prior (linear_prior_diag at the MAP: smoothness prior x sigma_c x ARD groups) as the
                  width prior: columns rescaled X Lambda^-1/2 and whiten_ridge 1/N, so the package's G is (X^T X + Lambda) / N
                  in model coordinates, the BLR posterior precision behind CR3 (no free knob); results mapped back by Lambda^-1/2
+        [--param-prior]   (with --smooth-prior) the same prior inside the ellipsoid objective: popsregression branch
+                 ellipse-param-prior's param_prior_precision = I in those coordinates (the KL from N(0, Lambda^-1) to
+                 N(mu, B / (P + 2)), unit weight), at rank P so that B can be full rank
         -> RUNS/fits/<m>/pops_ellipse.npz, results/pops_ellipse_<m>.json
 """
 import csv, json, pathlib, shlex, sys, time
@@ -70,10 +73,15 @@ def main():
     sp = "--smooth-prior" in args
     if sp:
         args.remove("--smooth-prior")
+    kl = "--param-prior" in args
+    if kl:
+        args.remove("--param-prior")
+        if not sp or pac:
+            raise SystemExit("--param-prior needs --smooth-prior and excludes --pac-bayes")
     if sp and wr_rel is not None:
         raise SystemExit("--smooth-prior fixes whiten_ridge at 1/N; do not combine it with --whiten-ridge-rel")
     m = args[0]
-    sfx = ("" if wr_rel is None else f"_wr{wr_rel:g}") + ("_sp" if sp else "") + ("_pac" if pac else "")
+    sfx = ("" if wr_rel is None else f"_wr{wr_rel:g}") + ("_sp" if sp else "") + ("_kl" if kl else "") + ("_pac" if pac else "")
     t0 = time.time()
     lin = lin_for(m, "cr3")
     th = np.asarray(lin.theta_hat, np.float64)
@@ -130,6 +138,8 @@ def main():
             dinv = 1.0 / np.sqrt(lam_p)
             X *= dinv[None, :]
             opts = {"whiten_ridge": 1.0 / X.shape[0]}
+            if kl:
+                opts.update(param_prior_precision=np.ones(n), rank=n)
             print(f"{m}: smooth prior: Lambda in [{lam_p.min():.3g}, {lam_p.max():.3g}], whiten_ridge 1/N", flush=True)
         if X.size >= 2 ** 31:           # SciPy's LP64 LAPACK refuses > 2^31 elements (o4d20: 2.6e9); sklearn's BayesianRidge
             import types as _t           # pre-fit calls scipy.linalg.svd on X: route that one call to NumPy's ILP64 SVD
@@ -147,7 +157,8 @@ def main():
         info = {"P": int(P), "N": int(X.shape[0]), "rank": int(eng.U_.shape[1]), "coverage_fraction": float(eng.coverage_fraction_),
                 "objective": float(eng.objective_), "n_iter": int(eng.n_iter_), "fit_s": time.time() - t0,
                 "delta_rel": float(np.linalg.norm(delta) / np.linalg.norm(th)), "mode_threshold": float(eng.mode_threshold),
-                "whiten_ridge": float(eng.whiten_ridge), "whiten_ridge_rel": wr_rel, "pac_bayes": pac, "smooth_prior": sp,
+                "whiten_ridge": float(eng.whiten_ridge), "whiten_ridge_rel": wr_rel, "pac_bayes": pac, "smooth_prior": sp, "param_prior": kl,
+                "param_prior_kl": (float(eng.param_prior_kl_) if kl else None),
                 **({"tau2": float(eng.tau2_), "bound": float(eng.bound_), "kl": float(eng.kl_)} if pac else {}), "G_eig_max": float(ge.max())}
         z = dict(Sigma_e=Dm @ (np.asarray(eng.ellipsoid_B_) / (P + 2.0)) @ Dm,    # as POPSRegression's own sigma; beta -> theta
                  B0=Dm @ eng._whiten_W @ np.asarray(eng.baseline_B0_) @ eng._whiten_W @ Dm,    # whitened -> model coordinates

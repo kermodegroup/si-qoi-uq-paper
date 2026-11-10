@@ -130,6 +130,17 @@ Reading (o3d12):
   the result is bit-identical. The prior does change the package's hypercube baseline: per-atom coverage 0.98 (0.94 without;
   paper B2 0.947), QoIs 13/17 at σ/tol 2.46 (headline 14/17 at 2.37). Conclusion unchanged and sharpened: the prior has to enter
   the ellipsoid objective itself (e.g. a −log det or tr(Λ B) term), a package change. o4d20 not run (same mechanism).
+- The prior in the objective (o3d12, `--smooth-prior --param-prior`; popsregression local branch `ellipse-param-prior`,
+  afcaf04 + ad51a00, not pushed): `param_prior_precision` adds KL(N(μ, B/(P+2)) ‖ N(0, Λ⁻¹)) = ½ (tr(ΛB)/(P+2) − log det B)
+  at unit weight; rank P = 224. Toy check: an unconstrained coefficient goes to the prior variance (0.2499 for 1/4), constrained
+  ones unchanged (package test added). On o3d12 it does not work: cold start and a warm start at the prior optimum reach the same
+  point (`results/pops_ellipse_o3d12_sp_kl[_cold].json`), both at the iteration cap (4 × 500). The prior cuts the trace 300×
+  (1.4e23 → 4.4e20) and the median in-span variance 400× (1.2e5 → 2.7e2), but the largest variance *inside the data span* stays
+  5e19, so the blow-up is data-driven, not the free directions: the covering condition demands it. 20 rows stay outside
+  (coverage 0.99996), the barrier then dominates (data objective 4.9e7 per row against 26 without the prior). Own scale 5e-12;
+  one scale: per-atom coverage 0.06, QoIs 15/17 at σ/tol 6.7, tetrahedral z 6.5. Reading: every row's pointwise-optimal
+  correction must lie in the ellipsoid, and low-leverage rows need corrections of ~1e10 in θ; the hypercube copes only through
+  its leverage cut (B2: 50 %), which the ellipsoid lacks. o4d20 low-rank + diagonal not built (gate not met).
 
 ## §3 Does CR3 fix the under-coverage of the vacancy migration barrier?
 
