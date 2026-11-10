@@ -85,6 +85,36 @@ not finite data. A better *shape* could still help, so measure it.
 Decision: if 3 covers and 2 does not, the lesson for POPS is "calibrate the scale". That supports our
 construction rather than competing with it.
 
+**Results, o3d12 (2026-11-10; `analysis/pops_ellipse.py` → `results/pops_ellipse_o3d12*.json`; o4d20 running).**
+popsregression `ellipse-ev` (6d61264), `POPSRegression(posterior="ellipsoid")`, package defaults (rank 32). Inputs: all 474,493
+training E/F/V rows of the cr3 fit, weighted as the fit weights them, with targets the residuals about θ̂ (the package's centre
+moves θ̂ by 1e-4 relative; test force RMSE 0.1584 → 0.1581). Read as a Gaussian, Σ = B/(P + 2), as the package's own sigma.
+Correction to the plan: the objective is the projected-ball NLL with a covering barrier, B = B0 + UUᵀ in whitened coordinates,
+not a width penalty subject to coverage.
+
+| variant | per-atom 90 % coverage (bare / one per-atom scale) | QoIs 95 % of 17, median σ/tol (bare / scaled) |
+|---|---|---|
+| defaults (whiten ridge 1e-8) | 1.00 / 0.17 | 17, 1.5e10 / 17, 9.1 |
+| whiten ridge 1e-6 / 1e-4 / 1e-2 × max eig G | 1.00 / 0.13, 0.05, 0.13 | 17, 5e5–4e12 / 13, 12, 14 at 2.1–4.7 |
+| PAC-Bayes layer (defaults; τ² = 7.5e21) | 1.00 / 0.19 | 17, 1.7e10 / 16, 11.4 |
+| the package's own hypercube baseline B0 | 0.94 | 13, 1.88 |
+| paper B2 (ace-jax POPS box, leverage cut 50 %) / headline CR3 × λ_F | 0.947 / 0.791 | 13 / 14, 2.37 |
+
+Reading (o3d12):
+- The bare ellipsoid is not numerically defined on this design (cond G ~ 1e16). Its variance along the directions the
+  data barely constrain is ~1e20 (58 % of its trace in the weakest 10 % of precision directions). Rows of relaxed
+  structures project onto them, so QoI σ is 1e5–1e12 × tol. The objective's 0.5 log v_i term penalises width only where
+  rows have weight, so U grows freely elsewhere.
+- Projecting onto the data span (the package's own mode_threshold: rank 90 of 224) does not help: the weak modes inside it
+  carry the same blow-up. No whitening ridge from 1e-8 to 1e-2 × max eig G defines it. The PAC-Bayes hyperprior scales with the
+  warm start (τ² = 7.5e21), so it does not regularise either.
+- With one per-atom scale (plan step 3) the shape is wrong for forces: 0.05–0.19 per-atom coverage at a nominal 0.90. Every
+  force direction is tiny next to the blown-up ones that set the scale.
+- The package's own hypercube baseline reproduces the paper's B2 (0.94 against 0.947; QoIs 13/17).
+- Decision (plan): neither 2 nor 3 covers. The lesson is not "calibrate the scale": at this conditioning the ellipsoid needs
+  a prior or ridge on its widths in parameter space, as the hypercube needed a ridge. That is a POPS-package issue to report
+  upstream (Swinburne), not a competitor to CR3.
+
 ## §3 Does CR3 fix the under-coverage of the vacancy migration barrier?
 
 The under-coverage is from I. R. Best, T. J. Sullivan and J. R. Kermode, J. Chem. Phys. 161 (2024), shown on the
