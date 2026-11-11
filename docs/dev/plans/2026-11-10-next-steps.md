@@ -762,10 +762,11 @@ at both sizes.
 
 Reading:
 1. *The whole-configuration score reverses the per-atom verdict on methods.* With cross-atom correlations in the score, the
-   parameter-covariance shapes (B1, CR3) give regions ~1.7× smaller per component than the POPS box and ellipsoid
-   (log 0.5–0.6), at both sizes and both losses; the per-atom score had the ellipsoid ~1.3× smaller than CR3. This agrees
+   parameter-covariance shapes (B1, CR3) give smaller regions per component than the POPS box and ellipsoid: at o4d20 by
+   0.47–0.66 in log (1.6–1.9×), at o3d12 only by 0.08–0.16 (~1.1×), both losses; the per-atom score had the ellipsoid
+   smaller than CR3 by 0.27 (o4d20) and 0.37 (o3d12) in log. This agrees
    with the QoI joint scores (§2e: CR3 over the ellipsoid jointly), which also depend on the correlations.
-2. *Models: o4d20 over o3d12 for every method*, as with the per-atom score (by ~0.8–1.0 in log for B1/CR3).
+2. *Models: o4d20 over o3d12 for every method*, as with the per-atom score (by 0.7–0.9 in log for B1/CR3).
 3. *B1 against CR3 is not settled by size.* B1 is smaller at o4d20 but misses point-defect cells (0.35 of them outside at α 0.1),
    CR3 misses surfaces (0.60) and extended defects (0.42); every method misses surfaces at o3d12. The guarantee is marginal over
    configurations; by kind it fails for all methods, as §4 found. A kind-aware (Mondrian) whole-configuration CRC needs more
