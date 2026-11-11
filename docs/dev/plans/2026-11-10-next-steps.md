@@ -737,6 +737,43 @@ Caveats: the candidates' scales do not matter (CRC recalibrates), but their shap
 selection uses the test split, so for the paper it would need its own held-out split (the test split is the paper's
 calibration and evaluation set).
 
+**C. The whole-configuration score** (`analysis/crc_config.py`, `results/crc_config.json`). Per configuration and method
+Σ_c = λ_s² C_c + ν² I (C_c from the method's factor, or F_c Σ_e F_cᵀ for the ellipsoid; (λ_s, ν) by Gaussian ML, as §4), Fisher
+et al.'s whitened residual w_c = Σ_c^-½ e_c (symmetric root). Two losses, both bounded by 1: *joint* 1{|w_c|/√D_c > t} (the
+Mahalanobis region, §4) and *fraction* #{|w_ci| > t}/D_c (a box in whitened coordinates; the monotone form of their quantile
+loss). Size: log t + log det Σ_c / (2D_c), the log geometric semi-axis per component (eV/Å, as B). 100 splits: shape on a
+quarter, CRC on a quarter, size and risk on the other half; selection on thirds. α = 0.1:
+
+| candidate | joint: size / risk | fraction: size / risk | joint risk by kind: bulk / point defect / surface / extended |
+|---|---|---|---|
+| o4d20 B1 | **−2.79** / 0.098 | **−2.82** / 0.088 | 0.02 / 0.35 / 0.02 / 0.15 |
+| o4d20 CR3 | −2.65 / 0.103 | −2.67 / 0.089 | 0.05 / 0.10 / 0.60 / 0.42 |
+| o4d20 B2 | −2.17 / 0.100 | −2.25 / 0.087 | 0.06 / 0.00 / 0.58 / 0.32 |
+| o4d20 ellipsoid | −2.13 / 0.102 | −2.20 / 0.086 | 0.07 / 0.00 / 0.61 / 0.27 |
+| o3d12 B1 | −1.86 / 0.100 | −1.97 / 0.087 | 0.07 / 0.00 / 0.59 / 0.33 |
+| o3d12 CR3 | −1.84 / 0.101 | −1.97 / 0.087 | 0.07 / 0.00 / 0.62 / 0.33 |
+| o3d12 ellipsoid | −1.76 / 0.104 | −1.83 / 0.086 | 0.07 / 0.00 / 0.63 / 0.30 |
+| o3d12 B2 | −1.70 / 0.100 | −1.82 / 0.087 | 0.07 / 0.00 / 0.60 / 0.33 |
+
+Same order at α = 0.05 and 0.2 (at 0.05 CR3 and B1 tie at o4d20). Selection: o4d20 B1 in 89–100 % of splits, risk on the held-out
+third 0.106 (α 0.1), 0.055 (0.05), 0.201 (0.2) for the joint loss; 0.093 / 0.041 / 0.194 for the fraction loss. ML shapes: the
+nugget ν at o4d20 is 0.031 eV/Å for CR3 but 0.003 for B1 (B1's own shape carries the white part), 0.1 for B2 and the ellipsoid
+at both sizes.
+
+Reading:
+1. *The whole-configuration score reverses the per-atom verdict on methods.* With cross-atom correlations in the score, the
+   parameter-covariance shapes (B1, CR3) give regions ~1.7× smaller per component than the POPS box and ellipsoid
+   (log 0.5–0.6), at both sizes and both losses; the per-atom score had the ellipsoid ~1.3× smaller than CR3. This agrees
+   with the QoI joint scores (§2e: CR3 over the ellipsoid jointly), which also depend on the correlations.
+2. *Models: o4d20 over o3d12 for every method*, as with the per-atom score (by ~0.8–1.0 in log for B1/CR3).
+3. *B1 against CR3 is not settled by size.* B1 is smaller at o4d20 but misses point-defect cells (0.35 of them outside at α 0.1),
+   CR3 misses surfaces (0.60) and extended defects (0.42); every method misses surfaces at o3d12. The guarantee is marginal over
+   configurations; by kind it fails for all methods, as §4 found. A kind-aware (Mondrian) whole-configuration CRC needs more
+   configurations per kind than the test split has (8 surfaces per half).
+4. *For the paper:* the score must match the use. Per-atom CRC size for per-atom forces (picks the ellipsoid shape), whole-
+   configuration CRC size for correlated predictions (picks the parameter-covariance shapes, the family CR3 belongs to). Next:
+   the model ladder (o3d8 … o4d20, the accuracy-cost fits on the same split) with CR3 and B1, to see where size saturates.
+
 ## §0 results (2026-11-10)
 
 **Per-type per-atom force coverage** (Gaussian 90 % ellipsoid of each method's own 3×3 covariance,
@@ -782,7 +819,7 @@ this. §4 then becomes: does Σ + νI with a conformal scale cover the defect ce
 | §1 (111) | ~1 week; DFT only if needed | done (2026-11-10): DAS within 0.7 σ, order unresolved by either covariance (P(7×7 lowest) 0.05–0.15); spin DFT not triggered |
 | §2 ellipsoid | ~1 week, mnf148 | done (2026-11-11): needs a leverage cut; then the most even per-type force coverage, self-calibrated, stable across optima; non-convex, and the lower optimum is not better downstream; QoI widths reproducible once converged (an eigh scoring bug had made them look unstable); slightly sharper per QoI than CR3, worse jointly. Paper: discussion paragraph + SI forces table, optional SI QoI-score sentence (§2e) |
 | §4 multivariate | ~1–2 weeks | done (2026-11-11): joint guarantee holds on average, not by kind (surfaces 0.28–0.40); at o4d20 λ_mv covers 16/17 QoIs and is jointly calibrated without the discrepancy term, but scores worse than the headline; too wide at o3d12 |
-| §5 CRC | ~1 day | in progress (2026-11-11): CRC makes the per-atom guarantee exact for 2–4 % in q; calibrated size selects o4d20 over o3d12 and the POPS ellipsoid among methods (per-atom forces), against the QoI joint scores; whole-configuration score next |
+| §5 CRC | ~1 day | in progress (2026-11-11): CRC makes the per-atom guarantee exact for 2–4 % in q; calibrated size selects o4d20 over o3d12 for every method; among methods the per-atom score picks the ellipsoid shape, the whole-configuration score the parameter-covariance shapes (B1, CR3), as the QoI joint scores; model ladder next |
 
 All four questions have answers. What is left is deciding what goes into the paper revision (branch `revision`, draft PR #1):
 candidates are §3 (barrier: a new QoI and the clearest miss), §2e items 2–4 (ellipsoid: discussion paragraph, SI forces table,
