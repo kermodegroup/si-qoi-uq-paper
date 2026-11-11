@@ -161,7 +161,10 @@ equations fail at this column scaling (Cholesky indefinite; an eigendecompositio
   loses 0.10 off distribution (headline 0.035, B2 0.06); it is more even across the held-out types than the headline.
 - Caveats: (1) 99.9 % of the trace lies outside the data span (G eigenvalues above 1e-8 × max); there U keeps its random start.
   Projected on the span, coverage falls 0.86 → 0.70 (0.84 with its λ = 1.21) in distribution and 0.78 → 0.73 held out: about
-  15 points of the in-distribution coverage are not fitted. (2) No rank-32 fit converged (4 × 500 iterations each). (3) With the
+  15 points of the in-distribution coverage are not fitted. (2) The 4 × 500-iteration fits are not converged, but close: the o3d12
+  rerun at 20,000 per stage (`_it20000`; 15,398 iterations; stages 2–4 report convergence) gives objective 1.171 (1.185),
+  λ_e 1.039, cov90 0.859 / 0.879, per-type RMS deviation 0.049 / 0.038 (lowest 0.83, surface_001), QoIs 14/17 at σ/tol 1.64;
+  span-projected coverage 0.64. (3) With the
   KL prior (`--param-prior`, rank 224; converged, 1573 iterations, KL 7.7e3) the free directions take the prior width, and the
   ace-jax prior is near-improper in some columns (Λ down to 1e-8): QoI σ ~6e5 × tol, per-atom coverage 1.0, so the principled
   version of (1) is not usable with this prior.
