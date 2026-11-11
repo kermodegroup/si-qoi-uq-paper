@@ -216,6 +216,17 @@ cut or a soft covering condition; prior only where the prior is proper). At o4d2
 leverage-cut ellipsoid is the most even method (RMS deviation 0.060 against 0.098 headline and 0.194 B2) and covers 15/17 QoIs
 at σ/tol 0.28, but is not converged and its unfitted-width share is unknown: needs a converged rerun before any paper claim.
 
+### §2d A closed-form POPS ellipsoid (future; suggested by T. Swinburne, 2026-11-11)
+
+Swinburne suggests the nonlinear fit can be avoided with PRESS-style updates, as in CR3. One form: the POPS pointwise-optimal
+correction of row i is the smallest shift fitting it exactly, δθᵢ = A⁻¹xᵢ rᵢ / hᵢ with hᵢ = xᵢᵀA⁻¹xᵢ; the CR3/PRESS
+leave-one-out shift is A⁻¹xᵢ rᵢ / (1 − hᵢ). Their second moment Σ δθᵢδθᵢᵀ = A⁻¹ [Σ xᵢxᵢᵀ rᵢ²/hᵢ²] A⁻¹ is the CR3 sandwich with
+weight 1/hᵢ² instead of 1/(1 − hᵢ)²: closed form, O(NP²), one scale left (a 1-d quantile of dᵢ² = δθᵢᵀS⁻¹δθᵢ for covering,
+or split-conformal). Per configuration: δθ_c = A⁻¹X_cᵀ(X_c A⁻¹X_cᵀ)⁻¹ r_c (CR3: (I − H_cc)⁻¹). Open: 1/h² lets low-leverage
+rows dominate (§2b's covering problem moved from a max into a sum, so the leverage cut is probably still needed); whether it
+keeps the fitted ellipsoid's per-type evenness. Cheap to test with the CR3 code (score sums with the new weights).
+Not in the popsregression prior PR.
+
 ## §3 Does CR3 fix the under-coverage of the vacancy migration barrier?
 
 The under-coverage is from I. R. Best, T. J. Sullivan and J. R. Kermode, J. Chem. Phys. 161 (2024), shown on the
