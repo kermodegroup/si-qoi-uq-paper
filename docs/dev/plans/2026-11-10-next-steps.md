@@ -271,14 +271,32 @@ data barely see it is the opposite: the QoI widths moved from median σ/tol 1.54
 directions would return the prior, so it needs a proper prior; with the smoothness prior the KL version gave near-improper
 widths (§2b). The package's PAC-Bayes layer is a Laplace approximation at one optimum and addresses neither.
 
-**Check in progress.** o3d12 multi-start: full-rank reweighting from five random Wishart starts (`--fp-start 1..5`, results
-`pops_ellipse_o3d12_sp_lev50_cf100_fp2000_s<k>.json`) and the rank-32 runs (`..._r32`, `..._r32_lb`), lestrade batch
-`runs/si_qoi_uq_blr/o3d12_fp_batch.sh`. Question: spread of the optimum objective × N (does one optimum dominate?) and of force
-coverage and QoI σ across optima of near-equal objective (does the prediction depend on which one?). The first launches of
-these failed: on lestrade a non-interactive `bash -c` clears PYTHONPATH (BASH_ENV = lmod init) and the venv's own popsregression
-0.4.0 has no ellipsoid; the batch script exports it. No result was taken from the failed launches. Also running: o4d20
-full-rank reweighting (mnf148, `_sp_lev50_cf100_fp1000`; expected 9–14 h, slower than L-BFGS unless < ~60 steps; its set-up lost
-~2 h to a three-operand `np.einsum` for u_iᵀ S u_i on one core, now a BLAS matmul). The o4d20 held-out refit is done (§2b).
+**o3d12 multi-start** (2026-11-11; lestrade batch `runs/si_qoi_uq_blr/o3d12_fp_batch.sh`; results
+`pops_ellipse_o3d12_sp_lev50_cf100_fp2000{,_r32,_r32_lb,_s1..s5}.json`). Full-rank reweighting from five random Wishart starts
+(`--fp-start k`, 2,000 steps per ρ) against the closed-form start, and the rank-32 form:
+
+| start | objective | steps at ρ = 0.1 | λ_e | cov90 +λ_e | per-type RMS +λ_e | QoIs 95 % | median σ/tol |
+|---|---|---|---|---|---|---|---|
+| closed form | 1.15912 | 550 (converged) | 1.063 | 0.888 | 0.036 | 13/17 | 2.34 |
+| closed form, rank 32 | 1.16271 | 25 outer | 1.060 | 0.886 | 0.037 | 13/17 | 1.63 |
+| random s1 | 1.17201 | 2000 (cap) | 1.058 | 0.891 | 0.041 | 13/17 | 3.34 |
+| random s2 | 1.17138 | 2000 (cap) | 1.066 | 0.890 | 0.041 | 13/17 | 2.04 |
+| random s3 | 1.17172 | 2000 (cap) | 1.066 | 0.889 | 0.040 | 13/17 | 2.63 |
+| random s4 | 1.17104 | 2000 (cap) | 1.068 | 0.891 | 0.037 | 13/17 | 2.30 |
+| random s5 | 1.16854 | 2000 (cap) | 1.068 | 0.889 | 0.039 | 13/17 | 2.16 |
+| L-BFGS (`_it20000`) | 1.17069 | 15,398 it | 1.039 | 0.879 | 0.038 | 14/17 | 1.64 |
+
+Reading: (1) the random starts did not converge: each was still falling ~2e-6 per step at the cap, 0.009–0.013 above the
+closed-form start (≈ 2,100–3,000 nats × N). Slow linear convergence from a poor start, not yet evidence of separate optima; one
+start is being run to 20,000 steps (`o3d12_fp_long.sh`, log `logs/pops_ellipse_o3d12_fp_long.log`) to decide. The closed-form
+start is what makes the reweighting fast. (2) The force predictions do not depend on the start: λ_e 1.04–1.07, cov90
+0.879–0.891, per-type RMS 0.036–0.041 over every run. (3) The QoI widths do: median σ/tol 1.63–3.34 (2×) at the same 13/17,
+so the QoI σ sits in directions the objective barely constrains, as the σ instability above showed. This settles implication 5
+below for forces: the force numbers can be reported; the ellipsoid's QoI widths cannot be. (4) Rank 32 with the reweighting
+inner solver reaches 1.1627 in 25 outer steps; with the L-BFGS inner solver (`_r32_lb`) it stopped after one outer step at
+1.3185 (per-type RMS 0.176): a stopping-rule fault in `inner_lbfgs`, not a result. Also running: o4d20 full-rank reweighting
+(mnf148, `_sp_lev50_cf100_fp1000`; expected 9–14 h; its set-up lost ~2 h to a three-operand `np.einsum` for u_iᵀ S u_i on one
+core, now a BLAS matmul). The o4d20 held-out refit is done (§2b).
 
 **Implications for the paper** (to decide after the checks; nothing here goes in the revision yet):
 1. *Headline unchanged.* CR3 × split-conformal stays the method. The ellipsoid comparison now gives concrete reasons beyond
