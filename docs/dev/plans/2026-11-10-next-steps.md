@@ -291,6 +291,7 @@ proper prior; with the smoothness prior the KL version gave near-improper widths
 | random s5 | 1.16854 | 2000 (cap) | 1.068 | 0.889 | 0.039 | 13/17 | 2.15 |
 | random s1, 20,000 steps | 1.16319 | 8,044 (+ 4,179 at ρ = 1e-4) | 1.062 | 0.889 | 0.037 | 13/17 | 1.99 |
 | L-BFGS (`_it20000`) | 1.17069 | 15,398 it | 1.039 | 0.879 | 0.038 | 14/17 | 1.70 |
+| package `solver='reweight'` (`_it20000_rw`), random start | 1.16341 | 2,507 steps, 14,204 s | 1.035 | 0.881 | 0.036 | 14/17 | 1.64 |
 
 Reading: (1) the random starts did not converge: each was still falling ~2e-6 per step at the cap, 0.009–0.013 above the
 closed-form start (≈ 2,100–3,000 nats × N). Run on to 20,000 steps per ρ (`_fp20000_s1`, lestrade, 6,432 s), start 1 went
@@ -376,8 +377,10 @@ Paper candidate: report the joint d²/n (with its band) and LS/n beside the hard
 Upstream: popsregression PR #15 (KL parameter prior) open against `ellipse-ev`. Reweighting-solver PR: held. The package
 version (`solver='reweight'`, branch `ellipse-reweight`: geometric-mean update, geodesic over-relaxation, projected-gradient
 growth step off the PSD boundary) is slower than L-BFGS on small problems (1,000–17,000 steps against 18–135 iterations, and
-worse optima with the 'zero' baseline), and its o3d12 run (dedicated-g02, `_sp_lev50_it20000_rw`) had been running > 80 min
-against L-BFGS's 1973 s when last checked. The paper-repo fixed point is fast at both models, but at o4d20 its lower optimum
+worse optima with the 'zero' baseline), and its o3d12 run (dedicated-g02, `_sp_lev50_it20000_rw`) reached 1.1634 (L-BFGS 1.1707, paper-repo fixed point
+1.1591) in 2,507 steps and 14,204 s: 7x L-BFGS's 1973 s and 53x the paper-repo fixed point's 268 s, with the same forces and
+QoIs (table above). The package version starts from the package's random U, not the closed form, which is what made the
+paper-repo version fast. The paper-repo fixed point is fast at both models, but at o4d20 its lower optimum
 is not better downstream. If a PR goes, it should offer the solver for large N with P above the data rank, find a lower
 objective faster, and say the lower objective is not a better ellipsoid.
 
