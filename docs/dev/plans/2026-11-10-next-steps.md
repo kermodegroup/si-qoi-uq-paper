@@ -308,6 +308,26 @@ held-out refit (dedicated-f02, `pops_ellipse_ood_o4d20_it5000`).
 
 Reading: every method with its scale is inside the calibration band (bare closed form is not: gm |z| 1.58). The hard counts exaggerate the differences: 12 against 15 of 17 at o4d20 becomes a 12 % better CRPS for the ellipsoid (0.260 against 0.296), with a 12 % narrower typical σ and calibration inside the band for both. At o3d12 the three ellipsoid solvers span gm CRPS 0.91–1.06 around the headline's 1.01, the same spread as the solver-dependence of σ (above), so no ranking there. CRPS is dominated by the accuracy term (gm err/t) on both models; the UQ part moves it by ~10 %. Paper candidate: report gm CRPS/t and gm |z| beside the hard count (the latter with its band), using the benchmark's tolerances and clipping. Not yet computed: B1, B2 (their per-QoI σ are not in the ellipsoid result files), and the multi-start spread of these scores.
 
+**Joint (correlation-aware) QoI scores** (2026-11-11; `analysis/qoi_joint_score.py`, `results/qoi_joint_score.json`). Same 17 QoIs, tolerance units, every method: CR3 (λ_F), B1, B2 (lev50, lev5), B3 from `joint_tests.json` (committee and delta covariances), the ellipsoid as λ_e² G Σ_e Gᵀ. Σ_Q is nearly singular (shared parameters; the paper's joint test moves by 4× with its ridge), so every covariance gets a floor τ²I, τ = 0.05 tol (where score.py clips errors), with τ = 0.01 and 0.2 as checks (d²/n moves < 15 % except B3 and o4d20 CR3, 0.75–1.23). "+disc": the paper's discrepancy term as a covariance, one shared bias per defect class (the three interstitial energies fully correlated, the vacancy alone). Scores: joint sharpness det(Σ)^(1/2n); gm |w| of the whitened errors w = Σ^-½ d (band 0.31–0.90); d²/n = |w|²/n (χ²₁₇/17 band 0.44–1.78); the Gaussian log score LS/n (proper); the energy score ES/√n (multivariate CRPS). Delta forms, τ = 0.05:
+
+| model | method | k95 | gm CRPS | d²/n | gm abs w | LS/n | d²/n +disc | LS/n +disc |
+|---|---|---|---|---|---|---|---|---|
+| o3d12 | CR3 | 14 | 1.009 | 2.82 | 0.76 | 2.48 | 1.01 | 1.71 |
+| | B1 | 13 | 0.944 | 3.69 | 0.67 | 2.99 | 1.05 | 1.82 |
+| | B2lev50 (committee) | 13 | 1.089 | 1.51 | 0.53 | 2.20 | 0.74 | 1.92 |
+| | ellipsoid L-BFGS | 14 | 0.923 | 3.66 | 1.00 | 2.82 | 1.32 | 1.77 |
+| | ellipsoid reweighting | 13 | 0.884 | 4.83 | 0.99 | 3.36 | 1.28 | 1.71 |
+| o4d20 | CR3 | 13 | 0.296 | 1.30 | 0.46 | 0.73 | 0.86 | 0.60 |
+| | B1 | 11 | 0.276 | 6.36 | 0.42 | 2.84 | 2.38 | 1.02 |
+| | B2lev50 (committee) | 14 | 0.303 | 2.45 | 0.63 | 1.29 | 0.89 | 0.63 |
+| | ellipsoid L-BFGS | 15 | 0.260 | 1.79 | 1.01 | 0.74 | 1.60 | 0.70 |
+
+(B3, the unscaled CR3, fails everything: d²/n 25–87; a sanity check.) Readings:
+1. *The joint view reverses the o4d20 diagonal ranking.* Per QoI the ellipsoid looks best (15/17, CRPS 0.260 against 0.296); jointly CR3 is calibrated (d²/n 1.30, gm |w| 0.46) and the ellipsoid is at the edge (1.79, gm |w| 1.01 above the band), with a worse log score (0.74 against 0.73; with the discrepancy 0.70 against 0.60). The ellipsoid's narrower widths come with correlations that put the errors in directions it calls thin.
+2. *The discrepancy term is what makes the joint test pass, and it must be correlated.* At o3d12 no parameter-only method except B2 is jointly calibrated (CR3 2.8, B1 3.7, ellipsoids 3.7–4.8); with the shared interstitial bias CR3 is (1.01), and B1 nearly (1.05). This is an argument for keeping the term and for stating it as a shared bias, not three independent variances.
+3. *Proper scores.* With the discrepancy, LS/n ranks CR3 best or tied on both models (o3d12 1.71, tied with the reweighted ellipsoid; o4d20 0.60, then B2lev50 0.63, ellipsoid 0.70, B1 1.02). The energy score barely separates methods (o3d12 4.22–4.30, o4d20 1.26–1.29 with the discrepancy): like CRPS it is dominated by the accuracy term, so it is not the discriminating score here.
+Paper candidate: report the joint d²/n (with its band) and LS/n beside the hard count and the diagonal CRPS; it is the score that sees the shared-mode errors of §4, it favours the headline, and it argues for the correlated discrepancy term.
+
 Upstream: popsregression PR #15 (KL parameter prior) open against `ellipse-ev`; a reweighting-solver PR waits on the o4d20
 result and the multi-start (it should present the solver as finding a comparable optimum faster, not the same optimum).
 
