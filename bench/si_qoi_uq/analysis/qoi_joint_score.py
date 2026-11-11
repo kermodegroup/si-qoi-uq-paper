@@ -37,7 +37,7 @@ TAUS = (0.05, 0.01, 0.2)
 Z_REF = float(np.exp(-(np.euler_gamma + np.log(2.0)) / 2.0))
 GM_FLOOR, GM_CAP = 0.05, 10.0
 ELLIPSOIDS = {"o3d12": {"ellipsoid L-BFGS": "_sp_lev50_it20000", "ellipsoid reweighting": "_sp_lev50_cf100_fp2000"},
-              "o4d20": {"ellipsoid L-BFGS": "_sp_lev50_it5000"}}
+              "o4d20": {"ellipsoid L-BFGS": "_sp_lev50_it5000", "ellipsoid reweighting": "_sp_lev50_cf100_fp1000"}}
 JT = {"CR3/lam_F": "CR3", "B1/q_b1": "B1", "B2lev50/lam_1": "B2lev50", "B2lev5/lam_1": "B2lev5", "B3/lam_1": "B3"}
 INTERSTITIAL = ("dumbbell_interstitial_energy", "hexagonal_interstitial_energy", "tetrahedral_interstitial_energy")
 

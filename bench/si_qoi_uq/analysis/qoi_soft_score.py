@@ -29,7 +29,8 @@ from ..run import RESULTS
 GM_FLOOR, GM_CAP = 0.05, 10.0          # as bench/si_qoi/score.py
 Z_REF = float(np.exp(-(np.euler_gamma + np.log(2.0)) / 2.0))
 DEFAULT = ["pops_ellipse_o3d12_sp_lev50_it20000", "pops_ellipse_o3d12_sp_lev50_cf100", "pops_ellipse_o3d12_sp_lev50_cf100_fp2000",
-           "pops_ellipse_o4d20_sp_lev50", "pops_ellipse_o4d20_sp_lev50_it5000"]
+           "pops_ellipse_o4d20_sp_lev50", "pops_ellipse_o4d20_sp_lev50_it5000",
+           "pops_ellipse_o4d20_sp_lev50_cf100_fp1000"]
 
 
 def gm(v, lo=GM_FLOOR, hi=GM_CAP):

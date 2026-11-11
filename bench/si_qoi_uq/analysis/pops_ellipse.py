@@ -465,6 +465,7 @@ def main():
         np.savez(fout, **z)
         print(f"{m}: ellipsoid fitted: {info}", flush=True)
     Se, B0, delta, info = z["Sigma_e"], z["B0"], z["delta"], json.loads(str(z["info"]))
+    Se = 0.5 * (Se + Se.T)
     # the data span: the modes the package keeps in its whitening (eigenvalues of G above mode_threshold x the largest);
     # outside it the data never constrain the ellipsoid, whose U there stays at its random start times 1/sqrt(floor)
     mt = info.get("mode_threshold", 1e-8)
@@ -476,7 +477,10 @@ def main():
     print(f"{m}: data span rank {Vr.shape[1]} of {n}; share of the ellipsoid's trace outside it {info['trace_outside_span']:.6f}", flush=True)
     if not np.any(B0):                 # --closed-form has no baseline: its hypercube0 rows repeat the ellipsoid (ignore them)
         B0 = Se
-    facs = {"ellipsoid": factor_of(Se), "ellipsoid_span": factor_of(Sp), "hypercube0": factor_of(B0), "cr3": np.asarray(lin.factor("cr3"))}
+    # covariances, not eigh factors: the reweighting fits' Sigma_e has eigenvalues to ~1e8 (unseen directions), and eigh's
+    # error (eps x the largest) inflated QoI sigma up to 20x (o4d20) against the quadratic form; CR3 keeps its factor
+    facs = {"ellipsoid": ("S", Se), "ellipsoid_span": ("S", (Sp + Sp.T) / 2), "hypercube0": ("S", (B0 + B0.T) / 2),
+            "cr3": ("L", np.asarray(lin.factor("cr3")))}
     # test split: per-atom force coverage, force RMS z, and delta's effect on the forces
     sc = json.load(open(RUNS / "diag" / f"{m}_scales.json"))
     lamF = float(sc["lam_cr3"]["F"])
@@ -498,9 +502,9 @@ def main():
         E.append(np.asarray(bt.y_F)[a] - F[a] @ th)
         Ed.append(np.asarray(bt.y_F)[a] - F[a] @ (th + delta))
         Fa = jnp.asarray(F[a])
-        for k, Lf in facs.items():
+        for k, (kind, Lf) in facs.items():
             M = Fa @ jnp.asarray(Lf)
-            C[k].append(np.asarray(M @ jnp.swapaxes(M, 1, 2)))
+            C[k].append(np.asarray(M @ jnp.swapaxes(M if kind == "L" else Fa, 1, 2)))
     E, Ed = np.concatenate(E), np.concatenate(Ed)
     C = {k: np.concatenate(v) for k, v in C.items()}
     sd_cr3 = np.sqrt(np.trace(C["cr3"], axis1=1, axis2=2))
@@ -560,7 +564,8 @@ def main():
         tol = tol_abs(q, float(csvr[q]["dft"]))
         qo[q] = {}
         for k, (f, s) in scal.items():
-            sg = s * float(np.linalg.norm(facs[f].T @ g[:n]))
+            kind, Lf = facs[f]
+            sg = s * float(np.linalg.norm(Lf.T @ g[:n]) if kind == "L" else np.sqrt(max(g[:n] @ Lf @ g[:n], 0.0)))
             qo[q][k] = {"sigma": sg, "sigma_over_tol": sg / tol, "z": e / sg, "covered95": bool(abs(e / sg) <= Z95)}
     out["qoi"] = qo
     out["qoi_summary"] = {k: {"n": len(qo), "k95": sum(v[k]["covered95"] for v in qo.values()),
