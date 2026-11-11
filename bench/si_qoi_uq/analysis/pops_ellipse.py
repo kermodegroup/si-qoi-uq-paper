@@ -28,6 +28,8 @@ of test force components, and the delta-method QoIs (17 with DFT; z, 95 % covera
         [--param-prior]   (with --smooth-prior) the same prior inside the ellipsoid objective: popsregression branch
                  ellipse-param-prior's param_prior_precision = I in those coordinates (the KL from N(0, Lambda^-1) to
                  N(mu, B / (P + 2)), unit weight), at rank P so that B can be full rank
+        [--leverage-pct p]   (with --smooth-prior) fit only the rows whose posterior leverage h_i = x_i^T (X^T X + Lambda)^-1 x_i
+                 is at or above the p-th percentile, as the paper's B2 box (the reference package's default, p = 50)
         -> RUNS/fits/<m>/pops_ellipse.npz, results/pops_ellipse_<m>.json
 """
 import csv, json, pathlib, shlex, sys, time
@@ -73,15 +75,20 @@ def main():
     sp = "--smooth-prior" in args
     if sp:
         args.remove("--smooth-prior")
+    lev = None
+    if "--leverage-pct" in args:
+        i = args.index("--leverage-pct"); lev = float(args[i + 1]); del args[i:i + 2]
     kl = "--param-prior" in args
     if kl:
         args.remove("--param-prior")
         if not sp or pac:
             raise SystemExit("--param-prior needs --smooth-prior and excludes --pac-bayes")
+    if lev is not None and not sp:
+        raise SystemExit("--leverage-pct needs --smooth-prior (the leverage is the posterior's)")
     if sp and wr_rel is not None:
         raise SystemExit("--smooth-prior fixes whiten_ridge at 1/N; do not combine it with --whiten-ridge-rel")
     m = args[0]
-    sfx = ("" if wr_rel is None else f"_wr{wr_rel:g}") + ("_sp" if sp else "") + ("_kl" if kl else "") + ("_pac" if pac else "")
+    sfx = ("" if wr_rel is None else f"_wr{wr_rel:g}") + ("_sp" if sp else "") + ("_kl" if kl else "") + ("" if lev is None else f"_lev{lev:g}") + ("_pac" if pac else "")
     t0 = time.time()
     lin = lin_for(m, "cr3")
     th = np.asarray(lin.theta_hat, np.float64)
@@ -140,6 +147,24 @@ def main():
             opts = {"whiten_ridge": 1.0 / X.shape[0]}
             if kl:
                 opts.update(param_prior_precision=np.ones(n), rank=n)
+            if lev is not None:                                   # posterior leverage in the prior coordinates
+                # h_i = ||Q_i||^2 from the QR of [X; I]: backward stable at kappa(X). Normal equations fail here (columns
+                # scaled by up to 1e4): Cholesky of X^T X + I is indefinite, and its eigendecomposition gave sum h = 1274 > P
+                # in two stages, so no (N + P) x P Q is formed (o4d20: 20 GB): R of X, then R2 of [R; I], and
+                # h_i = ||R2^-T x_i||^2 by chunked triangular solves (backward stable, as the one-shot QR)
+                from scipy.linalg import solve_triangular
+                R = np.linalg.qr(X, mode="r")
+                R2 = np.linalg.qr(np.vstack([R, np.eye(n)]), mode="r")
+                del R
+                h = np.empty(X.shape[0])
+                for j in range(0, X.shape[0], 32768):
+                    h[j:j + 32768] = np.sum(solve_triangular(R2, X[j:j + 32768].T, trans="T") ** 2, axis=0)
+                assert h.sum() <= n + 1e-6, h.sum()
+                keep_r = h >= np.percentile(h, lev)
+                X, y = X[keep_r], y[keep_r]
+                opts["whiten_ridge"] = 1.0 / X.shape[0]
+                print(f"{m}: leverage cut {lev:g} %: {int(keep_r.sum())} of {keep_r.size} rows kept; h median "
+                      f"{np.median(h):.3g}, sum {h.sum():.1f}", flush=True)
             print(f"{m}: smooth prior: Lambda in [{lam_p.min():.3g}, {lam_p.max():.3g}], whiten_ridge 1/N", flush=True)
         if X.size >= 2 ** 31:           # SciPy's LP64 LAPACK refuses > 2^31 elements (o4d20: 2.6e9); sklearn's BayesianRidge
             import types as _t           # pre-fit calls scipy.linalg.svd on X: route that one call to NumPy's ILP64 SVD
@@ -157,7 +182,7 @@ def main():
         info = {"P": int(P), "N": int(X.shape[0]), "rank": int(eng.U_.shape[1]), "coverage_fraction": float(eng.coverage_fraction_),
                 "objective": float(eng.objective_), "n_iter": int(eng.n_iter_), "fit_s": time.time() - t0,
                 "delta_rel": float(np.linalg.norm(delta) / np.linalg.norm(th)), "mode_threshold": float(eng.mode_threshold),
-                "whiten_ridge": float(eng.whiten_ridge), "whiten_ridge_rel": wr_rel, "pac_bayes": pac, "smooth_prior": sp, "param_prior": kl,
+                "whiten_ridge": float(eng.whiten_ridge), "whiten_ridge_rel": wr_rel, "pac_bayes": pac, "smooth_prior": sp, "param_prior": kl, "leverage_pct": lev,
                 "param_prior_kl": (float(eng.param_prior_kl_) if kl else None),
                 **({"tau2": float(eng.tau2_), "bound": float(eng.bound_), "kl": float(eng.kl_)} if pac else {}), "G_eig_max": float(ge.max())}
         z = dict(Sigma_e=Dm @ (np.asarray(eng.ellipsoid_B_) / (P + 2.0)) @ Dm,    # as POPSRegression's own sigma; beta -> theta
@@ -186,11 +211,15 @@ def main():
     ds = build_dataset(cfgs, {"rcut": lin.rc, "elements": lin.z}, lin.E0_pre, 1, log=lambda *_: None)
     rows = chunked_rows_fn(lin.model, GPConfig(r0=2.4, rcut=lin.rc, n_B=lin.n_B, n_pair=lin.n_pair, NZ=lin.NZ,
                                                C=int(ds.y_E.shape[1]), e0_cols=lin.e0_cols))
-    E, Ed, C = [], [], {k: [] for k in facs}
+    E, Ed, C, T, gc = [], [], {k: [] for k in facs}, [], 0
     for i in range(ds.n_batches):
         bt = jax.tree.map(lambda x, i=i: x[i], ds)
         F = np.asarray(rows(bt).F)
         a = np.flatnonzero(np.asarray(bt.node_mask) & (np.asarray(bt.w_F) > 0))
+        live = np.flatnonzero(np.asarray(bt.cfg_mask))                # config types, as force_baselines.py
+        idx = {c: gc + j for j, c in enumerate(live)}
+        T += [cfgs[idx[int(c)]].config_type for c in np.asarray(bt.node_cfg)[a]]
+        gc += len(live)
         E.append(np.asarray(bt.y_F)[a] - F[a] @ th)
         Ed.append(np.asarray(bt.y_F)[a] - F[a] @ (th + delta))
         Fa = jnp.asarray(F[a])
@@ -204,12 +233,16 @@ def main():
     lam = {k: float(np.sqrt(np.mean(np.sum(E[keep] ** 2, 1) / np.maximum(np.trace(C[k][keep], axis1=1, axis2=2), 1e-300)))) for k in facs}
     q90 = chi(3).ppf(0.9)
 
-    def cover(Ca, s):
+    T = np.array(T, dtype=object)[keep]
+
+    def dist(Ca, s):
         Ca = Ca[keep] * s ** 2
         tr_ = np.trace(Ca, axis1=1, axis2=2)
         reg = Ca + eps * (tr_ / 3)[:, None, None] * np.eye(3)
-        d = np.sqrt(np.einsum("na,nab,nb->n", E[keep], np.linalg.inv(reg), E[keep]))
-        return float(np.mean(d <= q90))
+        return np.sqrt(np.einsum("na,nab,nb->n", E[keep], np.linalg.inv(reg), E[keep]))
+
+    def cover(Ca, s):
+        return float(np.mean(dist(Ca, s) <= q90))
     meth = {"ellipsoid": ("ellipsoid", 1.0), "ellipsoid+lam": ("ellipsoid", lam["ellipsoid"]),
             "ellipsoid_span": ("ellipsoid_span", 1.0), "ellipsoid_span+lam": ("ellipsoid_span", lam["ellipsoid_span"]),
             "hypercube0": ("hypercube0", 1.0), "headline": ("cr3", lamF)}
@@ -218,6 +251,19 @@ def main():
            "test_force_rmse": {"theta_hat": float(np.sqrt(np.mean(E ** 2))), "theta_hat+delta": float(np.sqrt(np.mean(Ed ** 2)))},
            "force_cov90": {k: cover(C[f], s) for k, (f, s) in meth.items()},
            "force_cov90_B2_paper": float(np.mean(fb["d_B2"] <= q90)), "force_cov90_headline_paper": float(np.mean(fb["d_headline"] <= q90))}
+    # per configuration type (types with >= 300 test atoms, as the paper's Figure 2 / fb_types), with the paper's B2 and
+    # headline from force_baselines_<m>.npz (same atoms: the same symmetry-zero rule)
+    assert len(fb["d_B2"]) == len(T) and np.array_equal(fb["config_type"].astype(str), T.astype(str)), (len(fb["d_B2"]), len(T))
+    tys = [u for u in np.unique(T.astype(str)) if (T == u).sum() >= 300]
+    hits = {k: dist(C[f], s) <= q90 for k, (f, s) in meth.items()}
+    hits.update(B2_paper=fb["d_B2"] <= q90, headline_paper=fb["d_headline"] <= q90)
+    pt = {k: {u: float(h[T == u].mean()) for u in tys} for k, h in hits.items()}
+    out["force_cov90_per_type"] = {"atoms": {u: int((T == u).sum()) for u in tys}, "coverage": pt,
+                                   "min": {k: [min(v, key=v.get), min(v.values())] for k, v in pt.items()},
+                                   "rms_dev_from_0.9": {k: float(np.sqrt(np.mean((np.array(list(v.values())) - 0.9) ** 2))) for k, v in pt.items()}}
+    for k in pt:
+        print(f"  per-type {k:20s}: min {out['force_cov90_per_type']['min'][k][1]:.2f} ({out['force_cov90_per_type']['min'][k][0]}), "
+              f"RMS dev {out['force_cov90_per_type']['rms_dev_from_0.9'][k]:.3f}", flush=True)
     print(f"{m}: test F RMSE theta_hat {out['test_force_rmse']['theta_hat']:.4f}, +delta {out['test_force_rmse']['theta_hat+delta']:.4f}; "
           f"per-atom RMS |e|/sd (lam = 1) {lam}", flush=True)
     print(f"  per-atom 90 % coverage {out['force_cov90']}; paper B2 {out['force_cov90_B2_paper']:.3f}, headline "
