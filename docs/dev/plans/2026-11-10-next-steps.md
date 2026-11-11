@@ -643,6 +643,29 @@ Reading:
   B1 under-covers the defect cells). This is a candidate replacement for λ_F at o4d20 that removes most of the need for the
   discrepancy term. Caveat: the shape was chosen on the same test split as λ_F, after §0 showed the nugget was needed.
 
+**Is the λ_mv QoI covariance jointly calibrated?** (2026-11-11; `qoi_joint_score.py` "lam_mv" rows: the CR3 and B1 delta
+covariances × (λ_mv / paper scale)²; the ν nugget is white per force component and does not reach the QoIs. The CR3 rows reproduce
+the per-QoI counts above, 17/17 and 16/17.) τ = 0.05:
+
+| model | method | k95 | gm CRPS/t | d²/n | gm abs w | LS/n |
+|---|---|---|---|---|---|---|
+| o4d20 | CR3 λ_F | 13 | 0.296 | 1.30 | 0.46 | 0.73 |
+| | CR3 λ_F + disc (headline) | 16 | **0.282** | 0.86 | 0.29 | **0.60** |
+| | CR3 λ_mv | 16 | 0.323 | 0.74 | 0.34 | 0.71 |
+| | CR3 λ_mv + disc | 17 | 0.313 | 0.52 | 0.22 | 0.67 |
+| | B1 λ_mv | 16 | 0.382 | 0.76 | 0.16 | 1.04 |
+| o3d12 | CR3 λ_F + disc (headline) | 17 | **0.980** | 1.01 | 0.61 | **1.71** |
+| | CR3 λ_mv | 17 | 1.565 | 0.47 | 0.31 | 2.15 |
+| | B1 λ_mv | 15 | 1.376 | 0.73 | 0.30 | 2.27 |
+
+Reading: at o4d20, CR3 λ_mv without the discrepancy term is jointly calibrated (d²/n 0.74, gm |w| 0.34, both inside their
+bands), so the whole-configuration scale is a principled alternative to the discrepancy term there. It is not better: the
+headline (λ_F + correlated discrepancy) has the better proper scores (LS/n 0.60 against 0.71, CRPS 0.282 against 0.323), and λ_mv
+plus the term over-covers (gm |w| 0.22, below the band). At o3d12, λ_mv is too wide (CRPS 1.57 against 0.98; d²/n and gm |w| at the
+lower edge). B1 at its λ_mv is worse than CR3 at both sizes (o4d20 gm |w| 0.16: too wide in the directions that matter). Paper:
+λ_mv is one sentence in the discussion (a discrepancy-free route that is jointly calibrated at o4d20 but scores worse than the
+headline); the headline is unchanged.
+
 ## §0 results (2026-11-10)
 
 **Per-type per-atom force coverage** (Gaussian 90 % ellipsoid of each method's own 3×3 covariance,
@@ -683,8 +706,13 @@ this. §4 then becomes: does Σ + νI with a conformal scale cover the defect ce
 
 | step | cost | expected |
 |---|---|---|
-| §0 | ~1 day, existing results | decides how far §1 and §4 go |
-| §3 barrier | a few days of compute, no new maths | strongest result |
-| §1 (111) | ~1 week; DFT only if needed | "physics absent from the labels needs data"; probabilities that the order is right |
+| §0 | ~1 day, existing results | done (2026-11-10): adatom is the one (111) under-coverage; whole-configuration scores need a white nugget |
+| §3 barrier | a few days of compute, no new maths | done (2026-11-10): DFT 0.299 eV; o4d20 misses by −0.20 eV (headline z 2.31, B1 4.55, B2 1.99), o3d12 covered via one β-tin cell; delta rows validated by committee; the miss is model-form error on seen environments, and no tested fix (trajectory clusters, difference rows, dipole tensors) removes the discrepancy term |
+| §1 (111) | ~1 week; DFT only if needed | done (2026-11-10): DAS within 0.7 σ, order unresolved by either covariance (P(7×7 lowest) 0.05–0.15); spin DFT not triggered |
 | §2 ellipsoid | ~1 week, mnf148 | done (2026-11-11): needs a leverage cut; then the most even per-type force coverage, self-calibrated, stable across optima; non-convex, and the lower optimum is not better downstream; QoI widths reproducible once converged (an eigh scoring bug had made them look unstable); slightly sharper per QoI than CR3, worse jointly. Paper: discussion paragraph + SI forces table, optional SI QoI-score sentence (§2e) |
-| §4 multivariate | ~1–2 weeks | joint guarantee; a test of correlations |
+| §4 multivariate | ~1–2 weeks | done (2026-11-11): joint guarantee holds on average, not by kind (surfaces 0.28–0.40); at o4d20 λ_mv covers 16/17 QoIs and is jointly calibrated without the discrepancy term, but scores worse than the headline; too wide at o3d12 |
+
+All four questions have answers. What is left is deciding what goes into the paper revision (branch `revision`, draft PR #1):
+candidates are §3 (barrier: a new QoI and the clearest miss), §2e items 2–4 (ellipsoid: discussion paragraph, SI forces table,
+theory sentence), §2e's joint scores (d²/n and LS/n beside the hard count; the case for a correlated discrepancy term), §4
+(one sentence on λ_mv), §1 (DAS order probabilities, SI).

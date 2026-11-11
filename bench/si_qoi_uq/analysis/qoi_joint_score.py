@@ -6,6 +6,7 @@ Inputs, all in tolerance units (x / tol, tolerances of ace-jax bench/si_qoi/scor
   from results/joint_tests.json (assemble.joint); the leverage-cut POPS ellipsoid (delta only) as lam_e^2 G Sigma_e G^T
   from its saved fit (RUNS/fits/<m>/pops_ellipse<sfx>.npz, lam_e = its per-atom RMS |e| / sd on the test split) and the
   QoI rows RUNS/delta/<m>.npz, its error as qoi_uq.csv's (dft - mean) about theta_hat.
+  "lam_mv": CR3 and B1 delta covariances rescaled to the whole-configuration conformal scale of mv_conformal.py (§4).
   "+disc": the paper's discrepancy term (analysis/discrepancy.py, estimator headline) as a covariance: one shared bias
   per defect class, so the dumbbell, hexagonal and tetrahedral energies get a fully correlated block s s^T and the vacancy
   its own variance (the paper adds only the diagonal, which is what each QoI alone sees).
@@ -95,6 +96,12 @@ def main():
             for kind, r in jt[m].get(jname, {}).items():
                 idx = [r["qois"].index(k) for k in keys]
                 cases[f"{lab} ({kind})"] = (np.array(r["d_tol"])[idx], np.array(r["S_tol"])[np.ix_(idx, idx)])
+        mv = json.load(open(RESULTS / f"mv_conformal_{m}.json"))["methods"]      # §4: the whole-configuration scale
+        for lab, mk, jn in (("CR3 lam_mv", "cr3", "CR3/lam_F"), ("B1 lam_mv", "post", "B1/q_b1")):
+            r = jt[m][jn]["delta"]
+            idx = [r["qois"].index(k) for k in keys]
+            f2 = (mv[mk]["lam_mv_all"] / mv[mk]["ref_scale"]) ** 2
+            cases[f"{lab} (delta)"] = (np.array(r["d_tol"])[idx], f2 * np.array(r["S_tol"])[np.ix_(idx, idx)])
         dz = np.load(RUNS / "delta" / f"{m}.npz")
         G = dict(zip((str(k) for k in dz["keys"]), np.asarray(dz["G"], np.float64)))
         d_hl = np.array([(float(hl[k]["dft"]) - float(hl[k]["mean"])) for k in keys]) / tol
