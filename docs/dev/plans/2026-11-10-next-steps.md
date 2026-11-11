@@ -142,6 +142,68 @@ Reading (o3d12):
   correction must lie in the ellipsoid, and low-leverage rows need corrections of ~1e10 in θ; the hypercube copes only through
   its leverage cut (B2: 50 %), which the ellipsoid lacks. o4d20 low-rank + diagonal not built (gate not met).
 
+### §2b The leverage-cut ellipsoid
+
+`--smooth-prior --leverage-pct 50` (`analysis/pops_ellipse.py`; `analysis/pops_ellipse_ood.py` for the held-out refit): prior
+coordinates as above, and only the rows whose posterior leverage h_i = x̃_iᵀ(X̃ᵀX̃ + I)⁻¹x̃_i is at or above the median, B2's rule
+(the reference package's default, fixed before any run). Leverages by a two-stage QR (R of X̃, then R of [R; I]): the normal
+equations fail at this column scaling (Cholesky indefinite; an eigendecomposition gave Σh = 1274 > P). o3d12 Σh = 212.3.
+
+- **o3d12, test split** (`results/pops_ellipse_o3d12_sp_lev50.json`): the bare ellipsoid is defined for the first time. Own scale
+  λ_e = 1.03 (no cut: 1e-12; CR3 4.75); per-atom cov90 0.86 bare, 0.876 with λ_e (headline 0.79, B2 0.947, its own hypercube with
+  the same cut 0.954). QoIs 14/17 at median σ/tol 1.76 (headline 14/17 at 2.37); the misses are dumbbell, tetrahedral and vacancy
+  (z 2.05, 2.14, 2.42). Per type (≥ 300 atoms): 0.79 (sh) to 0.94, RMS deviation from 0.90 of 0.051 (0.041 with λ_e); headline
+  0.70 (interstitial) to 0.98, 0.109; B2 0.87 to 0.97, 0.048 (B2 over-covers most types).
+- **o3d12, held out** (`results/pops_ellipse_ood_o3d12.json`; the refit without cracks and screw dislocations, same recipe, λ_e
+  on the refit's in-distribution test split): per-atom cov90 in / out of distribution — ellipsoid 0.856 / 0.758 (+λ_e = 1.04:
+  0.876 / 0.781), headline 0.797 / 0.762, B1 0.721 / 0.578, B2 0.945 / 0.887. Per held-out type, ellipsoid+λ_e / headline / B2:
+  crack_110 0.84 / 0.89 / 0.92, crack_111 0.74 / 0.82 / 0.86, screw 0.78 / 0.65 / 0.90. The ellipsoid stays self-calibrated but
+  loses 0.10 off distribution (headline 0.035, B2 0.06); it is more even across the held-out types than the headline.
+- Caveats: (1) 99.9 % of the trace lies outside the data span (G eigenvalues above 1e-8 × max); there U keeps its random start.
+  Projected on the span, coverage falls 0.86 → 0.70 (0.84 with its λ = 1.21) in distribution and 0.78 → 0.73 held out: about
+  15 points of the in-distribution coverage are not fitted. (2) No rank-32 fit converged (4 × 500 iterations each). (3) With the
+  KL prior (`--param-prior`, rank 224; converged, 1573 iterations, KL 7.7e3) the free directions take the prior width, and the
+  ace-jax prior is near-improper in some columns (Λ down to 1e-8): QoI σ ~6e5 × tol, per-atom coverage 1.0, so the principled
+  version of (1) is not usable with this prior.
+- o4d20 (`--smooth-prior --leverage-pct 50`, rank 32): running on mnf148 (Σh = 3968 of 5477).
+
+### §2c CR3 against the POPS ellipsoid: what each has in principle (for the paper's discussion)
+
+CR3 is the cluster-robust jackknife (Bell–McCaffrey CR3) sandwich A⁻¹MA⁻¹ of the BLR fit, A = XᵀX + Λ, clusters = configurations,
+times one split-conformal scale λ_F. The POPS ellipsoid is a uniform set B fitted to cover every training row's pointwise-optimal
+correction (projected-ball NLL with a covering barrier), read as N(μ, B/(P+2)).
+
+Advantages of CR3, in principle:
+1. **A coverage guarantee.** The scale is split-conformal: under exchangeability of test and calibration configurations,
+   marginal coverage holds in finite samples whatever the misspecification. The ellipsoid's covering condition is a statement
+   about training rows; its held-out coverage (0.86 here) is an empirical outcome with no guarantee.
+2. **No data selection.** CR3 uses every row. A covering criterion behaves like a max over rows, so one low-leverage row that
+   needs a correction of ~1e10 in θ stretches the whole set; the ellipsoid is defined only after discarding half the rows, and
+   its result depends on that cut (scale 1e-12 without it, 1.03 with it). A configuration enters CR3 through its share of a sum.
+3. **Configuration-level errors.** The CR3 meat is built from per-configuration score sums, so errors correlated within a
+   configuration (all atoms share one misspecification) are counted. POPS gives each E, F, V row its own correction and covers
+   it alone, so within-configuration correlation never enters the shape. §4 found whole-configuration errors at 1.7–2.8 × the
+   per-row variance in the leading directions.
+4. **Defined in every direction.** Where the data are silent CR3 falls back to the prior through A, and where the data speak the
+   data dominate it. The ellipsoid's width outside the data span is its random start (§2b caveat 1); a KL prior makes it the
+   prior width, which with a near-improper prior is unusable.
+5. **Propagation semantics.** CR3 is a covariance, so the delta method gives a Gaussian σ for any linear QoI, consistent with how
+   it was calibrated. The ellipsoid is a support set: its Gaussian reading uses a uniform-ball moment, and its natural QoI output
+   would be a bound (the projection of the support), a different meaning of coverage.
+6. **Computation and scale.** CR3 is closed form (one QR plus score sums, O(NP²)). The ellipsoid is a non-convex L-BFGS fit that
+   did not converge in our runs, is rank-limited (32 of 224), and cannot be full rank at P = 5477.
+
+Advantages of the ellipsoid:
+- **Shape from where the model misfits.** Its shape follows the pointwise-optimal corrections directly, so coverage is more even
+  across configuration types (o3d12: RMS deviation 0.05 against 0.11 for the headline; held out, 0.74–0.84 against 0.65–0.89).
+  CR3 gets its shape from residual-weighted scores and then one global scale, which leaves per-type unevenness (paper §3.x).
+- **Self-calibration.** With the leverage cut its scale is ≈ 1 with no test split (o3d12: 1.03; held-out refit: 1.04), whereas
+  CR3 needs λ_F ≈ 4.8 from a calibration set.
+
+Possible paper use: items 1–3 as the reason the conformal scale is kept as the headline; the ellipsoid's per-type evenness as
+the motivation for a per-type or Mondrian scale on CR3 (already in the paper), and as an open question for POPS (a leverage
+cut or a soft covering condition; prior only where the prior is proper). Pending: o4d20, where the paper's B2 per-type weakness is.
+
 ## §3 Does CR3 fix the under-coverage of the vacancy migration barrier?
 
 The under-coverage is from I. R. Best, T. J. Sullivan and J. R. Kermode, J. Chem. Phys. 161 (2024), shown on the
