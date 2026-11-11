@@ -165,7 +165,14 @@ equations fail at this column scaling (Cholesky indefinite; an eigendecompositio
   KL prior (`--param-prior`, rank 224; converged, 1573 iterations, KL 7.7e3) the free directions take the prior width, and the
   ace-jax prior is near-improper in some columns (Λ down to 1e-8): QoI σ ~6e5 × tol, per-atom coverage 1.0, so the principled
   version of (1) is not usable with this prior.
-- o4d20 (`--smooth-prior --leverage-pct 50`, rank 32): running on mnf148 (Σh = 3968 of 5477).
+- **o4d20, test split** (`results/pops_ellipse_o4d20_sp_lev50.json`; rank 32, 2000 iterations, not converged; Σh = 3968 of
+  5477): own scale λ_e = 1.08 (CR3 5.94). Per-atom cov90 0.827 bare, 0.873 with λ_e (headline 0.878, B2 0.837, its own
+  hypercube with the cut 0.456). **Per type it removes B2's weakness:** ellipsoid+λ_e 0.74 (surface_001) to 0.96, RMS deviation
+  0.060 (bare 0.69 to 0.93, 0.092); B2 0.51 (surface_001) to 0.99, 0.194, with all four surface types and liq at 0.51–0.75;
+  headline 0.74 (vacancy) to 1.00, 0.098, over-covering surfaces, liq, sh and bt at 0.98–1.00. QoIs 15/17 at median σ/tol 0.28
+  (headline 12/17 at 0.53): misses dE_sh (z 3.19 at σ/tol 0.08) and tetrahedral (z 2.32); dumbbell, hexagonal and surface_100,
+  which the headline misses, are covered. The span diagnostic is not meaningful at o4d20 (G's largest eigenvalue 2.7e18, so the
+  1e-8 relative cut keeps 39 of 5477 directions); how much of the coverage comes from unfitted widths is therefore not known here.
 
 ### §2c CR3 against the POPS ellipsoid: what each has in principle (for the paper's discussion)
 
@@ -202,7 +209,9 @@ Advantages of the ellipsoid:
 
 Possible paper use: items 1–3 as the reason the conformal scale is kept as the headline; the ellipsoid's per-type evenness as
 the motivation for a per-type or Mondrian scale on CR3 (already in the paper), and as an open question for POPS (a leverage
-cut or a soft covering condition; prior only where the prior is proper). Pending: o4d20, where the paper's B2 per-type weakness is.
+cut or a soft covering condition; prior only where the prior is proper). At o4d20, where the paper's B2 is uneven per type, the
+leverage-cut ellipsoid is the most even method (RMS deviation 0.060 against 0.098 headline and 0.194 B2) and covers 15/17 QoIs
+at σ/tol 0.28, but is not converged and its unfitted-width share is unknown: needs a converged rerun before any paper claim.
 
 ## §3 Does CR3 fix the under-coverage of the vacancy migration barrier?
 
