@@ -229,6 +229,12 @@ Not in the popsregression prior PR.
 
 Warm start tried first (2026-11-11, negative): popsregression `init_widths="moments"` (U from the per-point optimum v_i = P r_i², a rank-32 sandwich by block power steps), o3d12 `_sp_lev50_it20000_mi` on lestrade: stage 1 still hits the evaluation limit (14,534 iterations, as 14,553 from the random start) and stage 2 then takes 9,464 (771 before); 24,015 iterations, 3443 s against 15,398 and 1973 s. Objective 1.1689 vs 1.1707 (another local optimum), coverage and QoIs as before (cov90 0.860 / 0.882 with λ_e, per-type RMS 0.049 / 0.036, QoIs 14/17). The cost is not the start: stage 1's conditioning. Popsregression PR #15 (the KL prior) opened against `ellipse-ev`; the warm start is not offered.
 
+Closed form, first prototype (2026-11-11; `pops_ellipse.py --closed-form q`, o3d12 `--smooth-prior`, lestrade; results `pops_ellipse_o3d12_sp[_lev50]_cf<q>.json`). Built in u_i = R2^-T x_i (||u_i||^2 = h_i): S_u = mean g_j² u_j u_jᵀ, g = r/h, covering ratio r_i²/(u_iᵀS_u u_i); forming A⁻¹MA⁻¹ in β directly cancelled (v_i < 0). 12 s against 1973 s for the converged L-BFGS fit.
+- Without the leverage cut: unusable, as predicted. c = 2.3e5 from rows with h ~ 1e-26 (the 99th percentile of the ratio is 2e-8); QoI σ/tol 1.9e7.
+- With the 50 % cut, covering every row: c = 6117 (ratio median 56, 90th 370, 99th 1063: the max over rows is 100 × the median). Not self-calibrated: λ_e 2.20 (fitted ellipsoid 1.04), bare cov90 0.28. With λ_e: cov90 0.873 (fitted 0.879, headline 0.791), per-type RMS deviation 0.091, lowest 0.74 surface_001 (fitted 0.036, headline 0.109, B2 0.048); QoIs 13/17 at σ/tol 1.53 (fitted 14/17 at 1.69, headline 14/17 at 2.37), missing the dumbbell, tetrahedral and vacancy energies at z 4.3–4.7 (headline 3.4, 2.1, 1.6).
+- q = 99 or 90 changes only c (the shape is the same), so with λ_e the results are identical.
+Reading: the moment shape costs one QR and is about as good as CR3 overall, a little more even per type, worse on defect energies; it keeps neither the fitted ellipsoid's evenness (0.036) nor its self-calibration. Those come from the covering fit itself, which a moment cannot reproduce. Untried: the per-configuration form; a few reweighting steps from the fitted objective's stationarity condition (each costs one weighted sandwich, O(NP²)), which would move the moment towards the fitted optimum.
+
 ## §3 Does CR3 fix the under-coverage of the vacancy migration barrier?
 
 The under-coverage is from I. R. Best, T. J. Sullivan and J. R. Kermode, J. Chem. Phys. 161 (2024), shown on the

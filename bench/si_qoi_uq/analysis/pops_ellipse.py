@@ -82,6 +82,9 @@ def main():
     mi = "--init-moments" in args      # popsregression init_widths="moments" (branch ellipse-moment-init): U from the
     if mi:                             # per-point optimum v_i = P r_i^2 (a sandwich), not a 1e-3 random factor
         args.remove("--init-moments")
+    cf = None                          # --closed-form q: no nonlinear fit (plan §2d): shape A^-1 M A^-1 from the POPS
+    if "--closed-form" in args:        # corrections, M = mean x x^T (r/h)^2; scale c covering q % of rows
+        i = args.index("--closed-form"); cf = float(args[i + 1]); del args[i:i + 2]
     if "--leverage-pct" in args:
         i = args.index("--leverage-pct"); lev = float(args[i + 1]); del args[i:i + 2]
     kl = "--param-prior" in args
@@ -94,7 +97,7 @@ def main():
     if sp and wr_rel is not None:
         raise SystemExit("--smooth-prior fixes whiten_ridge at 1/N; do not combine it with --whiten-ridge-rel")
     m = args[0]
-    sfx = ("" if wr_rel is None else f"_wr{wr_rel:g}") + ("_sp" if sp else "") + ("_kl" if kl else "") + ("" if lev is None else f"_lev{lev:g}") + ("" if mxit is None else f"_it{mxit}") + ("_mi" if mi else "") + ("_pac" if pac else "")
+    sfx = ("" if wr_rel is None else f"_wr{wr_rel:g}") + ("_sp" if sp else "") + ("_kl" if kl else "") + ("" if lev is None else f"_lev{lev:g}") + ("" if mxit is None else f"_it{mxit}") + ("_mi" if mi else "") + ("_pac" if pac else "") + ("" if cf is None else f"_cf{cf:g}")
     t0 = time.time()
     lin = lin_for(m, "cr3")
     th = np.asarray(lin.theta_hat, np.float64)
@@ -142,6 +145,51 @@ def main():
             z["G_evals"], z["G_evecs"] = np.linalg.eigh(X.T @ X / X.shape[0])
             del X
             np.savez(fout, **z)
+    elif cf is not None:
+        # Closed-form POPS ellipsoid (plan §2d), in the prior coordinates beta = Lambda^1/2 theta (prior = I), A = X^T X + I.
+        # POPS correction of row i: d_i = A^-1 x_i r_i / h_i, h_i = x_i^T A^-1 x_i (the smallest shift fitting it exactly;
+        # CR3/PRESS: A^-1 x_i r_i / (1 - h_i)). Shape S = A^-1 M A^-1, M = mean_i x_i x_i^T (r_i / h_i)^2 (over the rows kept
+        # by the leverage cut). Scale: the projected-ball covering condition r_i^2 <= c x_i^T S x_i, c its q-th percentile
+        # over the kept rows (q = 100: every row, as POPS). Gaussian reading c S / (P + 2), as the fitted ellipsoid's.
+        from scipy.linalg import solve_triangular
+        if not sp:
+            raise SystemExit("--closed-form needs --smooth-prior")
+        X, y, lam_p = design()
+        X = np.array(X)                                           # the cached design is a read-only memmap
+        ge, gv = np.linalg.eigh(X.T @ X / X.shape[0])
+        dinv = 1.0 / np.sqrt(lam_p)
+        X *= dinv[None, :]
+        R = np.linalg.qr(X, mode="r")
+        R2 = np.linalg.qr(np.vstack([R, np.eye(n)]), mode="r")    # R2^T R2 = A
+        del R
+        # Work in u_i = R2^-T x_i (||u_i||^2 = h_i <= 1): x_i^T A^-1 x_j = u_i^T u_j. Forming A^-1 M A^-1 in beta directly
+        # cancels catastrophically here (|x| up to 3e8, diag M up to 1e18: v_i came out negative).
+        Uu = np.empty_like(X)
+        for j in range(0, X.shape[0], 32768):
+            Uu[j:j + 32768] = solve_triangular(R2, X[j:j + 32768].T, trans="T").T
+        del X
+        h = np.sum(Uu * Uu, axis=1)
+        keep_r = np.ones(len(h), bool) if lev is None else h >= np.percentile(h, lev)
+        Uk, yk, hk = Uu[keep_r], y[keep_r], h[keep_r]
+        del Uu
+        g = yk / hk
+        Su = (Uk * g[:, None]).T @ (Uk * g[:, None]) / len(yk)
+        Su = 0.5 * (Su + Su.T)
+        v = np.einsum("ij,jk,ik->i", Uk, Su, Uk)
+        ratio = yk ** 2 / np.maximum(v, np.finfo(float).tiny)
+        c = float(np.percentile(ratio, cf))
+        Ri = solve_triangular(R2, np.eye(n))                      # R2^-1
+        S = Ri @ Su @ Ri.T                                        # beta coordinates
+        S = 0.5 * (S + S.T)
+        Dm = np.diag(dinv)
+        info = {"P": n, "N": int(len(yk)), "closed_form_pct": cf, "c": c, "leverage_pct": lev, "smooth_prior": True,
+                "h_sum": float(h.sum()), "v_min": float(v.min()), "ratio_pct": {str(q): float(np.percentile(ratio, q)) for q in (50, 90, 99, 100)},
+                "fit_s": time.time() - t0}
+        z = dict(Sigma_e=Dm @ (c * S / (n + 2.0)) @ Dm, B0=np.zeros((n, n)), delta=np.zeros(n), info=json.dumps(info),
+                 G_evals=ge, G_evecs=gv)
+        del Uk
+        np.savez(fout, **z)
+        print(f"{m}: closed-form ellipsoid: {info}", flush=True)
     else:
         X, y, lam_p = design()
         ge, gv = np.linalg.eigh(X.T @ X / X.shape[0])              # model coordinates (the data span)
@@ -213,6 +261,8 @@ def main():
     info["span_rank"] = int(Vr.shape[1])
     info["trace_outside_span"] = float(1 - np.trace(Sp) / np.trace(Se))
     print(f"{m}: data span rank {Vr.shape[1]} of {n}; share of the ellipsoid's trace outside it {info['trace_outside_span']:.6f}", flush=True)
+    if not np.any(B0):                 # --closed-form has no baseline: its hypercube0 rows repeat the ellipsoid (ignore them)
+        B0 = Se
     facs = {"ellipsoid": factor_of(Se), "ellipsoid_span": factor_of(Sp), "hypercube0": factor_of(B0), "cr3": np.asarray(lin.factor("cr3"))}
     # test split: per-atom force coverage, force RMS z, and delta's effect on the forces
     sc = json.load(open(RUNS / "diag" / f"{m}_scales.json"))
