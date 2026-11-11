@@ -407,6 +407,7 @@ def main():
         dinv = np.ones(n)
         if sp:                                                    # beta = Lambda^1/2 theta: the prior is the identity there
             dinv = 1.0 / np.sqrt(lam_p)
+            X = np.array(X)                                       # the cached design is a read-only memmap
             X *= dinv[None, :]
             opts = {"whiten_ridge": 1.0 / X.shape[0]}
             if kl:
