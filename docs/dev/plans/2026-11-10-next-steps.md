@@ -295,6 +295,19 @@ held-out refit (dedicated-f02, `pops_ellipse_ood_o4d20_it5000`).
    items 2 and 4 stand as written. If evenness also moves, item 2 shrinks to "the best optimum found was more even", and the
    paper should mention POPS only in passing.
 
+**Soft QoI score** (2026-11-11; `analysis/qoi_soft_score.py`, `results/qoi_soft_score.json`). The 95 % count jumps when one borderline QoI crosses, so the scores are geometric means over the 17 QoIs of x / tolerance clipped to [0.05, 10], as the ace-jax accuracy benchmark (bench/si_qoi/score.py, same tolerances): gm |e|/t (the benchmark score), gm σ/t (sharpness), gm |z| (calibration: 0.530 for z ~ N(0,1), 95 % band 0.31–0.90 for 17 independent QoIs) and gm CRPS/t (proper; → |e|/t as σ → 0, so on the benchmark's scale). With λ_e:
+
+| model, run | method | k95 | gm σ/t | gm abs z | gm CRPS/t |
+|---|---|---|---|---|---|
+| o3d12 (gm err/t 0.924) | headline | 14/17 | 2.03 | 0.48 | 1.009 |
+| | fitted ellipsoid (L-BFGS, it20000) | 14/17 | 1.83 | 0.54 | 0.922 |
+| | closed form (cf100) | 13/17 | 1.37 | 0.72 | 0.914 |
+| | reweighting (fp2000) | 13/17 | 2.21 | 0.45 | 1.062 |
+| o4d20 (gm err/t 0.366) | headline | 12/17 | 0.52 | 0.69 | 0.296 |
+| | fitted ellipsoid (it5000) | 15/17 | 0.46 | 0.78 | 0.260 |
+
+Reading: every method with its scale is inside the calibration band (bare closed form is not: gm |z| 1.58). The hard counts exaggerate the differences: 12 against 15 of 17 at o4d20 becomes a 12 % better CRPS for the ellipsoid (0.260 against 0.296), with a 12 % narrower typical σ and calibration inside the band for both. At o3d12 the three ellipsoid solvers span gm CRPS 0.91–1.06 around the headline's 1.01, the same spread as the solver-dependence of σ (above), so no ranking there. CRPS is dominated by the accuracy term (gm err/t) on both models; the UQ part moves it by ~10 %. Paper candidate: report gm CRPS/t and gm |z| beside the hard count (the latter with its band), using the benchmark's tolerances and clipping. Not yet computed: B1, B2 (their per-QoI σ are not in the ellipsoid result files), and the multi-start spread of these scores.
+
 Upstream: popsregression PR #15 (KL parameter prior) open against `ellipse-ev`; a reweighting-solver PR waits on the o4d20
 result and the multi-start (it should present the solver as finding a comparable optimum faster, not the same optimum).
 
