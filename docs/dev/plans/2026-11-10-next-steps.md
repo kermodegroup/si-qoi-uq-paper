@@ -666,6 +666,77 @@ lower edge). B1 at its λ_mv is worse than CR3 at both sizes (o4d20 gm |w| 0.16:
 λ_mv is one sentence in the discussion (a discrepancy-free route that is jointly calibrated at o4d20 but scores worse than the
 headline); the headline is unchanged.
 
+## §5 Conformal risk control: an exact per-atom guarantee and a selection score (2026-11-11)
+
+Suggested after §4, following Fisher et al. (arXiv:2609.31384, Sec. 3.5, 4.3). They control losses of the whole-configuration
+whitened residual Δ = (d λ Σ)^-½ (Y − μ) (a truncated linear loss, ‖Δ‖₁, the 90 % quantile of Δ's components) on energies and
+forces, 120 calibration configurations; the guarantee is a marginal expectation over configurations; they compare methods by
+set volume at fixed coverage but select nothing with it, and run no propagated CRC.
+
+Here (`analysis/crc.py`, `results/crc.json`) the score is the paper's per-atom one (the 3×3 Mahalanobis distance of each atom
+under its method's covariance), not Fisher et al.'s whole-configuration Δ; the configuration enters through the loss
+L_c(q) = #{i ∈ c: s_i > q} / n̄, non-increasing in q, bounded by B = n_max / n̄ (n_max from atom counts of the calibration and
+test splits, no labels; Mondrian: per group). CRC: q̂ = inf{q : (Σ_c L_c(q) + B)/(n + 1) ≤ α}, so E[miscovered atoms of a new
+configuration] ≤ α n̄: the atom-weighted miscoverage the paper targets, now exact. The paper's atom-weighted quantile over pooled
+atoms has no exact guarantee (atoms of one configuration are not exchangeable); ace-jax's configuration-weighted quantile has
+one, for the configuration-weighted target, and under-covers atoms (force_onegroup: q ~12 % lower).
+
+**A. The paper's per-atom scale** (T_val calibration scores of the ARD posterior, 422 / 444 configurations, n̄ 74 / 71, B 2.9 / 3.1;
+coverage on the 17,537 test atoms):
+
+| model, α | atom-weighted (paper) q / cov | configuration-weighted q / cov | CRC q / cov | Mondrian cov: atom / cfg-w / CRC |
+|---|---|---|---|---|
+| o3d12, 0.1 | 17.32 / 0.879 | 15.45 / 0.825 | 17.61 / 0.886 | 0.879 / 0.895 / 0.902 |
+| o3d12, 0.05 | 20.33 / 0.934 | 18.96 / 0.913 | 20.92 / 0.940 | 0.935 / 0.946 / 0.959 |
+| o4d20, 0.1 | 16.49 / 0.902 | 13.84 / 0.836 | 16.85 / 0.908 | 0.905 / 0.902 / 0.923 |
+| o4d20, 0.05 | 20.16 / 0.951 | 17.89 / 0.926 | 20.98 / 0.957 | 0.949 / 0.951 / 0.971 |
+
+Reading: the exact guarantee costs 2–4 % in q (B / (n + 1) ≈ 0.007 at n ≈ 430). The one-group shortfall at o3d12 (0.886) is the
+T_val → test transfer the paper already reports, not the rule. Mondrian CRC (8 ARD groups, per-group bound = the group's most atoms
+in one configuration) reaches target on test at both sizes; the two smallest groups (74 and 51 T_val configurations) are
+conservative. Paper candidate: replace the Section 2.5 quantile by CRC (one paragraph, one equation; "≈ 1 − α" becomes "≥ 1 − α in
+expectation over configurations").
+
+**B. A selection score: calibrated region size.** Test split, 239 configurations, 200 random configuration-level halves: every
+candidate (model × method) CRC-calibrated on one half, so none can look better by being overconfident; size = mean log radius of
+the calibrated regions on the other (log of the geometric-mean semi-axis from log det, eV/Å; the √trace radius ranks the same).
+Risks: overall, worst of three shell-distortion bands (the ARD groups merged: the top band has 31–41 test configurations, too few
+for per-group CRC on a half) and worst configuration type (≥ 100 atoms). α = 0.1:
+
+| candidate | size (vol) | risk | worst band | worst type / type RMS dev |
+|---|---|---|---|---|
+| o4d20 ellipsoid | **−2.11** | 0.076 | 0.082 | 0.206 / **0.057** |
+| o4d20 B2 | −1.90 | 0.078 | 0.135 | 0.363 / 0.108 |
+| o4d20 B1 | −1.86 | 0.077 | 0.087 | 0.220 / 0.080 |
+| o4d20 CR3 (one scale) | −1.85 | 0.077 | 0.091 | 0.224 / 0.085 |
+| o3d12 ellipsoid | −1.46 | 0.077 | 0.089 | 0.161 / 0.049 |
+| o3d12 B1 | −1.26 | 0.076 | 0.092 | 0.164 / 0.060 |
+| o3d12 B2 | −1.26 | 0.077 | 0.100 | 0.209 / 0.054 |
+| o3d12 CR3 (one scale) | −1.09 | 0.076 | 0.087 | 0.167 / 0.069 |
+
+(Risk 0.076, not 0.1: the B / (n + 1) ≈ 0.025 margin at n ≈ 120.) The ellipsoid is smallest in every split at both sizes and
+α = 0.05, 0.1, 0.2, with Mondrian (band) CRC too; o4d20 beats o3d12 for every method by ~0.4–0.7 in log radius (1.5–2×).
+Selection: choosing by size on a third (plain quantiles, 2-fold) and CRC-calibrating the choice on another third gives risk 0.065
+on the last (α = 0.1; 0.014 at 0.05, 0.166 at 0.2); choosing and calibrating on the same two thirds gives 0.083, still ≤ α
+because the winner is clear. Mondrian CRC on half-splits is infinite at α = 0.05 (too few configurations per band).
+
+Reading:
+1. *As a model-selection score it works for models:* o4d20 over o3d12 for every method, by a wide margin, with the guarantee
+   intact after selection.
+2. *For UQ methods it picks the POPS ellipsoid, not the headline.* At one calibrated scale the ellipsoid's per-atom shape tracks
+   the force error best: smallest regions, and also the most even across bands and types (as §2 found). CR3 with one scale has
+   the largest regions at o3d12 and ties B1 at o4d20. This is a force-level verdict. The QoI scores disagree: jointly the
+   ellipsoid is worse calibrated than CR3 (§2e: o4d20 d²/n 1.79 against 1.30; LS/n with the discrepancy 0.70 against 0.60). A
+   per-atom score cannot see cross-atom correlations, which is what QoIs depend on.
+3. *So the score should match the use.* Per-atom CRC size selects for per-atom forces; for QoIs the relevant region is
+   whole-configuration (Fisher et al.'s Δ, §4's score with its nugget), whose size reflects the correlations. Next: the same
+   CRC selection with the whole-configuration score and Fisher et al.'s quantile loss (fraction of whitened components outside
+   ±λ), from §4's covariances. If that ranks CR3 above the ellipsoid, the two scores together say: ellipsoid for per-atom
+   forces, CR3 for anything correlated.
+Caveats: the candidates' scales do not matter (CRC recalibrates), but their shapes were all fitted on training data only; the
+selection uses the test split, so for the paper it would need its own held-out split (the test split is the paper's
+calibration and evaluation set).
+
 ## §0 results (2026-11-10)
 
 **Per-type per-atom force coverage** (Gaussian 90 % ellipsoid of each method's own 3×3 covariance,
@@ -711,6 +782,7 @@ this. §4 then becomes: does Σ + νI with a conformal scale cover the defect ce
 | §1 (111) | ~1 week; DFT only if needed | done (2026-11-10): DAS within 0.7 σ, order unresolved by either covariance (P(7×7 lowest) 0.05–0.15); spin DFT not triggered |
 | §2 ellipsoid | ~1 week, mnf148 | done (2026-11-11): needs a leverage cut; then the most even per-type force coverage, self-calibrated, stable across optima; non-convex, and the lower optimum is not better downstream; QoI widths reproducible once converged (an eigh scoring bug had made them look unstable); slightly sharper per QoI than CR3, worse jointly. Paper: discussion paragraph + SI forces table, optional SI QoI-score sentence (§2e) |
 | §4 multivariate | ~1–2 weeks | done (2026-11-11): joint guarantee holds on average, not by kind (surfaces 0.28–0.40); at o4d20 λ_mv covers 16/17 QoIs and is jointly calibrated without the discrepancy term, but scores worse than the headline; too wide at o3d12 |
+| §5 CRC | ~1 day | in progress (2026-11-11): CRC makes the per-atom guarantee exact for 2–4 % in q; calibrated size selects o4d20 over o3d12 and the POPS ellipsoid among methods (per-atom forces), against the QoI joint scores; whole-configuration score next |
 
 All four questions have answers. What is left is deciding what goes into the paper revision (branch `revision`, draft PR #1):
 candidates are §3 (barrier: a new QoI and the clearest miss), §2e items 2–4 (ellipsoid: discussion paragraph, SI forces table,
