@@ -15,8 +15,9 @@ d^2 = e^T C^-1 e <= chi2_3(0.9)):
 and set beside the headline / B1 / B2 / B3 rows of results/force_methods_<m>.json (in and out of distribution).
 
     SIQ_RUNS=<BLR root> OOD_RUNS=<ood_holdout_blr> PYTHONPATH=<popsregression checkout> \\
-        python -m bench.si_qoi_uq.analysis.pops_ellipse_ood o3d12
-        -> OOD_RUNS/fits/<m>/pops_ellipse_sp_lev50.npz, results/pops_ellipse_ood_<m>.json
+        python -m bench.si_qoi_uq.analysis.pops_ellipse_ood o3d12 [--max-iter k]
+        -> OOD_RUNS/fits/<m>/pops_ellipse_sp_lev50<sfx>.npz, results/pops_ellipse_ood_<m><sfx>.json
+--max-iter k: L-BFGS iterations per continuation stage (as pops_ellipse.py; sfx "_it<k>", none by default).
 """
 import json, sys, time
 
@@ -58,13 +59,18 @@ def main():
     from .diff_rows import rows_of
     from .force_methods import OOD_DATA, OOD_RUNS
     from .pops_ellipse import factor_of
-    m = sys.argv[1]
+    args = sys.argv[1:]
+    mxit = None
+    if "--max-iter" in args:
+        i = args.index("--max-iter"); mxit = int(args[i + 1]); del args[i:i + 2]
+    m = args[0]
+    sfx = "" if mxit is None else f"_it{mxit}"
     t0 = time.time()
     d = OOD_RUNS / "fits" / m
     lo = LinearACE(d / "model.npz", d / "posterior.npz")
     th = np.asarray(lo.theta_hat, np.float64)
     n = len(th)
-    fout = d / "pops_ellipse_sp_lev50.npz"
+    fout = d / f"pops_ellipse_sp_lev50{sfx}.npz"
     if fout.exists():
         z = dict(np.load(fout))
         print(f"{m}: ellipsoid from {fout}", flush=True)
@@ -95,15 +101,16 @@ def main():
         X, y = X[keep_r], y[keep_r]
         print(f"{m}: leverage cut {LEV:g} %: {int(keep_r.sum())} of {keep_r.size} rows; h sum {h.sum():.1f}", flush=True)
         est = POPSRegression(posterior="ellipsoid", fit_intercept=False, random_state=0,
-                             posterior_options={"whiten_ridge": 1.0 / X.shape[0]})
+                             posterior_options={"whiten_ridge": 1.0 / X.shape[0], **({} if mxit is None else {"max_iter": mxit})})
         est.fit(X, y)
         eng = est.ellipsoid_
         P = int(eng._ball_dim)
         Dm = np.diag(dinv)
         info = {"P": P, "N": int(X.shape[0]), "rank": int(eng.U_.shape[1]), "coverage_fraction": float(eng.coverage_fraction_),
                 "objective": float(eng.objective_), "n_iter": int(eng.n_iter_), "fit_s": time.time() - t0, "leverage_pct": LEV,
-                "delta_rel": float(np.linalg.norm(dinv * np.asarray(est.coef_)) / np.linalg.norm(th))}
-        z = dict(Sigma_e=Dm @ (np.asarray(eng.ellipsoid_B_) / (P + 2.0)) @ Dm, G_evals=ge, G_evecs=gv, info=json.dumps(info))
+                "delta_rel": float(np.linalg.norm(dinv * np.asarray(est.coef_)) / np.linalg.norm(th)), "max_iter": mxit,
+                "stages": getattr(eng, "stage_info_", None)}
+        z = dict(Sigma_e=Dm @ (np.asarray(eng.ellipsoid_B_) / (P + 2.0)) @ Dm, G_evals=ge, G_evecs=gv, info=json.dumps(info, default=str))
         del X, y
         np.savez(fout, **z)
         print(f"{m}: ellipsoid fitted: {info}", flush=True)
@@ -178,7 +185,7 @@ def main():
         p = out["paper_methods_ood"]["per_type"].get(t, {})
         print(f"  ood {t:24s} n {v['atoms']:5d}  " + "  ".join(f"{k} {v[k]['coverage']:.2f}" for k in meth)
               + " | " + "  ".join(f"{k} {p.get(k, float('nan')):.2f}" for k in ("headline", "B1", "B2")), flush=True)
-    json.dump(out, open(RESULTS / f"pops_ellipse_ood_{m}.json", "w"), indent=1, default=float)
+    json.dump(out, open(RESULTS / f"pops_ellipse_ood_{m}{sfx}.json", "w"), indent=1, default=float)
     print(f"done, {time.time() - t0:.0f} s")
 
 
