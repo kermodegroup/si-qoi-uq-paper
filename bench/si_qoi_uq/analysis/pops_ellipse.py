@@ -45,6 +45,67 @@ def factor_of(S):
     return V * np.sqrt(np.clip(w, 0, None))[None, :]
 
 
+def fixed_point(U, r, B, iters, rhos=(1e-1, 1e-2, 1e-3, 1e-4), delta=1e-3, tol=1e-7, jitter=1e-4):
+    """Reweighting iteration for the POPS ellipsoid objective (popsregression's, no baseline) in coordinates U (rows u_i).
+
+    l_i = 0.5 log v_i - log C_P - k L_rho(q_i), v_i = u_i^T B u_i + delta^2, q_i = 1 - r_i^2 / v_i, k = (P - 1) / 2.
+    Stationarity in B: B N B = C with N = mean 0.5 u u^T / v (data side) and C = B [mean k L'_rho(q) r^2 / v^2 u u^T] B
+    (k x the weighted second moment of the corrections B u_i r_i / v_i). With N, C held at the current B this is solved by
+    the matrix geometric mean B = N^-1/2 (N^1/2 C N^1/2)^1/2 N^-1/2 (on N's range). A step that raises the objective is
+    halved along the geodesic B^1/2 (B^-1/2 B' B^-1/2)^a B^1/2. Continuation over rho as the package's rho_schedule.
+    The optimum is rank-deficient (on the PSD boundary), and a multiplicative update cannot regrow a direction it has
+    collapsed (B' lies in range(B)): each proposal gets jitter x tr(B)/P x I back, so a direction the gradient favours can
+    return; the jitter is dropped for a final polish at each rho (accepted only if it lowers the objective).
+    """
+    from popsregression._projected_ball import log_norm_constant, smooth_log
+    P = U.shape[1]
+    k = 0.5 * (P - 1)
+    r2 = r * r
+
+    def psd_pow(S, a, cut=1e-14):
+        w, V = np.linalg.eigh(0.5 * (S + S.T))
+        keep = w > cut * max(w.max(), 1e-300)
+        return (V[:, keep] * w[keep] ** a) @ V[:, keep].T
+
+    def stats(B, rho):
+        v = np.einsum("ij,ij->i", U @ B, U) + delta * delta
+        q = 1.0 - r2 / v
+        lq, dlq, _ = smooth_log(q, rho)
+        obj = float(np.mean(0.5 * np.log(v) - log_norm_constant(P) - k * lq))
+        return obj, v, q, dlq
+
+    log = []
+    for rho in rhos:
+        obj, v, q, dlq = stats(B, rho)
+        it = -1
+        for it in range(iters):
+            Nm = (U * (0.5 / v)[:, None]).T @ U / len(r)
+            Mz = (U * (k * dlq * r2 / v ** 2)[:, None]).T @ U / len(r)
+            C = B @ Mz @ B
+            Nh, Nmh = psd_pow(Nm, 0.5), psd_pow(Nm, -0.5)
+            Bn = Nmh @ psd_pow(Nh @ C @ Nh, 0.5) @ Nmh
+            if jitter and it < iters - 1:
+                Bn = Bn + jitter * np.trace(Bn) / P * np.eye(P)
+            a = 1.0
+            while True:
+                Bt = Bn if a == 1.0 else (lambda Bh, Bmh: Bh @ psd_pow(Bmh @ Bn @ Bmh, a) @ Bh)(psd_pow(B, 0.5), psd_pow(B, -0.5))
+                o2, v2, q2, d2 = stats(Bt, rho)
+                if o2 <= obj or a < 1e-3:
+                    break
+                a *= 0.5
+            if o2 > obj:               # no descent along the geodesic: converged at this rho (keep the current B)
+                break
+            rel = abs(obj - o2) / max(abs(obj), 1e-300)
+            B, obj, v, q, dlq = 0.5 * (Bt + Bt.T), o2, v2, q2, d2
+            if it % 10 == 0 or rel < tol:
+                print(f"  fixed point rho {rho:g} it {it} obj {obj:.6f} step {a:g} covered {np.mean(q > 0):.4f} "
+                      f"min q {q.min():.3g}", flush=True)
+            if rel < tol:
+                break
+        log.append({"rho": rho, "iters": it + 1, "obj": obj, "covered": float(np.mean(q > 0)), "min_q": float(q.min())})
+    return B, log
+
+
 def main():
     import jax
     jax.config.update("jax_enable_x64", True)
@@ -85,6 +146,9 @@ def main():
     cf = None                          # --closed-form q: no nonlinear fit (plan §2d): shape A^-1 M A^-1 from the POPS
     if "--closed-form" in args:        # corrections, M = mean x x^T (r/h)^2; scale c covering q % of rows
         i = args.index("--closed-form"); cf = float(args[i + 1]); del args[i:i + 2]
+    fp = None                          # --fixed-point K: after --closed-form, K reweighting steps per rho stage (plan §2d)
+    if "--fixed-point" in args:
+        i = args.index("--fixed-point"); fp = int(args[i + 1]); del args[i:i + 2]
     if "--leverage-pct" in args:
         i = args.index("--leverage-pct"); lev = float(args[i + 1]); del args[i:i + 2]
     kl = "--param-prior" in args
@@ -97,7 +161,7 @@ def main():
     if sp and wr_rel is not None:
         raise SystemExit("--smooth-prior fixes whiten_ridge at 1/N; do not combine it with --whiten-ridge-rel")
     m = args[0]
-    sfx = ("" if wr_rel is None else f"_wr{wr_rel:g}") + ("_sp" if sp else "") + ("_kl" if kl else "") + ("" if lev is None else f"_lev{lev:g}") + ("" if mxit is None else f"_it{mxit}") + ("_mi" if mi else "") + ("_pac" if pac else "") + ("" if cf is None else f"_cf{cf:g}")
+    sfx = ("" if wr_rel is None else f"_wr{wr_rel:g}") + ("_sp" if sp else "") + ("_kl" if kl else "") + ("" if lev is None else f"_lev{lev:g}") + ("" if mxit is None else f"_it{mxit}") + ("_mi" if mi else "") + ("_pac" if pac else "") + ("" if cf is None else f"_cf{cf:g}") + ("" if fp is None else f"_fp{fp}")
     t0 = time.time()
     lin = lin_for(m, "cr3")
     th = np.asarray(lin.theta_hat, np.float64)
@@ -178,12 +242,16 @@ def main():
         v = np.einsum("ij,jk,ik->i", Uk, Su, Uk)
         ratio = yk ** 2 / np.maximum(v, np.finfo(float).tiny)
         c = float(np.percentile(ratio, cf))
+        fp_log = None
+        if fp is not None:             # fixed-point reweighting from the stationarity of the fitted objective (full-rank B, u coords)
+            Bu, fp_log = fixed_point(Uk, yk, c * Su, fp)
+            c, Su = 1.0, Bu
         Ri = solve_triangular(R2, np.eye(n))                      # R2^-1
         S = Ri @ Su @ Ri.T                                        # beta coordinates
         S = 0.5 * (S + S.T)
         Dm = np.diag(dinv)
         info = {"P": n, "N": int(len(yk)), "closed_form_pct": cf, "c": c, "leverage_pct": lev, "smooth_prior": True,
-                "h_sum": float(h.sum()), "v_min": float(v.min()), "ratio_pct": {str(q): float(np.percentile(ratio, q)) for q in (50, 90, 99, 100)},
+                "h_sum": float(h.sum()), "v_min": float(v.min()), "fixed_point": fp_log, "ratio_pct": {str(q): float(np.percentile(ratio, q)) for q in (50, 90, 99, 100)},
                 "fit_s": time.time() - t0}
         z = dict(Sigma_e=Dm @ (c * S / (n + 2.0)) @ Dm, B0=np.zeros((n, n)), delta=np.zeros(n), info=json.dumps(info),
                  G_evals=ge, G_evecs=gv)
