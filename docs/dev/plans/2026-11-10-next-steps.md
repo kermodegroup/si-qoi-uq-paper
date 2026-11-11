@@ -238,6 +238,66 @@ Reading: the moment shape costs one QR and is about as good as CR3 overall, a li
 Reweighting iteration (2026-11-11; `--fixed-point K`, `fixed_point()` in pops_ellipse.py). Stationarity of the package's objective in B (full rank, u coordinates, no baseline) is B N B = C, N = mean ½uuᵀ/v, C = B[mean k L'_ρ(q) r²/v² uuᵀ]B (k × the weighted second moment of the corrections B u_i r_i/v_i); with N, C held, B = N^-½(N^½CN^½)^½N^-½. Step halved along the geodesic if the objective rises; continuation over ρ as the package. Toy (N 4000, P 20): my objective equals the package's at its optimum (0.6574643) and that optimum is a fixed point; the optimum is rank-deficient (8 of 20), and the multiplicative update cannot regrow a collapsed direction (stuck at 0.6678, rank 6) until a 1e-4 × tr(B)/P isotropic jitter is added to each proposal (then widths match the package's to a median ratio 1.0006, but 3000 steps reach only 0.6630 against 138 L-BFGS iterations).
 o3d12 `_sp_lev50_cf100_fp2000` (from the closed form, lestrade): 550 steps at ρ = 0.1, then converged at every later ρ; 268 s including the scoring (the L-BFGS fit: 15,398 iterations, 1973 s). Objective 1.15912, below L-BFGS's 1.1707 (rank 32 plus the POPS baseline; same objective). Self-calibrated: λ_e 1.06. cov90 0.854 bare, 0.888 with λ_e (fitted 0.859 / 0.879); per-type RMS 0.054 / 0.036, lowest 0.85 interstitial (fitted 0.049 / 0.036). QoIs 13/17 (fitted 14/17); the dumbbell, tetrahedral and vacancy energies at z 2.6–3.2 (fitted closer; headline 3.4, 2.1, 1.6). Caveat: QoI σ is not stable: a first run that differed only by objective changes of ~1e-9 (a step-acceptance bug, fixed) gave median σ/tol 1.54 against 2.20, so the QoI width sits in directions the objective barely sees (span-projected coverage 0.50). Reading: the reweighting replaces L-BFGS at o3d12 (7× faster, lower objective, same force coverage and evenness); candidate for a popsregression PR. At o4d20 each step is a full-rank P × P (5477) sandwich and eigendecompositions: untried.
 
+Rank-limited fixed point (2026-11-11; `fixed_point_lowrank()`, `--fp-rank R [--fp-inner lbfgs]`). B = V C Vᵀ at the package's
+rank: fit C in the subspace (reweighting, or L-BFGS on the m × m factor, O(N m²) per step), truncate to the top R
+eigen-directions, expand by the R most negative eigenvectors of the gradient G = mean a_i u_i u_iᵀ on V's complement (block
+LOBPCG, G never formed, O(N P R) per block), seeded at 1e-2 × the mean width; stop when the objective stops falling or G has
+no negative direction off V. A step costs a few L-BFGS evaluations, against P/R ≈ 170 for a full-rank step at o4d20 (break-even
+there ≈ 40–60 full-rank steps against L-BFGS's 10,282 iterations; o3d12 needed 550). Toy, rank 5: started at the package's
+optimum it stays there (0.657839); from the moment start it stops at 0.6648 (L-BFGS inner) or 0.6679 (reweighting inner), from
+a random start at 0.6682, each a stationary point with no descent direction off V.
+
+### §2e The objective is multimodal; what that means for the paper (2026-11-11)
+
+**Finding.** The POPS ellipsoid objective is non-convex in B: each term ½ log v − k log(1 − r²/v) is concave in v once v ≫ r²
+(its second derivative changes sign), and the rank limit adds more. Solvers and starts land on different stationary points:
+toy (rank 5) 0.6578 (package L-BFGS) / 0.6648 / 0.6682; o3d12 1.1707 (L-BFGS, random start) / 1.1689 (L-BFGS, moment start) /
+1.1591 (full-rank reweighting). Each is a genuine stationary point (checked on the toy: in-subspace optimum, no descent
+direction outside it).
+
+**Optimise or marginalise?** exp(−N × objective) is the projected-ball likelihood of B. The o3d12 gap 1.1707 − 1.1591 is
+0.0116 × 237k rows ≈ 2,750 nats (toy: 28 nats); even with N cut to the ~2,000 training configurations (rows within one are
+correlated) it is ~20 nats. So in the directions the data determine, the lowest optimum carries essentially all the posterior
+mass: there the multimodality is a search problem (multi-start, continuation), not a reason to average. In the directions the
+data barely see it is the opposite: the QoI widths moved from median σ/tol 1.54 to 2.20 for an objective change of ~1e-9
+(above), the span-projected coverage is 0.50, and the fitted widths there come from the start or the solver. Marginalising those
+directions would return the prior, so it needs a proper prior; with the smoothness prior the KL version gave near-improper
+widths (§2b). The package's PAC-Bayes layer is a Laplace approximation at one optimum and addresses neither.
+
+**Check in progress.** o3d12 multi-start: full-rank reweighting from five random Wishart starts (`--fp-start 1..5`, results
+`pops_ellipse_o3d12_sp_lev50_cf100_fp2000_s<k>.json`) and the rank-32 runs (`..._r32`, `..._r32_lb`), lestrade batch
+`runs/si_qoi_uq_blr/o3d12_fp_batch.sh`. Question: spread of the optimum objective × N (does one optimum dominate?) and of force
+coverage and QoI σ across optima of near-equal objective (does the prediction depend on which one?). The first launches of
+these failed: on lestrade a non-interactive `bash -c` clears PYTHONPATH (BASH_ENV = lmod init) and the venv's own popsregression
+0.4.0 has no ellipsoid; the batch script exports it. No result was taken from the failed launches. Also running: o4d20
+full-rank reweighting (mnf148, `_sp_lev50_cf100_fp1000`; expected 9–14 h, slower than L-BFGS unless < ~60 steps) and the o4d20
+held-out refit (dedicated-f02, `pops_ellipse_ood_o4d20_it5000`).
+
+**Implications for the paper** (to decide after the checks; nothing here goes in the revision yet):
+1. *Headline unchanged.* CR3 × split-conformal stays the method. The ellipsoid comparison now gives concrete reasons beyond
+   §2c's in-principle list: the ellipsoid needs a data selection (the leverage cut) to exist at all; it is a non-convex fit whose
+   optimum depends on solver and start; and its QoI widths sit in directions the likelihood barely constrains, so they are not
+   reproducible between runs that agree on the forces. CR3 is a unique closed form whose scale has a finite-sample guarantee.
+2. *The positive result worth reporting.* With the cut, the ellipsoid's per-type force coverage is the most even of any method
+   and needs almost no scale: o3d12 RMS deviation 0.036 with λ_e (headline 0.109, B2 0.048), λ_e 1.04–1.08; o4d20 converged
+   0.056 (headline 0.098, B2 0.194). Held out (o3d12): 0.876 in / 0.781 out with λ_e (headline 0.797 / 0.762, B2 0.945 /
+   0.887). This supports the paper's per-type (Mondrian) scale on CR3 as the practical route to evenness, with POPS showing that
+   a shape learned from where the model misfits gets most of it unscaled. Candidate: one paragraph in the discussion plus an SI
+   table (forces only).
+3. *Do not claim the QoI result.* o4d20's 15/17 QoIs at σ/tol 0.30 (headline 12/17 at 0.53) looks strong, but at o3d12 the
+   same quantity changes by 40 % between runs that agree on forces and objective. No QoI claim for the ellipsoid without the
+   multi-start spread at o4d20 (not planned: ~4 h per L-BFGS start).
+4. *A theory sentence.* The POPS pointwise correction A⁻¹xᵢrᵢ/hᵢ and the jackknife shift A⁻¹xᵢrᵢ/(1 − hᵢ) differ only in the
+   leverage factor, so the moment of the POPS corrections is the CR3 sandwich reweighted by ((1 − h)/h)². That explains why POPS
+   needs a leverage cut (low-h rows dominate) and why its closed-form version is not self-calibrated (§2d prototype: λ_e 2.20),
+   and places the two methods in one family for the discussion.
+5. *Dependency.* If the multi-start shows force coverage and evenness are stable across optima (only the QoI widths move),
+   items 2 and 4 stand as written. If evenness also moves, item 2 shrinks to "the best optimum found was more even", and the
+   paper should mention POPS only in passing.
+
+Upstream: popsregression PR #15 (KL parameter prior) open against `ellipse-ev`; a reweighting-solver PR waits on the o4d20
+result and the multi-start (it should present the solver as finding a comparable optimum faster, not the same optimum).
+
 
 ## §3 Does CR3 fix the under-coverage of the vacancy migration barrier?
 
@@ -539,5 +599,5 @@ this. §4 then becomes: does Σ + νI with a conformal scale cover the defect ce
 | §0 | ~1 day, existing results | decides how far §1 and §4 go |
 | §3 barrier | a few days of compute, no new maths | strongest result |
 | §1 (111) | ~1 week; DFT only if needed | "physics absent from the labels needs data"; probabilities that the order is right |
-| §2 ellipsoid | ~1 week, mnf148 | ≈ hypercube at our N/P; with a scale, a measure of shape |
+| §2 ellipsoid | ~1 week, mnf148 | done for forces (2026-11-11): needs a leverage cut; then the most even per-type coverage, self-calibrated; non-convex, QoI widths not reproducible. Paper: discussion paragraph + SI forces table (§2e), pending the multi-start check |
 | §4 multivariate | ~1–2 weeks | joint guarantee; a test of correlations |

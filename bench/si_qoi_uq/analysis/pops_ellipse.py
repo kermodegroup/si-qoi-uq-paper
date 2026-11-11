@@ -45,7 +45,7 @@ def factor_of(S):
     return V * np.sqrt(np.clip(w, 0, None))[None, :]
 
 
-def fixed_point(U, r, B, iters, rhos=(1e-1, 1e-2, 1e-3, 1e-4), delta=1e-3, tol=1e-7, jitter=1e-4):
+def fixed_point(U, r, B, iters, rhos=(1e-1, 1e-2, 1e-3, 1e-4), delta=1e-3, tol=1e-7, jitter=1e-4, P_ball=None, verbose=True):
     """Reweighting iteration for the POPS ellipsoid objective (popsregression's, no baseline) in coordinates U (rows u_i).
 
     l_i = 0.5 log v_i - log C_P - k L_rho(q_i), v_i = u_i^T B u_i + delta^2, q_i = 1 - r_i^2 / v_i, k = (P - 1) / 2.
@@ -58,20 +58,22 @@ def fixed_point(U, r, B, iters, rhos=(1e-1, 1e-2, 1e-3, 1e-4), delta=1e-3, tol=1
     return; the jitter is dropped for a final polish at each rho (accepted only if it lowers the objective).
     """
     from popsregression._projected_ball import log_norm_constant, smooth_log
-    P = U.shape[1]
-    k = 0.5 * (P - 1)
+    P = U.shape[1]                     # B's dimension; P_ball (default P) sets k and C_P (the low-rank inner fit: P_ball > P)
+    Pb = P if P_ball is None else P_ball
+    k = 0.5 * (Pb - 1)
     r2 = r * r
 
-    def psd_pow(S, a, cut=1e-14):
+    def psd_pow(S, *a, cut=1e-14):     # S^a for each a, from one eigendecomposition (P = 5477 at o4d20: one eigh per call)
         w, V = np.linalg.eigh(0.5 * (S + S.T))
         keep = w > cut * max(w.max(), 1e-300)
-        return (V[:, keep] * w[keep] ** a) @ V[:, keep].T
+        out = [(V[:, keep] * w[keep] ** e) @ V[:, keep].T for e in a]
+        return out[0] if len(out) == 1 else out
 
     def stats(B, rho):
         v = np.einsum("ij,ij->i", U @ B, U) + delta * delta
         q = 1.0 - r2 / v
         lq, dlq, _ = smooth_log(q, rho)
-        obj = float(np.mean(0.5 * np.log(v) - log_norm_constant(P) - k * lq))
+        obj = float(np.mean(0.5 * np.log(v) - log_norm_constant(Pb) - k * lq))
         return obj, v, q, dlq
 
     log = []
@@ -82,13 +84,15 @@ def fixed_point(U, r, B, iters, rhos=(1e-1, 1e-2, 1e-3, 1e-4), delta=1e-3, tol=1
             Nm = (U * (0.5 / v)[:, None]).T @ U / len(r)
             Mz = (U * (k * dlq * r2 / v ** 2)[:, None]).T @ U / len(r)
             C = B @ Mz @ B
-            Nh, Nmh = psd_pow(Nm, 0.5), psd_pow(Nm, -0.5)
+            Nh, Nmh = psd_pow(Nm, 0.5, -0.5)
             Bn = Nmh @ psd_pow(Nh @ C @ Nh, 0.5) @ Nmh
             if jitter and it < iters - 1:
                 Bn = Bn + jitter * np.trace(Bn) / P * np.eye(P)
-            a = 1.0
+            a, Bhs = 1.0, None
             while True:
-                Bt = Bn if a == 1.0 else (lambda Bh, Bmh: Bh @ psd_pow(Bmh @ Bn @ Bmh, a) @ Bh)(psd_pow(B, 0.5), psd_pow(B, -0.5))
+                if a < 1.0 and Bhs is None:
+                    Bhs = psd_pow(B, 0.5, -0.5)
+                Bt = Bn if a == 1.0 else Bhs[0] @ psd_pow(Bhs[1] @ Bn @ Bhs[1], a) @ Bhs[0]
                 o2, v2, q2, d2 = stats(Bt, rho)
                 if o2 <= obj or a < 1e-3:
                     break
@@ -97,13 +101,129 @@ def fixed_point(U, r, B, iters, rhos=(1e-1, 1e-2, 1e-3, 1e-4), delta=1e-3, tol=1
                 break
             rel = abs(obj - o2) / max(abs(obj), 1e-300)
             B, obj, v, q, dlq = 0.5 * (Bt + Bt.T), o2, v2, q2, d2
-            if it % 10 == 0 or rel < tol:
+            if verbose and (it % 10 == 0 or rel < tol or P > 1000):
                 print(f"  fixed point rho {rho:g} it {it} obj {obj:.6f} step {a:g} covered {np.mean(q > 0):.4f} "
                       f"min q {q.min():.3g}", flush=True)
             if rel < tol:
                 break
         log.append({"rho": rho, "iters": it + 1, "obj": obj, "covered": float(np.mean(q > 0)), "min_q": float(q.min())})
     return B, log
+
+
+def inner_lbfgs(W, r, C, P, rho, delta=1e-3, maxiter=2000):
+    """The objective over C = L L^T in a small basis (W = U V, m columns), by L-BFGS on L: O(N m^2) per evaluation."""
+    from popsregression._projected_ball import log_norm_constant, smooth_log
+    from scipy.optimize import minimize
+    m = W.shape[1]
+    k = 0.5 * (P - 1)
+    r2 = r * r
+    N = len(r)
+
+    def f(x):
+        L = x.reshape(m, m)
+        H = W @ L
+        v = np.einsum("ij,ij->i", H, H) + delta * delta
+        q = 1.0 - r2 / v
+        lq, dlq, _ = smooth_log(q, rho)
+        val = float(np.mean(0.5 * np.log(v) - log_norm_constant(P) - k * lq))
+        a = (0.5 / v - k * dlq * r2 / v ** 2) / N
+        return val, (2.0 * W.T @ (a[:, None] * H)).ravel()
+    w, Q = np.linalg.eigh(0.5 * (C + C.T))
+    L0 = Q * np.sqrt(np.maximum(w, 1e-12 * max(w.max(), 1e-300)))
+    res = minimize(f, L0.ravel(), jac=True, method="L-BFGS-B", options={"maxiter": maxiter})
+    L = res.x.reshape(m, m)
+    H = W @ L
+    v = np.einsum("ij,ij->i", H, H) + delta * delta
+    return L @ L.T, {"rho": rho, "iters": int(res.nit), "obj": float(res.fun), "covered": float(np.mean(1 - r2 / v > 0))}
+
+
+def fixed_point_lowrank(U, r, V, C, rank, inner, outer=60, rhos=(1e-1, 1e-2, 1e-3, 1e-4), delta=1e-3, tol=1e-7, seed=1e-2,
+                        rng=None, inner_solver="fixed_point"):
+    """Rank-limited fixed point: B = V C V^T, V (P, m) orthonormal, m <= 2 rank; per-step cost O(N P rank), as an L-BFGS evaluation.
+
+    Per rho, outer steps of:
+      1. inner: fixed_point on C in w_i = V^T u_i (O(N m^2) per step; k and C_P from the full P);
+      2. truncate to the top `rank` eigen-directions of C (the package's rank);
+      3. expand: the gradient of the objective in B is G = mean a_i u_i u_i^T (a_i = dl_i/dv_i); a direction d outside V lowers
+         the objective when d^T G d < 0, so append the `rank` most negative eigenvectors of G on V's complement (block LOBPCG,
+         G never formed: O(N P rank) per block product), each seeded at seed x the mean kept width (a multiplicative update
+         cannot grow a zero width); refit C on the expanded basis.
+    Stops when the objective after truncation changes by < tol relative, or when G on the complement has no negative
+    eigenvalue below -tol x |G|'s scale (KKT for the rank-unconstrained problem).
+    """
+    from popsregression._projected_ball import smooth_log
+    from scipy.sparse.linalg import LinearOperator, lobpcg
+    rng = np.random.default_rng(0) if rng is None else rng
+    N, P = U.shape
+    k = 0.5 * (P - 1)
+    r2 = r * r
+
+    def trunc(V, C):
+        w, Q = np.linalg.eigh(0.5 * (C + C.T))
+        idx = np.argsort(w)[::-1][:rank]
+        return V @ Q[:, idx], np.diag(np.maximum(w[idx], 0.0))
+
+    def fit_inner(V, C, rho):
+        W = U @ V
+        if inner_solver == "lbfgs":
+            return inner_lbfgs(W, r, C, P, rho, delta=delta, maxiter=inner)
+        C, lg = fixed_point(W, r, C, inner, rhos=(rho,), delta=delta, tol=tol, P_ball=P, verbose=False)
+        return C, lg[0]
+
+    log = []
+    for rho in rhos:
+        V, C = trunc(V, C)
+        C, lg = fit_inner(V, C, rho)
+        prev = lg["obj"]
+        for out in range(outer):
+            V, C = trunc(V, C)
+            W = U @ V
+            v = np.einsum("ij,jk,ik->i", W, C, W) + delta * delta
+            _, dlq, _ = smooth_log(1.0 - r2 / v, rho)
+            a = (0.5 / v - k * dlq * r2 / v ** 2) / N
+
+            def Gm(X, a=a, V=V):           # G restricted to V's complement, on a block X (P, b)
+                X = X - V @ (V.T @ X)
+                Y = U.T @ (a[:, None] * (U @ X))
+                return Y - V @ (V.T @ Y)
+            if P <= 1000:                  # dense: N P^2 is cheap here
+                Gd = Gm(np.eye(P))
+                ev, D = np.linalg.eigh(0.5 * (Gd + Gd.T))
+                ev, D = ev[:rank], D[:, :rank]
+            else:                          # o4d20: block LOBPCG on the operator (V's span is projected out by Gm itself)
+                X0 = rng.standard_normal((P, rank))
+                X0 -= V @ (V.T @ X0)
+                op = LinearOperator((P, P), matvec=lambda x: Gm(x[:, None])[:, 0], matmat=Gm, dtype=float)
+                ev, D = lobpcg(op, X0, largest=False, maxiter=40, tol=1e-6)
+            scale = float(np.abs(a).sum() * np.mean(np.sum(U[:2048] ** 2, 1)))
+            neg = ev < -1e-8 * scale
+            if not np.any(neg):
+                log.append({"rho": rho, "outer": out, "obj": prev, "stop": "kkt", "min_ev": float(ev.min())})
+                break
+            D = np.linalg.qr(D[:, neg] - V @ (V.T @ D[:, neg]))[0]
+            Vn = np.linalg.qr(np.hstack([V, D]))[0]
+            wk = np.diag(C)
+            Cn = Vn.T @ (V @ C @ V.T) @ Vn                       # C in the new basis
+            Cn = Cn + seed * float(np.mean(wk[wk > 0])) * (np.eye(Vn.shape[1]) - Vn.T @ V @ V.T @ Vn)
+            C, lg = fit_inner(Vn, Cn, rho)
+            V = Vn
+            Vt, Ct = trunc(V, C)
+            Ct, lgt = fit_inner(Vt, Ct, rho)
+            obj = lgt["obj"]
+            print(f"  low-rank rho {rho:g} outer {out}: dim {Vn.shape[1]} obj {lg['obj']:.6f} -> rank {rank} {obj:.6f}; "
+                  f"{int(neg.sum())} directions with d^T G d < 0 (min {ev.min():.3g}); covered {lgt['covered']:.4f}", flush=True)
+            V, C = Vt, Ct
+            rel = abs(prev - obj) / max(abs(prev), 1e-300)
+            if obj > prev:                                   # truncation lost more than the expansion gained: keep previous
+                log.append({"rho": rho, "outer": out, "obj": prev, "stop": "no gain", "min_ev": float(ev.min())})
+                break
+            prev = obj
+            if rel < tol:
+                log.append({"rho": rho, "outer": out, "obj": obj, "stop": "tol", "min_ev": float(ev.min())})
+                break
+        else:
+            log.append({"rho": rho, "outer": outer, "obj": prev, "stop": "max_outer"})
+    return V, C, log
 
 
 def main():
@@ -149,6 +269,14 @@ def main():
     fp = None                          # --fixed-point K: after --closed-form, K reweighting steps per rho stage (plan §2d)
     if "--fixed-point" in args:
         i = args.index("--fixed-point"); fp = int(args[i + 1]); del args[i:i + 2]
+    fpr, fpi = None, "fixed_point"     # --fp-rank R [--fp-inner lbfgs]: the rank-limited fixed point (fixed_point_lowrank)
+    if "--fp-rank" in args:
+        i = args.index("--fp-rank"); fpr = int(args[i + 1]); del args[i:i + 2]
+    fps = None                         # --fp-start seed: start the fixed point from a random Wishart B (multi-start check)
+    if "--fp-start" in args:
+        i = args.index("--fp-start"); fps = int(args[i + 1]); del args[i:i + 2]
+    if "--fp-inner" in args:
+        i = args.index("--fp-inner"); fpi = args[i + 1]; del args[i:i + 2]
     if "--leverage-pct" in args:
         i = args.index("--leverage-pct"); lev = float(args[i + 1]); del args[i:i + 2]
     kl = "--param-prior" in args
@@ -161,7 +289,7 @@ def main():
     if sp and wr_rel is not None:
         raise SystemExit("--smooth-prior fixes whiten_ridge at 1/N; do not combine it with --whiten-ridge-rel")
     m = args[0]
-    sfx = ("" if wr_rel is None else f"_wr{wr_rel:g}") + ("_sp" if sp else "") + ("_kl" if kl else "") + ("" if lev is None else f"_lev{lev:g}") + ("" if mxit is None else f"_it{mxit}") + ("_mi" if mi else "") + ("_pac" if pac else "") + ("" if cf is None else f"_cf{cf:g}") + ("" if fp is None else f"_fp{fp}")
+    sfx = ("" if wr_rel is None else f"_wr{wr_rel:g}") + ("_sp" if sp else "") + ("_kl" if kl else "") + ("" if lev is None else f"_lev{lev:g}") + ("" if mxit is None else f"_it{mxit}") + ("_mi" if mi else "") + ("_pac" if pac else "") + ("" if cf is None else f"_cf{cf:g}") + ("" if fp is None else f"_fp{fp}") + ("" if fpr is None else f"_r{fpr}" + ("_lb" if fpi == "lbfgs" else "")) + ("" if fps is None else f"_s{fps}")
     t0 = time.time()
     lin = lin_for(m, "cr3")
     th = np.asarray(lin.theta_hat, np.float64)
@@ -243,15 +371,26 @@ def main():
         ratio = yk ** 2 / np.maximum(v, np.finfo(float).tiny)
         c = float(np.percentile(ratio, cf))
         fp_log = None
-        if fp is not None:             # fixed-point reweighting from the stationarity of the fitted objective (full-rank B, u coords)
-            Bu, fp_log = fixed_point(Uk, yk, c * Su, fp)
+        if fp is not None and fpr is not None:   # rank-limited: start from the moment's top fpr eigen-directions
+            w0, Q0 = np.linalg.eigh(Su)
+            idx = np.argsort(w0)[::-1][:fpr]
+            V, Cr, fp_log = fixed_point_lowrank(Uk, yk, Q0[:, idx], c * np.diag(w0[idx]), fpr, fp, inner_solver=fpi)
+            c, Su = 1.0, V @ Cr @ V.T
+        elif fp is not None:           # fixed-point reweighting from the stationarity of the fitted objective (full-rank B, u coords)
+            B0u = c * Su
+            if fps is not None:        # random start: B = c' G G^T, G (P, P) Gaussian, c' covering every kept row
+                Gr = np.random.default_rng(fps).standard_normal((n, n))
+                B0u = Gr @ Gr.T
+                v0 = np.einsum("ij,jk,ik->i", Uk, B0u, Uk)
+                B0u *= float(np.max(yk ** 2 / v0))
+            Bu, fp_log = fixed_point(Uk, yk, B0u, fp)
             c, Su = 1.0, Bu
         Ri = solve_triangular(R2, np.eye(n))                      # R2^-1
         S = Ri @ Su @ Ri.T                                        # beta coordinates
         S = 0.5 * (S + S.T)
         Dm = np.diag(dinv)
         info = {"P": n, "N": int(len(yk)), "closed_form_pct": cf, "c": c, "leverage_pct": lev, "smooth_prior": True,
-                "h_sum": float(h.sum()), "v_min": float(v.min()), "fixed_point": fp_log, "ratio_pct": {str(q): float(np.percentile(ratio, q)) for q in (50, 90, 99, 100)},
+                "h_sum": float(h.sum()), "v_min": float(v.min()), "fixed_point": fp_log, "fp_start": fps, "ratio_pct": {str(q): float(np.percentile(ratio, q)) for q in (50, 90, 99, 100)},
                 "fit_s": time.time() - t0}
         z = dict(Sigma_e=Dm @ (c * S / (n + 2.0)) @ Dm, B0=np.zeros((n, n)), delta=np.zeros(n), info=json.dumps(info),
                  G_evals=ge, G_evecs=gv)
