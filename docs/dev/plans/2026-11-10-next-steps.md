@@ -775,6 +775,48 @@ Reading:
    configuration CRC size for correlated predictions (picks the parameter-covariance shapes, the family CR3 belongs to). Next:
    the model ladder (o3d8 … o4d20, the accuracy-cost fits on the same split) with CR3 and B1, to see where size saturates.
 
+**D. Choosing the fixed hyperparameters under CRC (plan, 2026-11-11; after the ladder results).** Two choices have been held
+fixed so far: the energy / force / virial weights (`weights_acejax.json`, per configuration type: default E 30, F 1, V 1, lower
+for liq, amorph and sp; one shared MAP noise σ, `--noise shared`), and wL, the basis construction's angular weight (channel level
+n/NZ + wL·l ≤ total degree, ace-jax `basis/spec.py`, default 1.5: a larger wL spends the basis on radial rather than angular
+detail, and changes the evaluation cost too).
+
+Principles:
+1. *The score must contain the trade-off.* A force-only score always prefers more force weight. For the weights, use a
+   whole-configuration score over [E_c, F_c] (Fisher et al.'s 1 + 3n components), or report energy and force sizes as a
+   two-axis Pareto front and choose by a stated priority. For the QoIs (energy differences of relaxed structures), a proxy that
+   stays within the rules (no calibration on DFT QoIs): Fisher et al.'s propagated score L·Y on energy differences between labelled
+   configurations of one kind (e.g. vacancy against bulk cells). For wL: per-atom and whole-configuration size against evaluation
+   cost, a Pareto front at matched cost beside the degree ladder.
+2. *Select on the training hold-out, calibrate on the test split.* The test split gives ~80 configurations per third; the paper
+   already has T_fit / T_val (444 validation configurations). Fit each candidate on T_fit, score it on T_val, refit the winner on
+   all of T, then CRC-calibrate and report on the test split. Selection never touches the calibration data, so the guarantee holds.
+3. *A per-kind constraint.* Choose the smallest calibrated size among candidates whose worst-kind (Mondrian) risk is within
+   α + δ, so the winner cannot buy small regions by failing surfaces or defects (§5 C: every method fails some kind).
+4. *Stable, flat optima.* Report how often each setting wins across resamples; take the cheapest setting within the
+   split-to-split noise of the best (the conformal form of the one-standard-error rule).
+5. *Evidence for continuous noise ratios, CRC to decide and validate.* Evidence-chosen per-quantity σ_E, σ_F, σ_V
+   (`runs/accuracy_cost/ace_per_quantity_noise`, o3d8–o4d16; check their command lines, which look copied from the shared fits)
+   are cheap and smooth but trust a Gaussian noise model the discrepancy results show is misspecified. CRC compares them with the
+   hand weights and settles discrete choices (wL). If the two agree, the cheap route suffices.
+6. *Off distribution.* Repeat the held-out-type refits (crack, screw) for the top one or two candidates.
+
+Cost:
+- Weights need no new rows: per-(configuration type, quantity) QR statistics built once (ace-jax's per-type noise path has this
+  structure); any weight vector is a rescale-and-stack of those blocks and one P × P QR. CR3 needs one pass over the rows (a
+  design cached node-locally, never on /storage). Minutes per candidate at o4d14–o4d16, ~20 min at o4d20.
+- wL changes the basis. If the candidate bases are all subsets of one union basis, one superset design and a column slice per
+  candidate (the column identity checked for degree, 2026-11-11: every o3d12 column equals an o4d20 column to 1e-14, scale 1,
+  on 579 rows of three sh configurations; to be repeated across wL and on mixed configurations). Otherwise a refit per value.
+- Sweep at o4d14 or o4d16, not o4d20: fits are cheap there and CR3 is full rank (P < K = 2227 configurations); at o4d20 CR3 has
+  reached rank K (2227 of 5476 parameters, max leverage 0.998), which would distort the shape being compared.
+
+Steps:
+1. Weights at one mid-ladder model: the hand weights, the evidence per-quantity σ, and a few E/F ratios (e.g. E weight × 1/3,
+   1, 3, 10), scored on T_val by the joint [E, F] CRC size under the per-kind constraint.
+2. wL ∈ {1.0, 1.25, 1.5, 1.75, 2.0} at matched cost, as a Pareto front against the degree ladder.
+3. The winners refitted on all of T, CRC-calibrated and reported on the test split, with the held-out-type check.
+
 ## §0 results (2026-11-10)
 
 **Per-type per-atom force coverage** (Gaussian 90 % ellipsoid of each method's own 3×3 covariance,
