@@ -31,6 +31,8 @@ ALPHAS = (0.1, 0.05, 0.2)
 N_SPLIT = 100
 METHODS = ("headline", "B1", "B2", "ellipsoid")
 ELLIPSE = {"o3d12": "_sp_lev50_it20000", "o4d20": "_sp_lev50_it5000"}
+LADDER = ("o3d8", "o3d10", "o3d12", "o4d12", "o4d14", "o4d16", "o4d20")   # the accuracy-cost fits, one split
+EPS_ATOM = 1e-3                                              # the ARD fit's eps (force_baselines.py)
 
 
 def cache(m):
@@ -43,11 +45,16 @@ def cache(m):
     from ..harness import RUNS
     from ..run import fit_dir, lin_for
     lin, linp = lin_for(m, "cr3"), lin_for(m, "kappa")
-    b = np.load(fit_dir(m, "pops") / "pops_box_lev50.npz")
-    Lp2 = np.asarray(b["support"]) * ((np.asarray(b["hi"]) - np.asarray(b["lo"])) / np.sqrt(12))[None, :]
-    facs = {"headline": np.asarray(lin.factor("cr3")), "B1": np.asarray(linp.factor("posterior")), "B2": Lp2}
-    Se = np.asarray(np.load(fit_dir(m, "cr3").parent / f"pops_ellipse{ELLIPSE[m]}.npz")["Sigma_e"])
-    Se = 0.5 * (Se + Se.T)
+    facs = {"headline": np.asarray(lin.factor("cr3")), "B1": np.asarray(linp.factor("posterior"))}
+    fb = fit_dir(m, "pops") / "pops_box_lev50.npz"           # B2 and the ellipsoid only where fitted (o3d12, o4d20)
+    if fb.exists():
+        b = np.load(fb)
+        facs["B2"] = np.asarray(b["support"]) * ((np.asarray(b["hi"]) - np.asarray(b["lo"])) / np.sqrt(12))[None, :]
+    Se = None
+    if m in ELLIPSE:
+        Se = np.asarray(np.load(fit_dir(m, "cr3").parent / f"pops_ellipse{ELLIPSE[m]}.npz")["Sigma_e"])
+        Se = 0.5 * (Se + Se.T)
+    meths = [*facs, *(["ellipsoid"] if Se is not None else [])]
     cfgs = load_configs(TEST_XYZ, virial_key="virial")
     ds = build_dataset(cfgs, {"rcut": lin.rc, "elements": lin.z}, lin.E0_pre, 1, log=lambda *_: None)
     rows = chunked_rows_fn(lin.model, GPConfig(r0=2.4, rcut=lin.rc, n_B=lin.n_B, n_pair=lin.n_pair, NZ=lin.NZ,
@@ -68,7 +75,7 @@ def cache(m):
         gc += len(live)
     sd_all = np.concatenate([np.sqrt(np.sum((Fc @ Lc) ** 2, axis=(1, 2))) for _, _, Fc in per])
     cut = SYM_ZERO * np.median(sd_all)                      # as force_baselines.py: symmetry-zero atoms dropped
-    out = {"cfg": [], "config_type": [], "e": [], **{f"{k}_{f}": [] for k in METHODS for f in ("c", "U")}}
+    out = {"cfg": [], "config_type": [], "e": [], **{f"{k}_{f}": [] for k in meths for f in ("c", "U")}}
     for c, E, Fc in per:
         keep = np.sqrt(np.sum((Fc @ Lc) ** 2, axis=(1, 2))) > cut
         if not keep.any():
@@ -80,10 +87,11 @@ def cache(m):
             U, S, _ = np.linalg.svd(Fk[:, :L.shape[0]] @ L, full_matrices=False)
             r = S > 1e-12 * S[0]
             out[f"{k}_c"].append(S[r] ** 2); out[f"{k}_U"].append(U[:, r])
-        Fs = Fk[:, :Se.shape[0]]
-        w, U = np.linalg.eigh(Fs @ Se @ Fs.T)               # D x D: the configuration's own covariance, not Sigma_e's
-        r = w > 1e-12 * w.max()
-        out["ellipsoid_c"].append(w[r]); out["ellipsoid_U"].append(U[:, r])
+        if Se is not None:
+            Fs = Fk[:, :Se.shape[0]]
+            w, U = np.linalg.eigh(Fs @ Se @ Fs.T)           # D x D: the configuration's own covariance, not Sigma_e's
+            r = w > 1e-12 * w.max()
+            out["ellipsoid_c"].append(w[r]); out["ellipsoid_U"].append(U[:, r])
         print(f"{m}: config {c} D {len(e)}", flush=True)
     f = RUNS / "diag" / f"{m}_crc_config.npz"
     np.savez(f, cfg=np.array(out["cfg"]), config_type=np.array(out["config_type"], dtype=object),
@@ -99,6 +107,24 @@ class Method:
         self.a = [U.T @ e for U, e in zip(self.U, self.e)]
         self.ee = np.array([e @ e for e in self.e]); self.D = np.array([len(e) for e in self.e], float)
         self.saa = np.array([a @ a for a in self.a])
+        self._atom = None
+
+    def atoms(self):
+        """Per configuration, per atom: the unit-scale per-atom score s = sqrt(e^T (C_a + eps tr C_a / 3 I)^-1 e) and
+        log det of that 3x3 covariance (as force_baselines.py, eps = EPS_ATOM), with C_a = U_a diag(c) U_a^T the atom's
+        block of the configuration's covariance."""
+        if self._atom is None:
+            S, LD = [], []
+            for e, U, c in zip(self.e, self.U, self.c):
+                Ua = U.reshape(-1, 3, U.shape[1])
+                C = np.einsum("air,r,ajr->aij", Ua, c, Ua)
+                tr = np.trace(C, axis1=1, axis2=2)
+                C = C + EPS_ATOM * (tr / 3)[:, None, None] * np.eye(3)
+                ea = e.reshape(-1, 3)
+                S.append(np.sqrt(np.einsum("ai,aij,aj->a", ea, np.linalg.inv(C), ea)))
+                LD.append(np.linalg.slogdet(C)[1])
+            self._atom = (S, LD)
+        return self._atom
 
     def nll(self, x, idx):
         lam, nu = np.exp(x)
@@ -154,21 +180,31 @@ def size(H, D, t):
     return float(np.sum(D * (H + np.log(t))) / np.sum(D)) if np.isfinite(t) else np.inf
 
 
-def stage2():
+def stage2(ladder=False):
+    """ladder=False: o3d12 and o4d20, every method -> results/crc_config.json. ladder=True: every LADDER model with a
+    cache, the methods it has, plus the per-atom CRC (crc.py's loss) on the same splits -> results/crc_ladder.json."""
+    from .crc import crc_q
     from ..harness import RUNS
     from ..run import RESULTS
     from .mv_conformal import kind_of
-    z = {m: np.load(RUNS / "diag" / f"{m}_crc_config.npz", allow_pickle=True) for m in ("o3d12", "o4d20")}
-    assert np.array_equal(z["o3d12"]["cfg"], z["o4d20"]["cfg"])
-    kinds = np.array([kind_of(t) for t in z["o3d12"]["config_type"]])
-    cands = {(m, k): Method(z[m], k) for m in z for k in METHODS}
+    models = [m for m in LADDER if (RUNS / "diag" / f"{m}_crc_config.npz").exists()] if ladder else ["o3d12", "o4d20"]
+    z = {m: np.load(RUNS / "diag" / f"{m}_crc_config.npz", allow_pickle=True) for m in models}
+    for m in models:
+        assert np.array_equal(z[m]["cfg"], z[models[0]]["cfg"]), m
+    kinds = np.array([kind_of(t) for t in z[models[0]]["config_type"]])
+    cands = {(m, k): Method(z[m], k) for m in z for k in METHODS if f"{k}_c" in z[m].files}
+    print("candidates:", [f"{m}/{k}" for m, k in cands], flush=True)
     n = len(kinds)
     rng = np.random.default_rng(0)
     out = {"alphas": ALPHAS, "n_split": N_SPLIT, "n_cfg": n, "kinds": {k: int((kinds == k).sum()) for k in np.unique(kinds)},
            "shape_full": {f"{m}/{k}": [float(x) for x in M.fit(np.arange(n))] for (m, k), M in cands.items()}, "loss": {}}
     print("ML shape (lam_s, nu eV/A) on all configurations:", {k: [round(x, 4) for x in v] for k, v in out["shape_full"].items()})
     summ = lambda x: {"mean": float(np.mean(x)), "p05": float(np.quantile(x, 0.05)), "p95": float(np.quantile(x, 0.95))}
-    LA = [(loss, a) for loss in ("joint", "frac") for a in ALPHAS]
+    LA = [(loss, a) for loss in ("joint", "frac", *(("atom",) if ladder else ())) for a in ALPHAS]
+    if ladder:
+        M0 = next(iter(cands.values()))
+        n_atoms = np.array([len(e) // 3 for e in M0.e])
+        nmax_atoms = int(n_atoms.max())
     hv = {la: {c: {"size": [], "risk": [], "risk_by_kind": {k: [] for k in np.unique(kinds)}} for c in cands} for la in LA}
     first = {la: {c: 0 for c in cands} for la in LA}
     for sp in range(N_SPLIT):                                 # halves: shape on A1, CRC on A2, size and risk on B
@@ -180,6 +216,24 @@ def stage2():
             pre[c] = (M.whiten(sh, A2)[0], *M.whiten(sh, Bi))
         for la in LA:
             sz = {}
+            if la[0] == "atom":                               # per-atom CRC on the whole calibration half A
+                A = np.concatenate([A1, A2])
+                nb = float(n_atoms[A].mean())
+                for c, M in cands.items():
+                    S_, LD = M.atoms()
+                    sA = np.concatenate([S_[j] for j in A]); cA = np.concatenate([np.full(len(S_[j]), j) for j in A])
+                    q = crc_q(sA, cA, la[1], nb, nmax_atoms / nb)
+                    sB = np.concatenate([S_[j] for j in Bi]); ldB = np.concatenate([LD[j] for j in Bi])
+                    sz[c] = float(np.mean(ldB / 2 + 3 * np.log(q)) / 3) if np.isfinite(q) else np.inf
+                    hv[la][c]["size"].append(sz[c]); hv[la][c]["risk"].append(float(np.mean(sB > q)))
+                    for kk in hv[la][c]["risk_by_kind"]:
+                        sel = [j for j in Bi if kinds[j] == kk]
+                        if sel:
+                            hv[la][c]["risk_by_kind"][kk].append(float(np.mean(np.concatenate([S_[j] for j in sel]) > q)))
+                b = min(sz, key=sz.get)
+                if np.isfinite(sz[b]):
+                    first[la][b] += 1
+                continue
             for c, M in cands.items():
                 W2, W, H = pre[c]
                 t = t_crc(W2, la[0], la[1])
@@ -205,31 +259,35 @@ def stage2():
             shc = M.fit(Cc)
             pre[c] = (W, H, M.whiten(shc, Cc)[0], M.whiten(shc, E)[0])
         for la in LA:
+            if la[0] == "atom":
+                continue                                      # selection for the per-atom score: crc.py
             sz = {c: size(pre[c][1], cands[c].D[S], t_crc(pre[c][0], la[0], la[1], crc=False)) for c in cands}
             best = min(sz, key=sz.get)
             chosen[la][best] = chosen[la].get(best, 0) + 1
             t = t_crc(pre[best][2], la[0], la[1])
             sel_r[la].append(risk(pre[best][3], t, la[0]))
-    out["loss"] = {loss: {} for loss in ("joint", "frac")}
+    out["loss"] = {loss: {} for loss, _ in LA}
     for la in LA:
         loss, alpha = la
         r = {"halves": {f"{m}/{k}": {"size": summ(v["size"]), "risk": summ(v["risk"]), "first": first[la][(m, k)] / N_SPLIT,
                                      "risk_by_kind": {kk: float(np.mean(x)) for kk, x in v["risk_by_kind"].items() if x}}
                         for (m, k), v in hv[la].items()},
-             "selection": {"chosen": {f"{m}/{k}": c / N_SPLIT for (m, k), c in chosen[la].items()}, "risk": summ(sel_r[la])}}
+             "selection": ({"chosen": {f"{m}/{k}": c / N_SPLIT for (m, k), c in chosen[la].items()}, "risk": summ(sel_r[la])}
+                           if sel_r[la] else None)}
         out["loss"][loss][f"{alpha:g}"] = r
         print(f"\n{loss} loss, alpha {alpha:g}: size = log geometric semi-axis per component (eV/A); risk; by kind; first")
         for c, v in sorted(r["halves"].items(), key=lambda kv: kv[1]["size"]["mean"]):
             print(f"  {c:20s} size {v['size']['mean']:+.3f} ({v['size']['p05']:+.3f}..{v['size']['p95']:+.3f}) risk "
                   f"{v['risk']['mean']:.3f}  by kind " + " ".join(f"{kk[:6]} {x:.2f}" for kk, x in v["risk_by_kind"].items())
                   + f"  first {v['first']:.2f}")
-        print(f"  selection: chosen {r['selection']['chosen']}; risk on E {r['selection']['risk']['mean']:.3f} "
-              f"({r['selection']['risk']['p05']:.3f}..{r['selection']['risk']['p95']:.3f})")
-    json.dump(out, open(RESULTS / "crc_config.json", "w"), indent=1)
+        if r["selection"]:
+            print(f"  selection: chosen {r['selection']['chosen']}; risk on E {r['selection']['risk']['mean']:.3f} "
+                  f"({r['selection']['risk']['p05']:.3f}..{r['selection']['risk']['p95']:.3f})")
+    json.dump(out, open(RESULTS / ("crc_ladder.json" if ladder else "crc_config.json"), "w"), indent=1)
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 2 and sys.argv[1] == "cache":
         cache(sys.argv[2])
     else:
-        stage2()
+        stage2(ladder=len(sys.argv) > 1 and sys.argv[1] == "ladder")
