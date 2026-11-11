@@ -176,6 +176,13 @@ equations fail at this column scaling (Cholesky indefinite; an eigendecompositio
   (headline 12/17 at 0.53): misses dE_sh (z 3.19 at σ/tol 0.08) and tetrahedral (z 2.32); dumbbell, hexagonal and surface_100,
   which the headline misses, are covered. The span diagnostic is not meaningful at o4d20 (G's largest eigenvalue 2.7e18, so the
   1e-8 relative cut keeps 39 of 5477 directions); how much of the coverage comes from unfitted widths is therefore not known here.
+- **o4d20, held out** (`results/pops_ellipse_ood_o4d20_it5000.json`; the refit without cracks and screw dislocations, 5000 per
+  stage as `_it5000`, dedicated-f02, 13,860 s; 12,190 iterations, objective 1.2501; λ_e = 1.11 on the refit's test split): per-atom
+  cov90 in / out of distribution — ellipsoid 0.816 / 0.663, +λ_e 0.877 / 0.739; headline 0.879 / 0.906, B1 0.600 / 0.459, B2
+  0.836 / 0.588. Per held-out type, ellipsoid+λ_e / headline / B2: crack_110 0.76 / 0.95 / 0.50, crack_111 0.67 / 0.89 / 0.40, screw
+  0.78 / 0.89 / 0.77. The ellipsoid loses 0.14 off distribution (o3d12: 0.10); the headline does not lose any; B2 loses 0.25.
+  Reading: the ellipsoid's per-type evenness is an in-distribution property. Off distribution it sits between B2 and the
+  headline at both orders, so it does not change the §2 out-of-distribution argument for CR3.
 
 ### §2c CR3 against the POPS ellipsoid: what each has in principle (for the paper's discussion)
 
@@ -270,8 +277,8 @@ widths (§2b). The package's PAC-Bayes layer is a Laplace approximation at one o
 coverage and QoI σ across optima of near-equal objective (does the prediction depend on which one?). The first launches of
 these failed: on lestrade a non-interactive `bash -c` clears PYTHONPATH (BASH_ENV = lmod init) and the venv's own popsregression
 0.4.0 has no ellipsoid; the batch script exports it. No result was taken from the failed launches. Also running: o4d20
-full-rank reweighting (mnf148, `_sp_lev50_cf100_fp1000`; expected 9–14 h, slower than L-BFGS unless < ~60 steps) and the o4d20
-held-out refit (dedicated-f02, `pops_ellipse_ood_o4d20_it5000`).
+full-rank reweighting (mnf148, `_sp_lev50_cf100_fp1000`; expected 9–14 h, slower than L-BFGS unless < ~60 steps; its set-up lost
+~2 h to a three-operand `np.einsum` for u_iᵀ S u_i on one core, now a BLAS matmul). The o4d20 held-out refit is done (§2b).
 
 **Implications for the paper** (to decide after the checks; nothing here goes in the revision yet):
 1. *Headline unchanged.* CR3 × split-conformal stays the method. The ellipsoid comparison now gives concrete reasons beyond

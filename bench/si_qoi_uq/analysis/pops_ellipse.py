@@ -178,7 +178,7 @@ def fixed_point_lowrank(U, r, V, C, rank, inner, outer=60, rhos=(1e-1, 1e-2, 1e-
         for out in range(outer):
             V, C = trunc(V, C)
             W = U @ V
-            v = np.einsum("ij,jk,ik->i", W, C, W) + delta * delta
+            v = np.einsum("ij,ij->i", W @ C, W) + delta * delta
             _, dlq, _ = smooth_log(1.0 - r2 / v, rho)
             a = (0.5 / v - k * dlq * r2 / v ** 2) / N
 
@@ -367,7 +367,7 @@ def main():
         g = yk / hk
         Su = (Uk * g[:, None]).T @ (Uk * g[:, None]) / len(yk)
         Su = 0.5 * (Su + Su.T)
-        v = np.einsum("ij,jk,ik->i", Uk, Su, Uk)
+        v = np.einsum("ij,ij->i", Uk @ Su, Uk)   # BLAS matmul: the 3-operand einsum ran 2 h on one core at o4d20
         ratio = yk ** 2 / np.maximum(v, np.finfo(float).tiny)
         c = float(np.percentile(ratio, cf))
         fp_log = None
@@ -381,7 +381,7 @@ def main():
             if fps is not None:        # random start: B = c' G G^T, G (P, P) Gaussian, c' covering every kept row
                 Gr = np.random.default_rng(fps).standard_normal((n, n))
                 B0u = Gr @ Gr.T
-                v0 = np.einsum("ij,jk,ik->i", Uk, B0u, Uk)
+                v0 = np.einsum("ij,ij->i", Uk @ B0u, Uk)
                 B0u *= float(np.max(yk ** 2 / v0))
             Bu, fp_log = fixed_point(Uk, yk, B0u, fp)
             c, Su = 1.0, Bu
