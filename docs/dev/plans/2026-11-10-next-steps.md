@@ -227,6 +227,8 @@ rows dominate (§2b's covering problem moved from a max into a sum, so the lever
 keeps the fitted ellipsoid's per-type evenness. Cheap to test with the CR3 code (score sums with the new weights).
 Not in the popsregression prior PR.
 
+Warm start tried first (2026-11-11, negative): popsregression `init_widths="moments"` (U from the per-point optimum v_i = P r_i², a rank-32 sandwich by block power steps), o3d12 `_sp_lev50_it20000_mi` on lestrade: stage 1 still hits the evaluation limit (14,534 iterations, as 14,553 from the random start) and stage 2 then takes 9,464 (771 before); 24,015 iterations, 3443 s against 15,398 and 1973 s. Objective 1.1689 vs 1.1707 (another local optimum), coverage and QoIs as before (cov90 0.860 / 0.882 with λ_e, per-type RMS 0.049 / 0.036, QoIs 14/17). The cost is not the start: stage 1's conditioning. Popsregression PR #15 (the KL prior) opened against `ellipse-ev`; the warm start is not offered.
+
 ## §3 Does CR3 fix the under-coverage of the vacancy migration barrier?
 
 The under-coverage is from I. R. Best, T. J. Sullivan and J. R. Kermode, J. Chem. Phys. 161 (2024), shown on the
