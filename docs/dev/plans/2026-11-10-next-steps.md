@@ -715,7 +715,7 @@ for per-group CRC on a half) and worst configuration type (≥ 100 atoms). α = 
 | o3d12 CR3 (one scale) | −1.09 | 0.076 | 0.087 | 0.167 / 0.069 |
 
 (Risk 0.076, not 0.1: the B / (n + 1) ≈ 0.025 margin at n ≈ 120.) The ellipsoid is smallest in every split at both sizes and
-α = 0.05, 0.1, 0.2, with Mondrian (band) CRC too; o4d20 beats o3d12 for every method by ~0.4–0.7 in log radius (1.5–2×).
+α = 0.05, 0.1, 0.2, with Mondrian (band) CRC too; o4d20 beats o3d12 for every method by 0.60–0.76 in log radius (1.8–2.1×).
 Selection: choosing by size on a third (plain quantiles, 2-fold) and CRC-calibrating the choice on another third gives risk 0.065
 on the last (α = 0.1; 0.014 at 0.05, 0.166 at 0.2); choosing and calibrating on the same two thirds gives 0.083, still ≤ α
 because the winner is clear. Mondrian CRC on half-splits is infinite at α = 0.05 (too few configurations per band).
