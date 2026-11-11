@@ -260,6 +260,9 @@ def main():
     mxit = None                        # --max-iter k: L-BFGS iterations per continuation stage (package default 500)
     if "--max-iter" in args:
         i = args.index("--max-iter"); mxit = int(args[i + 1]); del args[i:i + 2]
+    rw = "--solver-reweight" in args   # popsregression solver="reweight" (branch ellipse-reweight): fixed-point reweighting
+    if rw:                             # of the full-rank B in the package's own coordinates, in place of L-BFGS
+        args.remove("--solver-reweight")
     mi = "--init-moments" in args      # popsregression init_widths="moments" (branch ellipse-moment-init): U from the
     if mi:                             # per-point optimum v_i = P r_i^2 (a sandwich), not a 1e-3 random factor
         args.remove("--init-moments")
@@ -289,7 +292,7 @@ def main():
     if sp and wr_rel is not None:
         raise SystemExit("--smooth-prior fixes whiten_ridge at 1/N; do not combine it with --whiten-ridge-rel")
     m = args[0]
-    sfx = ("" if wr_rel is None else f"_wr{wr_rel:g}") + ("_sp" if sp else "") + ("_kl" if kl else "") + ("" if lev is None else f"_lev{lev:g}") + ("" if mxit is None else f"_it{mxit}") + ("_mi" if mi else "") + ("_pac" if pac else "") + ("" if cf is None else f"_cf{cf:g}") + ("" if fp is None else f"_fp{fp}") + ("" if fpr is None else f"_r{fpr}" + ("_lb" if fpi == "lbfgs" else "")) + ("" if fps is None else f"_s{fps}")
+    sfx = ("" if wr_rel is None else f"_wr{wr_rel:g}") + ("_sp" if sp else "") + ("_kl" if kl else "") + ("" if lev is None else f"_lev{lev:g}") + ("" if mxit is None else f"_it{mxit}") + ("_mi" if mi else "") + ("_rw" if rw else "") + ("_pac" if pac else "") + ("" if cf is None else f"_cf{cf:g}") + ("" if fp is None else f"_fp{fp}") + ("" if fpr is None else f"_r{fpr}" + ("_lb" if fpi == "lbfgs" else "")) + ("" if fps is None else f"_s{fps}")
     t0 = time.time()
     lin = lin_for(m, "cr3")
     th = np.asarray(lin.theta_hat, np.float64)
@@ -431,6 +434,8 @@ def main():
             opts = {**(opts or {}), "max_iter": mxit}
         if mi:
             opts = {**(opts or {}), "init_widths": "moments"}
+        if rw:
+            opts = {**(opts or {}), "solver": "reweight"}
         if X.size >= 2 ** 31:           # SciPy's LP64 LAPACK refuses > 2^31 elements (o4d20: 2.6e9); sklearn's BayesianRidge
             import types as _t           # pre-fit calls scipy.linalg.svd on X: route that one call to NumPy's ILP64 SVD
             import scipy.linalg as _sl
@@ -447,7 +452,7 @@ def main():
         info = {"P": int(P), "N": int(X.shape[0]), "rank": int(eng.U_.shape[1]), "coverage_fraction": float(eng.coverage_fraction_),
                 "objective": float(eng.objective_), "n_iter": int(eng.n_iter_), "fit_s": time.time() - t0,
                 "delta_rel": float(np.linalg.norm(delta) / np.linalg.norm(th)), "mode_threshold": float(eng.mode_threshold),
-                "whiten_ridge": float(eng.whiten_ridge), "whiten_ridge_rel": wr_rel, "pac_bayes": pac, "smooth_prior": sp, "param_prior": kl, "leverage_pct": lev, "max_iter": mxit, "init_moments": mi,
+                "whiten_ridge": float(eng.whiten_ridge), "whiten_ridge_rel": wr_rel, "pac_bayes": pac, "smooth_prior": sp, "param_prior": kl, "leverage_pct": lev, "max_iter": mxit, "init_moments": mi, "solver_reweight": rw,
                 "stages": getattr(eng, "stage_info_", None),
                 "param_prior_kl": (float(eng.param_prior_kl_) if kl else None),
                 **({"tau2": float(eng.tau2_), "bound": float(eng.bound_), "kl": float(eng.kl_)} if pac else {}), "G_eig_max": float(ge.max())}

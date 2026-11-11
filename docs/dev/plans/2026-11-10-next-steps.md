@@ -287,11 +287,16 @@ widths (§2b). The package's PAC-Bayes layer is a Laplace approximation at one o
 | L-BFGS (`_it20000`) | 1.17069 | 15,398 it | 1.039 | 0.879 | 0.038 | 14/17 | 1.64 |
 
 Reading: (1) the random starts did not converge: each was still falling ~2e-6 per step at the cap, 0.009–0.013 above the
-closed-form start (≈ 2,100–3,000 nats × N). Slow linear convergence from a poor start, not yet evidence of separate optima; one
-start is being run to 20,000 steps (`o3d12_fp_long.sh`, log `logs/pops_ellipse_o3d12_fp_long.log`) to decide. The closed-form
-start is what makes the reweighting fast. (2) The force predictions do not depend on the start: λ_e 1.04–1.07, cov90
-0.879–0.891, per-type RMS 0.036–0.041 over every run. (3) The QoI widths do: median σ/tol 1.63–3.34 (2×) at the same 13/17,
-so the QoI σ sits in directions the objective barely constrains, as the σ instability above showed. This settles implication 5
+closed-form start (≈ 2,100–3,000 nats × N). Run on to 20,000 steps per ρ (`_fp20000_s1`, lestrade, 6,432 s), start 1 went
+1.1720 → 1.1654 (ρ = 0.1, 8,044 steps, until no step descended) → 1.1632 (ρ = 1e-4, 4,179 more, stopped the same way while still
+falling ~6e-7 per step), 0.0041 above the closed-form start (≈ 960 nats), and its QoI median σ/tol came from 3.34 to 2.25 (closed
+form 2.34), forces unchanged (λ_e 1.060, cov90 0.890, per-type RMS 0.038). So most of the start spread in the table is
+non-convergence, and the random start drifts towards the closed-form optimum; it stops early because the multiplicative update
+has spurious fixed points on the PSD boundary (it cannot regrow a collapsed direction; fixed in the package version by a
+projected-gradient growth step, popsregression branch `ellipse-reweight`). The closed-form start is what makes the reweighting fast. (2) The force predictions do not depend on the start: λ_e 1.04–1.07, cov90
+0.879–0.891, per-type RMS 0.036–0.041 over every run. (3) The QoI widths do at 2,000 steps: median σ/tol 1.63–3.34 (2×) at the same 13/17; much of that is
+non-convergence (start 1 at 20,000 steps: 2.25), but the rank-32 optimum (1.63) and the σ instability above show the QoI σ
+sits in directions the objective barely constrains. This settles implication 5
 below for forces: the force numbers can be reported; the ellipsoid's QoI widths cannot be. (4) Rank 32 with the reweighting
 inner solver reaches 1.1627 in 25 outer steps; with the L-BFGS inner solver (`_r32_lb`) it stopped after one outer step at
 1.3185 (per-type RMS 0.176): a stopping-rule fault in `inner_lbfgs`, not a result. Also running: o4d20 full-rank reweighting
