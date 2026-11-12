@@ -850,6 +850,43 @@ Steps:
 2. wL ∈ {1.0, 1.25, 1.5, 1.75, 2.0} at matched cost, as a Pareto front against the degree ladder.
 3. The winners refitted on all of T, CRC-calibrated and reported on the test split, with the held-out-type check.
 
+**D, step 1 results (o4d16, 2026-11-12).** `analysis/weight_sweep.py` → `results/weight_sweep_o4d16.json` (33 min on lestrade).
+T split by configuration type (seed 20261112): T_fit 1781, T_val 446 configurations (426 with live force components); per-type
+QR factors once, each candidate an exact rescale-and-merge, its own MAP (sigma_c, sigma). B1 on T_val, whole-configuration CRC,
+100 paired halves. Size: log semi-axis, eV/atom (E, one component per configuration) and eV/A per component (F); α = 0.1, joint
+loss; worst = the kind with the highest miss rate.
+
+| candidate | sigma_c / sigma (E, F, V) | T_val RMSE E (meV/atom) / F | E size | E worst | F size | F worst | front |
+|---|---|---|---|---|---|---|---|
+| Ex10 | 1.9e4 / 0.132 | 5.34 / 0.136 | −6.14 | point 0.21, ext 0.24 | −2.42 | point 0.27 | yes |
+| Ex3 | 2.8e3 / 0.101 | 5.98 / 0.112 | −5.80 | point 0.24 | −2.50 | ext 0.30 | yes |
+| hand | 1.2e3 / 0.089 | 5.11 / 0.101 | −5.41 | ext 0.47 | −2.56 | ext 0.34 | yes |
+| flat | 1.3e3 / 0.109 | 4.35 / 0.101 | −5.31 | ext 0.43 | −2.54 | ext 0.33 | no (hand) |
+| noV | 8.2e2 / 0.087 | 5.02 / 0.100 | −5.22 | ext 0.47 | −2.56 | ext 0.34 | no (hand) |
+| E/3 | 8.4e2 / 0.082 | 7.08 / 0.096 | −4.88 | ext 0.60 | −2.58 | ext 0.36 | yes |
+| hand_pq | 4.8e2 / 1.84, 0.077, 0.169 | 18.64 / 0.093 | −4.11 | ext 0.63 | −2.59 | ext 0.36 | yes |
+
+Split-to-split spread (p05–p95) is ~0.5 in E size and ~0.17 in F size, but the comparison is paired: Ex10 is smallest in E in 99
+of 100 splits, hand_pq smallest in F in 88. Same order at α = 0.05 and 0.2 and for the frac loss.
+
+Reading:
+1. *The trade-off is lopsided.* Along the front (hand_pq → E/3 → hand → Ex3 → Ex10) E size changes by 2.0 in log, F size by
+   0.17. From hand, Ex3 buys regions 1.5× smaller in E for 5 % larger in F; Ex10 2.1× for 15 %.
+2. *More energy weight also helps per kind.* The E view's worst-kind miss rate falls from 0.47 (hand; extended defects) to
+   0.24 (Ex3, Ex10), and the F view's from 0.34 to 0.27–0.30: the per-kind constraint (principle 3) points the same way.
+3. *Calibrated size and RMSE disagree for energies.* Ex3 has a higher T_val energy RMSE than hand (5.98 vs 5.11 meV/atom) but
+   E regions 1.5× smaller; flat has the lowest RMSE (4.35) but larger regions than hand. The regions follow how well B1's
+   energy covariance matches the residuals, which more energy weight improves (sigma_c rises 15× from hand to Ex10: a weaker
+   prior, the energy directions then set by the data). Choosing by RMSE would choose differently.
+4. *The evidence route fails for energies.* Per-quantity MAP noise sets sigma_E = 1.84 (energies all but ignored: 18.6
+   meV/atom, E regions 3.6× hand's) for the smallest F regions. Principle 5's cheap route disagrees with CRC, so CRC decides.
+5. *The per-type downweights and virials do not matter at this size:* flat and noV are within noise of hand in F and slightly
+   worse in E.
+
+Open: the choice along the front needs a stated E-against-F priority (the QoIs are energy differences, which argues for Ex3
+or above). Next, a finer E ladder (×3, ×5, ×10, ×30) to find where the F cost steepens; the energy-difference proxy (pairs of
+labelled configurations of one kind, principle 1) on the same candidates; then CR3 for the finalists.
+
 ## §0 results (2026-11-10)
 
 **Per-type per-atom force coverage** (Gaussian 90 % ellipsoid of each method's own 3×3 covariance,
