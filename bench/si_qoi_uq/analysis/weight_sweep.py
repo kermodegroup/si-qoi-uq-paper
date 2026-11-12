@@ -21,7 +21,7 @@ root whitening, CRC threshold, size = log geometric semi-axis):
 Halves of T_val, as crc_config.py: shape on A1, t by CRC on A2, size and risk (overall and by kind) on B; the same splits for
 every candidate (paired); "first" counts how often a candidate has the smallest size.
 
-    python -m bench.si_qoi_uq.analysis.weight_sweep [o4d16 [base|eladder]]   (a compute node)  -> results/weight_sweep_<m>[_<set>].json
+    python -m bench.si_qoi_uq.analysis.weight_sweep [o4d16 | o4d<d>_wL<w> [base|eladder|all|cr3|wl]]   (a compute node)  -> results/weight_sweep_<m>[_<set>].json
 """
 import json, os, pathlib, shlex, sys, time
 
@@ -63,6 +63,20 @@ def split(out_dir):
     return fit, val, ct
 
 
+def base_cmd(m):
+    """(argv, theta start) for a model key: a ladder fit (o4d16: its cmd.txt and theta_map.json), or o<order>d<degree>_wL<w>
+    (the wL sweep, plan section 5 D step 2): the o4d16 command line with --max-degree and --wL replaced, theta started at o4d16's
+    MAP (sigma_c and sigma are refitted per candidate; the rest are not hyperparameters of the BLR fit)."""
+    import re
+    g = re.fullmatch(r"o(\d)d(\d+)(?:_wL([\d.]+))?", m)
+    ref = m if g.group(3) is None else "o4d16"
+    argv = shlex.split(open(f"{ACC}/{ref}/cmd.txt").read().strip())[1:]
+    if g.group(3) is not None:
+        argv[argv.index("--order") + 1], argv[argv.index("--max-degree") + 1] = g.group(1), g.group(2)
+        argv += ["--wL", g.group(3)]
+    return argv, f"{ACC}/{ref}/theta_map.json"
+
+
 def resolve(weights, t):
     """A weights file's {E, F, V} for config_type t (named keys case-insensitive, else default), as load_configs."""
     for k, v in weights.items():
@@ -76,7 +90,8 @@ E_LADDER = (1 / 3, 1, 2, 3, 5, 10, 30, 100)
 
 def candidates(types, cset="base"):
     """name -> (per-type {E, F, V} weights, noise mode). cset "base": step 1's set; "eladder": the hand weights with every
-    energy weight scaled by E_LADDER, shared noise; "all": both on the same splits (per-split sizes for selection.py)."""
+    energy weight scaled by E_LADDER, shared noise; "all": both on the same splits (per-split sizes for selection.py); "cr3": the
+    finalists, each scored with B1 and with CR3 (RUNS/wsweep/<m>/cr3_<name>.npz from weight_cr3.py)."""
     hand = json.load(open(f"{DATA}/weights_acejax.json"))
     hw = {t: dict(resolve(hand, t)) for t in types}
     sc = lambda f, q: {t: {**w, q: w[q] * f} for t, w in hw.items()}
@@ -89,6 +104,8 @@ def candidates(types, cset="base"):
             "flat": ({t: dict(hand["default"]) for t in types}, "shared")}
     if cset == "all":                                         # both, on the same splits (Ex1 is hand)
         return {**base, **{k: v for k, v in lad.items() if k not in base and k != "Ex1"}}
+    if cset in ("cr3", "wl"):                                 # the finalists (cr3: B1 and CR3, weight_cr3.py first)
+        return {"hand": base["hand"], "Ex5": lad["Ex5"], "Ex10": base["Ex10"]}
     return base
 
 
@@ -211,7 +228,7 @@ def main(m="o4d16", cset="base"):
     fit_i, val_i, ct = split(out_dir)
     log(f"T_fit {len(fit_i)}, T_val {len(val_i)} configurations")
     json.dump({"unit": {"default": {"E": 1.0, "F": 1.0, "V": 1.0}}}["unit"], open(out_dir / "unit_weights.json", "w"))
-    argv = shlex.split(open(f"{ACC}/{m}/cmd.txt").read().strip())[1:]
+    argv, th_path = base_cmd(m)
     for k, v in (("--train", out_dir / "T_fit.xyz"), ("--weights", out_dir / "unit_weights.json"), ("--out", out_dir / "fit")):
         argv[argv.index(k) + 1] = str(v)
     argv += ["--test", str(out_dir / "T_val.xyz")]
@@ -219,7 +236,7 @@ def main(m="o4d16", cset="base"):
     cfg = cli._fit_config(a)
     data = load_fit_data(cfg, train=a.train, test=a.test, log=lambda *_: None)
     prob = build_problem(cfg, data).prob
-    theta0 = Hypers(**json.load(open(f"{ACC}/{m}/theta_map.json")))
+    theta0 = Hypers(**json.load(open(th_path)))
     types = sorted({str(c.config_type) for c in data.train})
     import pickle
     tmp = pathlib.Path(f"/tmp/essswb_wsweep_{m}.pkl")       # node-local cache of the per-type factors and T_val rows
@@ -258,17 +275,33 @@ def main(m="o4d16", cset="base"):
     n_at = [v["n"] for v in V]
     prs = pairs(vtypes, n_at, kinds)
     res["pairs"] = {k: len(v) for k, v in prs.items()}
+    variants = []                                             # (name, weights, mode, factor): B1, and CR3 where weight_cr3 ran
     for name, (w, mode) in candidates(types, cset).items():
-        qs = merge(st, w)
-        th, lml, ok, nit = map_fit(qs, prob, theta0, mode)
-        mu, L = posterior_from_qr(th, qs, prob)
-        mu, L = np.asarray(mu), np.asarray(L)
+        variants.append((name, w, mode, "B1"))
+        if cset == "cr3":
+            variants.append((f"{name}/CR3", w, mode, "CR3"))
+    post = {}
+    for name, w, mode, fac in variants:
+        base = name.split("/")[0]
+        if base not in post:
+            qs = merge(st, w)
+            th, lml, ok, nit = map_fit(qs, prob, theta0, mode)
+            mu, L = posterior_from_qr(th, qs, prob)
+            post[base] = (th, lml, ok, nit, np.asarray(mu), np.asarray(L))
+        th, lml, ok, nit, mu, L = post[base]
+        if fac == "B1":
+            mfac = lambda P, L=L: solve_triangular(L, P, lower=True)          # (r, ...) columns: P^T -> L^-1 P^T
+        else:
+            z = np.load(out_dir / f"cr3_{base}.npz")
+            dev = float(np.max(np.abs(z["mu"] - mu)) / np.max(np.abs(mu)))
+            log(f"{name}: CR3 rank {z['Lcr3'].shape[1]}, max leverage {float(z['lev'].max()):.4f}, mean deviation {dev:.1e}")
+            mfac = lambda P, Lf=z["Lcr3"]: Lf.T @ P
         eE, cE, UE, eF, cF, UF, sdF, rT, MT = [], [], [], [], [], [], [], [], []
         for v in V:
-            ME = solve_triangular(L, v["PE"], lower=True)
+            ME = mfac(v["PE"])
             rT.append(v["yE"] - v["PE"] @ mu); MT.append(ME)          # total-energy residual and factor, for the pairs
             eE.append(np.array([(v["yE"] - v["PE"] @ mu) / v["n"]])); cE.append(np.array([ME @ ME / v["n"] ** 2])); UE.append(np.ones((1, 1)))
-            MF = solve_triangular(L, v["PF"].T, lower=True).T
+            MF = mfac(v["PF"].T).T
             sdF.append(np.sqrt(np.sum(MF.reshape(v["n"], 3, -1) ** 2, axis=(1, 2))))
             eF.append(v["yF"] - v["PF"] @ mu); UF.append(MF)
         cut = SYM_ZERO * np.median(np.concatenate(sdF))
