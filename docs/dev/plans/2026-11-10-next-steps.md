@@ -867,7 +867,8 @@ loss; worst = the kind with the highest miss rate.
 | hand_pq | 4.8e2 / 1.84, 0.077, 0.169 | 18.64 / 0.093 | −4.11 | ext 0.63 | −2.59 | ext 0.36 | yes |
 
 Split-to-split spread (p05–p95) is ~0.5 in E size and ~0.17 in F size, but the comparison is paired: Ex10 is smallest in E in 99
-of 100 splits, hand_pq smallest in F in 88. Same order at α = 0.05 and 0.2 and for the frac loss.
+of 100 splits, hand_pq smallest in F in 88. Same order at α = 0.05 and 0.2 and for the frac loss, apart from swaps within the near-tie of hand,
+flat and noV (≤ 0.04 in log).
 
 Reading:
 1. *The trade-off is lopsided.* Along the front (hand_pq → E/3 → hand → Ex3 → Ex10) E size changes by 2.0 in log, F size by
