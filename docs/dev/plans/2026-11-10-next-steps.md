@@ -888,6 +888,88 @@ Open: the choice along the front needs a stated E-against-F priority (the QoIs a
 or above). Next, a finer E ladder (×3, ×5, ×10, ×30) to find where the F cost steepens; the energy-difference proxy (pairs of
 labelled configurations of one kind, principle 1) on the same candidates; then CR3 for the finalists.
 
+**D, energy-weight ladder and energy-difference views (o4d16, 2026-11-12).** `weight_sweep.py o4d16 all` →
+`results/weight_sweep_o4d16_all.json` (11 min on lestrade; the base set and the ladder E × {1/3, 2, 3, 5, 10, 30, 100} on the same
+splits; earlier runs `weight_sweep_o4d16{,_eladder}.json` agree to 3e-6). Two energy-difference views on T_val, which stay
+within the rules (labelled training configurations only): dE_type, 216 disjoint pairs of configurations of one type, and
+dE_form, 114 defect / surface / extended-defect configurations each against a diamond cell, ΔE = E_a − (n_a / n_b) E_b (eV).
+Size: log semi-axis at α = 0.1, joint loss; worst = the kind with the highest miss rate.
+
+| E weight | σ_c / σ | RMSE E (meV/atom) / F | E | F | dE_type | dE_form | worst kind (E view) |
+|---|---|---|---|---|---|---|---|
+| × 1/3 | 8.4e2 / 0.082 | 7.08 / 0.096 | −4.88 | −2.58 | −1.40 | +0.13 | ext 0.60 |
+| × 1 (hand) | 1.2e3 / 0.089 | 5.11 / 0.101 | −5.41 | −2.56 | −1.70 | −0.47 | ext 0.47 |
+| × 2 | 1.9e3 / 0.096 | 5.43 / 0.107 | −5.69 | −2.53 | −1.93 | −0.79 | ext 0.29 |
+| × 3 | 2.8e3 / 0.101 | 5.98 / 0.112 | −5.80 | −2.50 | −2.05 | −0.89 | point 0.24 |
+| × 5 | 6.1e3 / 0.112 | 6.20 / 0.120 | −5.98 | −2.47 | −2.17 | −0.93 | point 0.24 |
+| × 10 | 1.9e4 / 0.132 | 5.34 / 0.136 | −6.14 | −2.42 | −2.26 | −1.04 | ext 0.24 |
+| × 30 | 1.2e5 / 0.189 | 10.16 / 0.188 | −6.22 | −2.27 | −2.28 | −0.96 | point 0.22 |
+| × 100 | 6.9e5 / 0.293 | 17.69 / 0.285 | −6.13 | −2.04 | −2.15 | −0.63 | point 0.25 |
+
+Reading:
+1. *The F cost steepens after × 10.* Per step in E weight, F size changes by +0.02 to +0.05 up to × 10, then +0.15 (× 30) and
+   +0.23 (× 100). E size improves by 0.73 from × 1 to × 10, then by only 0.08 more.
+2. *The energy-difference proxies peak at × 10–30.* dE_form (the formation-energy proxy, the QoIs' nearest relative) is
+   smallest at × 10 (−1.04 against −0.47 for hand: regions 1.8× smaller) and gets worse again beyond; dE_type at × 30, within
+   0.02 of × 10.
+3. *Per-kind risk agrees.* The E view's worst-kind miss rate falls from 0.47 (hand) to 0.22–0.25 at × 3 and above; dE_form's from
+   0.15 to 0.11.
+4. *Shared MAP noise grows with the energy weight* (σ 0.089 → 0.293 eV/Å; σ_c 15× from × 1 to × 10): heavy energy weight makes
+   the shared σ explain energies, so force residuals look over-dispersed and F regions widen. MAP flags L-BFGS-B `ABNORMAL` at
+   × 10 and × 30 in the 24-thread run and at × 100 in the 32-thread run, at the same θ to 3 digits: line-search ends at the
+   optimum, not failures.
+
+**D, the selection rule (2026-11-12).** `analysis/selection.py` → `results/selection.json`; needs the per-split sizes now saved by
+`weight_sweep.py` and `crc_config.py` (`split` keys; the ladder rescored on its original splits). The rule, for candidates fitted
+on T_fit and scored on T_val by paired halves:
+1. *Declare the use first:* views and priorities π_v (fixed before scoring), α. Aggregate J[c, s] = Σ_v π_v (L[c, v, s] −
+   L[ref, v, s]) + λ log cost_c. Log sizes add, so J is the log of a priority-weighted geometric mean of region volumes; λ is the
+   price, in nats of size, of a factor e in evaluation cost (0: size only).
+2. *Tolerance (one-SE):* b = argmin mean J; N = {c: mean J_c − mean J_b ≤ τ_c}, τ_c = sd_s(J_c − J_b) / √2. The halves are
+   overlapping resamples of one T_val, so sd/√S understates the noise; the half-sample sd over √2 is the noise of the difference
+   on all of T_val. Over all candidates, not a Pareto set first: on one view that filter leaves only b.
+3. *Choose in N:* the cheapest, then the smallest worst-kind risk (max over the declared views), then the simplest (nearest the
+   default weights).
+4. *No single use:* minimax regret over the declared profiles (smallest worst dJ).
+5. *Then:* refit on all of T, CRC-calibrate on the test split, report (step 3). Selection never sees the calibration data.
+
+Weight sweep (o4d16; profiles: forces F; energies E ½, dE_type ¼, dE_form ¼; balanced F ½ and the three energy views ⅙ each;
+formation F ½, dE_form ½):
+
+| profile | choice | N (within τ) | win rate of choice | baselines |
+|---|---|---|---|---|
+| forces | hand_pq | hand_pq only (hand +0.034, τ 0.013) | 0.89 | min RMSE_F: hand_pq |
+| energies | × 30 | × 30, × 10 (+0.026, τ 0.059); × 30 by worst kind 0.22 vs 0.33 | 0.66 | min RMSE_E: flat |
+| balanced | × 10 | × 10 only (× 5 +0.033, τ 0.028) | 0.73 | |
+| formation | × 10 | × 10, × 5, × 3, × 2 (+0.027 … +0.074); × 10 by worst kind | 0.49 | min size dE_form: × 10 |
+| minimax regret | × 5 | worst dJ 0.157 (× 10: 0.172, from the forces profile; hand 0.672) | | |
+
+Ladder (B1 / headline / B2 / ellipsoid, o3d8 … o4d20; cost A100 fp64 µs/atom-step). The λ intervals on which each candidate
+has the smallest mean J, the lower envelope of mean size against log cost:
+- whole-configuration F: o4d20/B1 [0, 0.19), o4d16/B1 [0.19, 0.30), o4d14/B1 [0.30, 0.55), o3d12/B1 [0.55, 0.64), o3d10/B1
+  [0.64, 1.93), o3d8/B1 beyond;
+- per-atom F: o4d20/ellipsoid [0, 0.22), o3d12/ellipsoid [0.22, 1.50), o3d10/B1 [1.50, 3.34), o3d8/B1 beyond;
+- both, ½ each: o4d20/B1 [0, 0.18), o4d16/B1, o4d14/B1 [0.25, 0.36), o3d12/ellipsoid [0.36, 0.93), o3d10/B1, o3d8/B1.
+With the tolerance at λ = 0.25 (F) the rule takes o4d14/B1 over the best, o4d16/B1 (+0.038, τ 0.057), and at 0.5 o3d12/B1
+over o4d14/B1: the one-SE step moves down the ladder whenever adjacent models are close.
+
+Reading:
+1. *The use decides; the rule makes that explicit.* Forces alone favour the evidence route (hand_pq, F regions 3 % smaller than
+   hand's, a resolved paired difference) at the price of energy regions 3.6× hand's; any profile with energy weight picks × 5–30.
+   The hand weights are never chosen and are 0.67 in regret (regions 2× too large for energies).
+2. *Recommendation for the paper's QoIs (energy differences, plus forces for relaxation):* × 10 (formation and balanced),
+   with × 5 the choice robust to the profile (minimax regret). Both are in N for the formation profile. Carry × 5 and × 10 as
+   the finalists into CR3 and step 3.
+3. *RMSE chooses differently.* Min RMSE_E picks flat, never chosen by size under any profile; min RMSE_F picks hand_pq.
+4. *λ makes the cost trade a single number.* The ladder's breakpoints are the exchange rates each step offers: o4d16 → o4d20
+   buys 0.19 nats of F size per e-fold of cost, o4d14 → o4d16 0.30. A user who values a factor e in speed below 0.19 nats (17 %
+   in semi-axis) should take o4d20.
+5. *Limits.* Win rates of 0.5–0.9 show how often a half-sized T_val would choose differently; the tolerance absorbs that, the
+   argmin alone would not. The worst-kind risk is a tie-breaker, not a constraint: at α = 0.1 every candidate fails some kind
+   (0.22–0.69), so principle 3's hard cap at α + δ would leave nothing. Mondrian calibration by kind is what removes that
+   failure, and its group sizes on T_val (extended defects: tens of configurations) are the limit. All of this is one model
+   (o4d16) and one T_val; the held-out-type refits (principle 6) are the out-of-distribution check still to do.
+
 ## §0 results (2026-11-10)
 
 **Per-type per-atom force coverage** (Gaussian 90 % ellipsoid of each method's own 3×3 covariance,
@@ -933,7 +1015,7 @@ this. §4 then becomes: does Σ + νI with a conformal scale cover the defect ce
 | §1 (111) | ~1 week; DFT only if needed | done (2026-11-10): DAS within 0.7 σ, order unresolved by either covariance (P(7×7 lowest) 0.05–0.15); spin DFT not triggered |
 | §2 ellipsoid | ~1 week, mnf148 | done (2026-11-11): needs a leverage cut; then the most even per-type force coverage, self-calibrated, stable across optima; non-convex, and the lower optimum is not better downstream; QoI widths reproducible once converged (an eigh scoring bug had made them look unstable); slightly sharper per QoI than CR3, worse jointly. Paper: discussion paragraph + SI forces table, optional SI QoI-score sentence (§2e) |
 | §4 multivariate | ~1–2 weeks | done (2026-11-11): joint guarantee holds on average, not by kind (surfaces 0.28–0.40); at o4d20 λ_mv covers 16/17 QoIs and is jointly calibrated without the discrepancy term, but scores worse than the headline; too wide at o3d12 |
-| §5 CRC | ~1 day | in progress (2026-11-11): CRC makes the per-atom guarantee exact for 2–4 % in q; calibrated size selects o4d20 over o3d12 for every method; among methods the per-atom score picks the ellipsoid shape, the whole-configuration score the parameter-covariance shapes (B1, CR3), as the QoI joint scores; ladder (2026-11-12): B1 on the whole-configuration front at every size, no saturation by o4d20, the worst kind moves surface → extended → point defect; D (weights, wL at o4d14/o4d16) next |
+| §5 CRC | ~1 day | in progress (2026-11-11): CRC makes the per-atom guarantee exact for 2–4 % in q; calibrated size selects o4d20 over o3d12 for every method; among methods the per-atom score picks the ellipsoid shape, the whole-configuration score the parameter-covariance shapes (B1, CR3), as the QoI joint scores; ladder (2026-11-12): B1 on the whole-configuration front at every size, no saturation by o4d20, the worst kind moves surface → extended → point defect; D step 1 (o4d16): energy weight × 5–10 over hand (energy-difference regions 1.8× smaller, F 6–15 % larger), the evidence route best only for forces; a selection rule (declared priorities, one-SE tolerance, λ for cost, minimax regret) in `selection.py`; next CR3 for × 5 / × 10, wL, step 3 |
 
 All four questions have answers. What is left is deciding what goes into the paper revision (branch `revision`, draft PR #1):
 candidates are §3 (barrier: a new QoI and the clearest miss), §2e items 2–4 (ellipsoid: discussion paragraph, SI forces table,
