@@ -997,6 +997,49 @@ Reading:
    B1; forces → hand / B1 (the finalist set has no hand_pq); minimax regret → × 10 / B1 (0.138; × 5 / B1 0.176; CR3 rows ≥ 0.29).
    **Choice for step 3: × 10 with B1**, × 5 as the alternative (in N for formation; worst-kind no worse).
 
+**D, step 2: wL (2026-11-12/13).** `weight_sweep.py <o4dD_wLW> wl` for ten bases (wL 1.0: d12, d14; 1.25: d14, d15; 1.5: d14,
+d16; 1.75: d15, d17; 2.0: d15, d18), each the o4d16 command with that basis, on the same T_fit / T_val and the same 100 halves
+(paired with every other sweep), candidates hand, × 5, × 10 with B1 (~15–25 min each on dedicated123 / dedicated218) →
+`results/weight_sweep_<m>_wl.json`; `analysis/wl_sweep.py` → `results/wl_sweep.json`. o4d16_wL1.5 reproduces the o4d16
+sweep (sizes to the 5 dp rounding). Cost: the A100 float64 CUDA kernel, timed with the ladder's harness and tree (ace-jax
+103ad9e, LAMMPS, 32768 atoms, spline 1e-10, every row behind its parity gate; Sulis jobs 2282524 / 2282527 on gpu014,
+`results/timing/sulis-gpu-cudak-wl-*.jsonl`); the o4d14 / o4d16 anchors, timed in both jobs, give 0.1424 / 0.1431 and
+0.2827 / 0.2827 µs against 0.1424 / 0.2861 in `ace_pareto.json`. The two wL 1.25 models were fitted for timing with the wL
+ladder's command (`runs/accuracy_cost/ace_wl/o4d1{4,5}_wL1.25`); kernel cost depends on the basis, not the coefficients.
+
+| basis | wL | basis count | A100 µs | hand F | hand E | × 10 F | × 10 E | × 10 dE_form |
+|---|---|---|---|---|---|---|---|---|
+| o4d15_wL2.0 | 2.0 | 647 | 0.103 | −2.19 | −4.90 | −2.01 | −5.54 | −0.64 |
+| o4d15_wL1.75 | 1.75 | 729 | 0.115 | −2.29 | −5.04 | −2.12 | −5.62 | −0.63 |
+| o4d14 | 1.5 | 702 | 0.143 | −2.34 | −5.08 | −2.16 | −5.69 | −0.65 |
+| o4d12_wL1.0 | 1.0 | 621 | 0.205 | −2.37 | −5.16 | −2.18 | −5.84 | −0.80 |
+| o4d14_wL1.25 | 1.25 | 872 | 0.228 | −2.45 | −5.25 | −2.29 | −5.98 | −0.93 |
+| o4d17_wL1.75 | 1.75 | 1380 | 0.243 | −2.50 | −5.34 | −2.36 | −6.01 | −0.90 |
+| o4d18_wL2.0 | 2.0 | 1599 | 0.250 | −2.51 | −5.34 | −2.37 | −6.00 | −0.96 |
+| o4d16 | 1.5 | 1408 | 0.283 | −2.56 | −5.41 | −2.42 | −6.14 | −1.04 |
+| o4d15_wL1.25 | 1.25 | 1274 | 0.313 | −2.57 | −5.43 | −2.43 | −6.11 | −1.04 |
+| o4d14_wL1.0 | 1.0 | 1461 | 0.462 | −2.65 | −5.58 | −2.53 | −6.29 | −1.03 |
+
+Reading:
+1. *At matched basis count, lower wL gives smaller regions.* Paired against wL 1.5 (hand F): ~720 functions, wL 1.75 +0.05
+   (τ 0.01), 2.0 +0.15 (0.02), 1.25 −0.11 (0.02; 872 functions), 1.0 −0.03 (0.02; 621); ~1460, wL 1.75 +0.05, 2.0 +0.04
+   (0.01–0.02), 1.25 −0.02 (0.01), 1.0 −0.09 (0.03). Energy views move the same way with τ 0.04–0.1. So by basis count the
+   rule picks o4d14_wL1.0 (the most angular basis) for every profile and weighting, two exceptions (formation at × 5 / × 10:
+   o4d15_wL1.25, in N). The hypothesis that a larger wL helps silicon is not supported: at equal size it is worse.
+2. *At matched A100 cost, wL 1.5 is not beaten.* Basis count is the wrong cost: a low-wL basis spends its functions on high-l
+   channels and needs many more products per function (o4d14_wL1.0: 1461 functions, 0.46 µs; o4d16: 1408, 0.28 µs). Against the
+   straight line in log cost through the two wL 1.5 points (slope −0.32 nats of F size per e-fold of cost, hand), wL < 1.5 lies
+   above it, worse per µs, by +0.01 to +0.09 (F, hand), +0.03 to +0.12 (F, × 10) and +0.02 to +0.17 (E, × 10); wL 1.75 and 2.0
+   lie on it within ±0.05 in F and ±0.08 in E (the most favourable: o4d15_wL1.75, −0.02 F and −0.07 E hand, −0.05 F and −0.08 E
+   × 10, about one τ of a paired E difference). wL moves a basis along the wL 1.5 cost–size line or above it, never resolvably
+   below. (The line is an interpolation through two points, not a paired comparison; the τ quoted are the matched-size ones.)
+3. *Lower envelope over λ (A100 cost), every weighting and profile:* o4d14_wL1.0 for λ < 0.11–0.29, then o4d16 (wL 1.5) up to
+   0.30–0.54, then o4d15_wL1.75 / o4d15_wL2.0 (the cheapest bases); × 5 formation has o4d15_wL1.25 for λ 0.12–0.26, × 5 energies skips wL 1.75. Its breakpoints match the ladder's (o4d16 from 0.19 to 0.30
+   for F). The high-wL bases matter only as the cheapest points; they sit at 0.10–0.11 µs, between o4d12 (0.080) and o4d14
+   (0.142) of the ladder, which was not fitted here, so whether they beat o4d12 at its cost is open.
+4. *For step 3 the default wL 1.5 stays*: no wL resolvably improves the size–cost trade, and o4d16 is on the envelope over the
+   λ range where o4d16 is the ladder's choice. wL is a basis-count lever, not a cost lever, on this kernel.
+
 ## §0 results (2026-11-10)
 
 **Per-type per-atom force coverage** (Gaussian 90 % ellipsoid of each method's own 3×3 covariance,
@@ -1042,7 +1085,7 @@ this. §4 then becomes: does Σ + νI with a conformal scale cover the defect ce
 | §1 (111) | ~1 week; DFT only if needed | done (2026-11-10): DAS within 0.7 σ, order unresolved by either covariance (P(7×7 lowest) 0.05–0.15); spin DFT not triggered |
 | §2 ellipsoid | ~1 week, mnf148 | done (2026-11-11): needs a leverage cut; then the most even per-type force coverage, self-calibrated, stable across optima; non-convex, and the lower optimum is not better downstream; QoI widths reproducible once converged (an eigh scoring bug had made them look unstable); slightly sharper per QoI than CR3, worse jointly. Paper: discussion paragraph + SI forces table, optional SI QoI-score sentence (§2e) |
 | §4 multivariate | ~1–2 weeks | done (2026-11-11): joint guarantee holds on average, not by kind (surfaces 0.28–0.40); at o4d20 λ_mv covers 16/17 QoIs and is jointly calibrated without the discrepancy term, but scores worse than the headline; too wide at o3d12 |
-| §5 CRC | ~1 day | in progress (2026-11-11): CRC makes the per-atom guarantee exact for 2–4 % in q; calibrated size selects o4d20 over o3d12 for every method; among methods the per-atom score picks the ellipsoid shape, the whole-configuration score the parameter-covariance shapes (B1, CR3), as the QoI joint scores; ladder (2026-11-12): B1 on the whole-configuration front at every size, no saturation by o4d20, the worst kind moves surface → extended → point defect; D step 1 (o4d16): energy weight × 5–10 over hand (energy-difference regions 1.8× smaller, F 6–15 % larger), the evidence route best only for forces; a selection rule (declared priorities, one-SE tolerance, λ for cost, minimax regret) in `selection.py`; next CR3 for × 5 / × 10, wL, step 3 |
+| §5 CRC | ~1 day | in progress (2026-11-11): CRC makes the per-atom guarantee exact for 2–4 % in q; calibrated size selects o4d20 over o3d12 for every method; among methods the per-atom score picks the ellipsoid shape, the whole-configuration score the parameter-covariance shapes (B1, CR3), as the QoI joint scores; ladder (2026-11-12): B1 on the whole-configuration front at every size, no saturation by o4d20, the worst kind moves surface → extended → point defect; D step 1 (o4d16): energy weight × 5–10 over hand (energy-difference regions 1.8× smaller, F 6–15 % larger), the evidence route best only for forces; a selection rule (declared priorities, one-SE tolerance, λ for cost, minimax regret) in `selection.py`; CR3 for × 5 / × 10: B1 kept (× 10 / B1 for step 3); wL (2026-11-13): lower wL wins at matched basis count but not at matched A100 cost, where no wL beats 1.5 resolvably: default kept; next step 3 |
 
 All four questions have answers. What is left is deciding what goes into the paper revision (branch `revision`, draft PR #1):
 candidates are §3 (barrier: a new QoI and the clearest miss), §2e items 2–4 (ellipsoid: discussion paragraph, SI forces table,
