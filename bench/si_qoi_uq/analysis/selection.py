@@ -92,12 +92,13 @@ def sweep_candidates(path):
     d = json.load(open(path))
     C = {}
     for c, x in d["candidates"].items():
+        w, _, fac = c.partition("/CR3") if c.endswith("/CR3") else (c, "", "")
         f = 1.0
-        if c.startswith("Ex"):
-            f = float(c[2:])
-        elif c.startswith("E/"):
-            f = 1 / float(c[2:])
-        simple = abs(math.log(f)) + (1.0 if c in ("hand_pq", "noV", "flat") else 0.0)
+        if w.startswith("Ex"):
+            f = float(w[2:])
+        elif w.startswith("E/"):
+            f = 1 / float(w[2:])
+        simple = abs(math.log(f)) + (1.0 if w in ("hand_pq", "noV", "flat") else 0.0) + (0.5 if c.endswith("/CR3") else 0.0)  # B1 needs no jackknife
         C[c] = {"L": {}, "g": {}, "cost": 1.0, "simple": simple, "rmse_E": x["rmse_E_meV_atom"], "rmse_F": x["rmse_F"]}
         for v, by in d["halves"].items():
             h = by[f"joint {float(ALPHA):g}"][c]
@@ -150,6 +151,16 @@ def main():
     mm = min(reg, key=lambda c: max(reg[c].values()))
     out["sweep"]["minimax_regret"] = {"choice": mm, "regret": reg}
     print("\nminimax regret over profiles (max dJ):", mm, {c: round(max(r.values()), 3) for c, r in sorted(reg.items(), key=lambda kv: max(kv[1].values()))})
+    _, C3 = sweep_candidates(RESULTS / "weight_sweep_o4d16_cr3.json")       # the finalists with B1 and CR3, same splits
+    out["sweep_cr3"] = {"profiles": {}}
+    for p, pi in PROFILES.items():
+        pick, b, rows = select(C3, pi, ref="hand")
+        show(f"finalists B1 / CR3, profile {p}", pick, b, rows)
+        out["sweep_cr3"]["profiles"][p] = {"choice": pick, "best": b, "rows": rows}
+    reg = {c: {p: out["sweep_cr3"]["profiles"][p]["rows"][c]["dJ"] for p in PROFILES} for c in C3}
+    out["sweep_cr3"]["minimax_regret"] = {"choice": min(reg, key=lambda c: max(reg[c].values())), "regret": reg}
+    print("finalists minimax regret:", out["sweep_cr3"]["minimax_regret"]["choice"],
+          {c: round(max(r.values()), 3) for c, r in sorted(reg.items(), key=lambda kv: max(kv[1].values()))})
     CL = ladder_candidates()
     out["ladder"] = {"cost": "A100 float64 CUDA kernel, µs/atom-step", "lam": {}, "envelope": {}}
     for pi_name, pi in (("F", {"F": 1.0}), ("F_atom", {"F_atom": 1.0}), ("F+F_atom", {"F": 0.5, "F_atom": 0.5})):

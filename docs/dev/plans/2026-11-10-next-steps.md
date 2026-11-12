@@ -970,6 +970,33 @@ Reading:
    failure, and its group sizes on T_val (extended defects: tens of configurations) are the limit. All of this is one model
    (o4d16) and one T_val; the held-out-type refits (principle 6) are the out-of-distribution check still to do.
 
+**D, CR3 for the finalists (o4d16, 2026-11-12).** `analysis/weight_cr3.py o4d16 hand Ex5 Ex10` (the whole-configuration PRESS
+jackknife on T_fit with each candidate's weights and MAP noise, 23 min each on lestrade, three in parallel) → then
+`weight_sweep.py o4d16 cr3` → `results/weight_sweep_o4d16_cr3.json` (B1 and CR3 per candidate, the same splits). The
+jackknife's posterior mean agrees with the sweep's merged-QR mean to 3e-5 (hand) and 3e-4 (× 5, × 10) relative. CR3 rank
+1149 / 1093 / 1059 of K = 1781 configurations; max leverage 0.995 / 0.9997 / 0.9999 (heavier energy weight nearly interpolates
+some configurations). α = 0.1, joint loss; paired CR3 − B1 (τ = half-sample sd / √2):
+
+| | E | F | dE_type | dE_form | F worst kind |
+|---|---|---|---|---|---|
+| hand, B1 / CR3 | −5.41 / −5.74 | −2.56 / −2.32 | −1.70 / −1.94 | −0.47 / −0.51 | ext 0.34 / surface 0.61 |
+| × 5, B1 / CR3 | −5.98 / −6.10 | −2.47 / −2.27 | −2.17 / −2.27 | −0.93 / −0.88 | point 0.27 / surface 0.51 |
+| × 10, B1 / CR3 | −6.14 / −6.22 | −2.42 / −2.27 | −2.26 / −2.33 | −1.04 / −0.99 | point 0.27 / surface 0.41 |
+| CR3 − B1 (τ): hand | −0.33 (0.11) | +0.24 (0.06) | −0.24 (0.09) | −0.04 (0.11) | |
+| × 5 | −0.13 (0.08) | +0.20 (0.05) | −0.10 (0.10) | +0.06 (0.12) | |
+| × 10 | −0.09 (0.07) | +0.15 (0.05) | −0.07 (0.11) | +0.06 (0.09) | |
+
+Reading:
+1. *CR3 is worse than B1 for whole-configuration forces at every weight* (+0.15 to +0.24, 3–4 τ), as on the ladder (§5 C), and
+   its worst kind is surfaces (0.41–0.61 against 0.27–0.34).
+2. *CR3's energy advantage is a hand-weights effect.* At hand weights CR3 gives E and dE_type regions 0.33 and 0.24 smaller
+   than B1 (resolved); at × 5 and × 10 the gain is within one τ, and dE_form never differs. Raising the energy weight gives B1
+   what the jackknife gave it: a covariance whose energy directions match the residuals.
+3. *The weight choice is the same under CR3:* × 10 ≥ × 5 ≫ hand for every energy view with either method.
+4. *Selection rule on the six:* energies → × 10 / CR3 (× 10 / B1 +0.046, τ 0.043: just outside); balanced and formation → × 10 /
+   B1; forces → hand / B1 (the finalist set has no hand_pq); minimax regret → × 10 / B1 (0.138; × 5 / B1 0.176; CR3 rows ≥ 0.29).
+   **Choice for step 3: × 10 with B1**, × 5 as the alternative (in N for formation; worst-kind no worse).
+
 ## §0 results (2026-11-10)
 
 **Per-type per-atom force coverage** (Gaussian 90 % ellipsoid of each method's own 3×3 covariance,
