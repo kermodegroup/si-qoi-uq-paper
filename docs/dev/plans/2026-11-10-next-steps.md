@@ -775,6 +775,37 @@ Reading:
    configuration CRC size for correlated predictions (picks the parameter-covariance shapes, the family CR3 belongs to). Next:
    the model ladder (o3d8 … o4d20, the accuracy-cost fits on the same split) with CR3 and B1, to see where size saturates.
 
+**C, ladder (2026-11-12).** `crc_config.py ladder` → `results/crc_ladder.json`; `analysis/crc_pareto.py` →
+`results/crc_pareto.json`. CR3 (the headline) and B1 at all seven sizes, B2 and the ellipsoid where fitted (o3d12, o4d20); the
+same 100 random test halves. Cost: A100 float64, ace-jax CUDA kernel, µs per atom-step (`results/ace_pareto.json`). Size: log
+geometric semi-axis per force component (eV/Å) at α = 0.1; gap = size − log test force RMSE; worst = the kind with the highest
+miss rate.
+
+| model | cost | RMSE_F | joint B1 | joint CR3 | worst kind (B1, joint) | per-atom best |
+|---|---|---|---|---|---|---|
+| o3d8 | 0.042 | 0.244 | −1.49 | −1.44 | surface 0.65 | B1 −0.69 |
+| o3d10 | 0.045 | 0.202 | −1.63 | −1.60 | surface 0.63 | B1 −0.94 |
+| o3d12 | 0.064 | 0.158 | −1.86 | −1.84 | surface 0.59 | ellipsoid −1.47 |
+| o4d12 | 0.080 | 0.144 | −1.95 | −1.90 | surface 0.42 | B1 −1.28 |
+| o4d14 | 0.142 | 0.118 | −2.30 | −2.13 | extended 0.50 | B1 −1.50 |
+| o4d16 | 0.286 | 0.101 | −2.51 | −2.31 | extended 0.34 | B1 −1.63 |
+| o4d20 | 1.233 | 0.082 | −2.79 | −2.65 | point defect 0.35 | ellipsoid −2.11 |
+
+Reading:
+1. *No saturation yet.* Joint B1 size falls by 0.42, 0.60, 0.30 and 0.19 per e-fold of cost over the last four steps
+   (o3d12 → o4d20); test log RMSE_F by 0.14 per e-fold on the last step. The front is B1 at every size for both whole-
+   configuration losses; for the per-atom loss it is B1, with the ellipsoid where it was fitted.
+2. *Calibrated size improves faster than the point error from o4d14 on.* The B1 gap (joint) is −0.01 at o3d12 and o4d12, then
+   −0.16, −0.21, −0.29: as the model grows, more of the residual is in B1's covariance directions (the ML nugget ν falls from
+   0.136 to 0.003 eV/Å). CR3's gap stays near 0 up to o4d16 and is −0.14 at o4d20. The per-atom gaps stay flat (B1 0.58–0.73,
+   ellipsoid 0.38–0.39): per atom, calibration costs a constant factor over RMSE at every size.
+3. *The failure mode moves with complexity.* The marginal risk is at α throughout, but the worst kind changes from surfaces
+   (miss rate 0.59–0.65 to o3d12) to extended defects (o4d14, o4d16) to point defects (o4d20), and its miss rate falls from 0.65
+   to 0.35. The small models fail on surfaces for every method; that is model error, not a covariance-shape choice.
+4. *Extend the ladder?* Not now. The last step costs 4.3× for 0.28 in log (25 % smaller regions); o4d24 would cost several
+   times o4d20 again and CR3 is already at rank K. The D sweeps (weights, wL) go at o4d14 / o4d16, where the front is steepest
+   per unit cost.
+
 **D. Choosing the fixed hyperparameters under CRC (plan, 2026-11-11; after the ladder results).** Two choices have been held
 fixed so far: the energy / force / virial weights (`weights_acejax.json`, per configuration type: default E 30, F 1, V 1, lower
 for liq, amorph and sp; one shared MAP noise σ, `--noise shared`), and wL, the basis construction's angular weight (channel level
@@ -862,7 +893,7 @@ this. §4 then becomes: does Σ + νI with a conformal scale cover the defect ce
 | §1 (111) | ~1 week; DFT only if needed | done (2026-11-10): DAS within 0.7 σ, order unresolved by either covariance (P(7×7 lowest) 0.05–0.15); spin DFT not triggered |
 | §2 ellipsoid | ~1 week, mnf148 | done (2026-11-11): needs a leverage cut; then the most even per-type force coverage, self-calibrated, stable across optima; non-convex, and the lower optimum is not better downstream; QoI widths reproducible once converged (an eigh scoring bug had made them look unstable); slightly sharper per QoI than CR3, worse jointly. Paper: discussion paragraph + SI forces table, optional SI QoI-score sentence (§2e) |
 | §4 multivariate | ~1–2 weeks | done (2026-11-11): joint guarantee holds on average, not by kind (surfaces 0.28–0.40); at o4d20 λ_mv covers 16/17 QoIs and is jointly calibrated without the discrepancy term, but scores worse than the headline; too wide at o3d12 |
-| §5 CRC | ~1 day | in progress (2026-11-11): CRC makes the per-atom guarantee exact for 2–4 % in q; calibrated size selects o4d20 over o3d12 for every method; among methods the per-atom score picks the ellipsoid shape, the whole-configuration score the parameter-covariance shapes (B1, CR3), as the QoI joint scores; model ladder next |
+| §5 CRC | ~1 day | in progress (2026-11-11): CRC makes the per-atom guarantee exact for 2–4 % in q; calibrated size selects o4d20 over o3d12 for every method; among methods the per-atom score picks the ellipsoid shape, the whole-configuration score the parameter-covariance shapes (B1, CR3), as the QoI joint scores; ladder (2026-11-12): B1 on the whole-configuration front at every size, no saturation by o4d20, the worst kind moves surface → extended → point defect; D (weights, wL at o4d14/o4d16) next |
 
 All four questions have answers. What is left is deciding what goes into the paper revision (branch `revision`, draft PR #1):
 candidates are §3 (barrier: a new QoI and the clearest miss), §2e items 2–4 (ellipsoid: discussion paragraph, SI forces table,
