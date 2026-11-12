@@ -200,6 +200,7 @@ def stage2(ladder=False):
            "shape_full": {f"{m}/{k}": [float(x) for x in M.fit(np.arange(n))] for (m, k), M in cands.items()}, "loss": {}}
     print("ML shape (lam_s, nu eV/A) on all configurations:", {k: [round(x, 4) for x in v] for k, v in out["shape_full"].items()})
     summ = lambda x: {"mean": float(np.mean(x)), "p05": float(np.quantile(x, 0.05)), "p95": float(np.quantile(x, 0.95))}
+    rnd = lambda x: [None if not np.isfinite(y) else round(float(y), 5) for y in x]
     LA = [(loss, a) for loss in ("joint", "frac", *(("atom",) if ladder else ())) for a in ALPHAS]
     if ladder:
         M0 = next(iter(cands.values()))
@@ -228,8 +229,7 @@ def stage2(ladder=False):
                     hv[la][c]["size"].append(sz[c]); hv[la][c]["risk"].append(float(np.mean(sB > q)))
                     for kk in hv[la][c]["risk_by_kind"]:
                         sel = [j for j in Bi if kinds[j] == kk]
-                        if sel:
-                            hv[la][c]["risk_by_kind"][kk].append(float(np.mean(np.concatenate([S_[j] for j in sel]) > q)))
+                        hv[la][c]["risk_by_kind"][kk].append(float(np.mean(np.concatenate([S_[j] for j in sel]) > q)) if sel else np.nan)
                 b = min(sz, key=sz.get)
                 if np.isfinite(sz[b]):
                     first[la][b] += 1
@@ -241,8 +241,7 @@ def stage2(ladder=False):
                 hv[la][c]["size"].append(sz[c]); hv[la][c]["risk"].append(risk(W, t, la[0]))
                 for kk in hv[la][c]["risk_by_kind"]:
                     sel = [i for i, j in enumerate(Bi) if kinds[j] == kk]
-                    if sel:
-                        hv[la][c]["risk_by_kind"][kk].append(risk([W[i] for i in sel], t, la[0]))
+                    hv[la][c]["risk_by_kind"][kk].append(risk([W[i] for i in sel], t, la[0]) if sel else np.nan)
             b = min(sz, key=sz.get)
             if np.isfinite(sz[b]):
                 first[la][b] += 1
@@ -270,7 +269,9 @@ def stage2(ladder=False):
     for la in LA:
         loss, alpha = la
         r = {"halves": {f"{m}/{k}": {"size": summ(v["size"]), "risk": summ(v["risk"]), "first": first[la][(m, k)] / N_SPLIT,
-                                     "risk_by_kind": {kk: float(np.mean(x)) for kk, x in v["risk_by_kind"].items() if x}}
+                                     "risk_by_kind": {kk: float(np.nanmean(x)) for kk, x in v["risk_by_kind"].items() if np.isfinite(x).any()},
+                                     "split": {"size": rnd(v["size"]), "risk": rnd(v["risk"]),      # per split, paired (selection.py)
+                                               "risk_by_kind": {kk: rnd(x) for kk, x in v["risk_by_kind"].items()}}}
                         for (m, k), v in hv[la].items()},
              "selection": ({"chosen": {f"{m}/{k}": c / N_SPLIT for (m, k), c in chosen[la].items()}, "risk": summ(sel_r[la])}
                            if sel_r[la] else None)}

@@ -76,16 +76,20 @@ E_LADDER = (1 / 3, 1, 2, 3, 5, 10, 30, 100)
 
 def candidates(types, cset="base"):
     """name -> (per-type {E, F, V} weights, noise mode). cset "base": step 1's set; "eladder": the hand weights with every
-    energy weight scaled by E_LADDER, shared noise."""
+    energy weight scaled by E_LADDER, shared noise; "all": both on the same splits (per-split sizes for selection.py)."""
     hand = json.load(open(f"{DATA}/weights_acejax.json"))
     hw = {t: dict(resolve(hand, t)) for t in types}
     sc = lambda f, q: {t: {**w, q: w[q] * f} for t, w in hw.items()}
+    lad = {f"Ex{f:g}" if f >= 1 else f"E/{1 / f:g}": (sc(f, "E"), "shared") for f in E_LADDER}
     if cset == "eladder":
-        return {f"Ex{f:g}" if f >= 1 else f"E/{1 / f:g}": (sc(f, "E"), "shared") for f in E_LADDER}
-    return {"hand": (hw, "shared"), "hand_pq": (hw, "pq"),
+        return lad
+    base = {"hand": (hw, "shared"), "hand_pq": (hw, "pq"),
             "E/3": (sc(1 / 3, "E"), "shared"), "Ex3": (sc(3, "E"), "shared"), "Ex10": (sc(10, "E"), "shared"),
             "noV": (sc(0, "V"), "shared"),
             "flat": ({t: dict(hand["default"]) for t in types}, "shared")}
+    if cset == "all":                                         # both, on the same splits (Ex1 is hand)
+        return {**base, **{k: v for k, v in lad.items() if k not in base and k != "Ex1"}}
+    return base
 
 
 def merge(st, w):
@@ -173,12 +177,14 @@ def halves(cands, kinds, alphas, rng):
                 out[la][c]["size"].append(sz[c]); out[la][c]["risk"].append(risk(W, t, loss))
                 for k in kk:
                     sel = [i for i, j in enumerate(Bi) if kinds[j] == k]
-                    if sel:
-                        out[la][c]["by_kind"][k].append(risk([W[i] for i in sel], t, loss))
+                    out[la][c]["by_kind"][k].append(risk([W[i] for i in sel], t, loss) if sel else np.nan)
             first[la][min(sz, key=sz.get)] += 1
     summ = lambda x: {"mean": float(np.mean(x)), "p05": float(np.quantile(x, 0.05)), "p95": float(np.quantile(x, 0.95))}
+    rnd = lambda x: [None if not np.isfinite(y) else round(float(y), 5) for y in x]     # per split (paired across candidates)
     return {f"{la[0]} {la[1]:g}": {c: {"size": summ(v["size"]), "risk": summ(v["risk"]), "first": first[la][c] / N_SPLIT,
-                                       "risk_by_kind": {k: float(np.mean(x)) for k, x in v["by_kind"].items() if x}}
+                                       "risk_by_kind": {k: float(np.nanmean(x)) for k, x in v["by_kind"].items() if np.isfinite(x).any()},
+                                       "split": {"size": rnd(v["size"]), "risk": rnd(v["risk"]),
+                                                 "risk_by_kind": {k: rnd(x) for k, x in v["by_kind"].items()}}}
                                    for c, v in out[la].items()} for la in alphas}
 
 
