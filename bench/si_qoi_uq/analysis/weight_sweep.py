@@ -16,10 +16,12 @@ and C_c = M_c M_c^T, M_c = rows_c L^-T, for two views, each as crc_config.py (Si
 root whitening, CRC threshold, size = log geometric semi-axis):
   F   the configuration's force components (eV/A; symmetry-zero atoms dropped as force_baselines.py)
   E   the configuration's energy per atom (eV/atom; one component, so joint = frac)
+  dE_type, dE_form   energy differences E_a - (n_a / n_b) E_b (eV; `pairs`): the QoI proxy that stays within the rules
+      (labelled training configurations only; plan §5 D principle 1)
 Halves of T_val, as crc_config.py: shape on A1, t by CRC on A2, size and risk (overall and by kind) on B; the same splits for
 every candidate (paired); "first" counts how often a candidate has the smallest size.
 
-    python -m bench.si_qoi_uq.analysis.weight_sweep [o4d16]     (a compute node)  -> results/weight_sweep_<m>.json
+    python -m bench.si_qoi_uq.analysis.weight_sweep [o4d16 [base|eladder]]   (a compute node)  -> results/weight_sweep_<m>[_<set>].json
 """
 import json, os, pathlib, shlex, sys, time
 
@@ -69,11 +71,17 @@ def resolve(weights, t):
     return weights["default"]
 
 
-def candidates(types):
-    """name -> (per-type {E, F, V} weights, noise mode)."""
+E_LADDER = (1 / 3, 1, 2, 3, 5, 10, 30, 100)
+
+
+def candidates(types, cset="base"):
+    """name -> (per-type {E, F, V} weights, noise mode). cset "base": step 1's set; "eladder": the hand weights with every
+    energy weight scaled by E_LADDER, shared noise."""
     hand = json.load(open(f"{DATA}/weights_acejax.json"))
     hw = {t: dict(resolve(hand, t)) for t in types}
     sc = lambda f, q: {t: {**w, q: w[q] * f} for t, w in hw.items()}
+    if cset == "eladder":
+        return {f"Ex{f:g}" if f >= 1 else f"E/{1 / f:g}": (sc(f, "E"), "shared") for f in E_LADDER}
     return {"hand": (hw, "shared"), "hand_pq": (hw, "pq"),
             "E/3": (sc(1 / 3, "E"), "shared"), "Ex3": (sc(3, "E"), "shared"), "Ex10": (sc(10, "E"), "shared"),
             "noV": (sc(0, "V"), "shared"),
@@ -115,7 +123,23 @@ def map_fit(qs, prob, theta0, mode):
     x0 = np.array([theta0.log_sigma_c] + [theta0.log_sigma_F] * (len(names) - 1))                       # not a constant
     r = minimize(lambda x: tuple(np.asarray(v, float) for v in vg(jnp.asarray(x), qs)), x0, jac=True, method="L-BFGS-B",
                  options={"maxiter": 500, "gtol": 1e-6})
-    return theta_of(r.x), float(-r.fun), bool(r.success), int(r.nit)
+    return theta_of(r.x), float(-r.fun), bool(r.success) or str(r.message), int(r.nit)
+
+
+def pairs(vtypes, n_at, kinds, seed=SPLIT_SEED + 1):
+    """Energy-difference proxies on T_val, fixed before any candidate is seen; (a, b, r): dE = E_a - r E_b, r = n_a / n_b.
+    "dE_type": disjoint random pairs within each configuration type (relative energies of one kind of structure).
+    "dE_form": each defect, surface or extended-defect configuration against a diamond configuration (a formation energy
+    against the bulk, as the QoIs; the diamond configurations are reused in turn, each at most ceil(n_def / n_dia) times)."""
+    rng = np.random.default_rng(seed)
+    out = {"dE_type": [], "dE_form": []}
+    for t in sorted(set(vtypes)):
+        idx = rng.permutation([i for i, x in enumerate(vtypes) if x == t])
+        out["dE_type"] += [(int(a), int(b), n_at[a] / n_at[b]) for a, b in zip(idx[0::2], idx[1::2])]
+    dia = rng.permutation([i for i, x in enumerate(vtypes) if x == "dia"])
+    dfx = [i for i, k in enumerate(kinds) if k in ("point defect", "surface", "extended")]
+    out["dE_form"] = [(int(a), int(dia[j % len(dia)]), n_at[a] / n_at[dia[j % len(dia)]]) for j, a in enumerate(rng.permutation(dfx))]
+    return out
 
 
 class View:
@@ -158,7 +182,7 @@ def halves(cands, kinds, alphas, rng):
                                    for c, v in out[la].items()} for la in alphas}
 
 
-def main(m="o4d16"):
+def main(m="o4d16", cset="base"):
     import jax
     jax.config.update("jax_enable_x64", True)
     from scipy.linalg import solve_triangular
@@ -224,15 +248,19 @@ def main(m="o4d16"):
     log(f"T_val rows cached: {gc} configurations, {sum(v['n'] for v in V)} atoms")
     res = {"model": m, "split_seed": SPLIT_SEED, "val_frac": VAL_FRAC, "n_fit": len(fit_i), "n_val": len(val_i),
            "val_kinds": {k: int((kinds == k).sum()) for k in np.unique(kinds)}, "candidates": {}}
-    views = {"E": {}, "F": {}}
-    for name, (w, mode) in candidates(types).items():
+    views = {"E": {}, "F": {}, "dE_type": {}, "dE_form": {}}
+    n_at = [v["n"] for v in V]
+    prs = pairs(vtypes, n_at, kinds)
+    res["pairs"] = {k: len(v) for k, v in prs.items()}
+    for name, (w, mode) in candidates(types, cset).items():
         qs = merge(st, w)
         th, lml, ok, nit = map_fit(qs, prob, theta0, mode)
         mu, L = posterior_from_qr(th, qs, prob)
         mu, L = np.asarray(mu), np.asarray(L)
-        eE, cE, UE, eF, cF, UF, sdF = [], [], [], [], [], [], []
+        eE, cE, UE, eF, cF, UF, sdF, rT, MT = [], [], [], [], [], [], [], [], []
         for v in V:
             ME = solve_triangular(L, v["PE"], lower=True)
+            rT.append(v["yE"] - v["PE"] @ mu); MT.append(ME)          # total-energy residual and factor, for the pairs
             eE.append(np.array([(v["yE"] - v["PE"] @ mu) / v["n"]])); cE.append(np.array([ME @ ME / v["n"] ** 2])); UE.append(np.ones((1, 1)))
             MF = solve_triangular(L, v["PF"].T, lower=True).T
             sdF.append(np.sqrt(np.sum(MF.reshape(v["n"], 3, -1) ** 2, axis=(1, 2))))
@@ -250,6 +278,10 @@ def main(m="o4d16"):
         rmse_E = float(np.sqrt(np.mean([e[0] ** 2 for e in eE])))
         rmse_F = float(np.sqrt(np.mean(np.concatenate(eF) ** 2)))
         views["E"][name] = View(eE, cE, UE)
+        for pk, pl in prs.items():                            # eV per pair: dE = E_a - r E_b, g = M_a - r M_b
+            g = [MT[a] - r * MT[b] for a, b, r in pl]
+            views[pk][name] = View([np.array([rT[a] - r * rT[b]]) for a, b, r in pl], [np.array([x @ x]) for x in g],
+                                   [np.ones((1, 1))] * len(pl))
         views["F"][name] = View(eF, cF, UF)
         kinds_F = kinds[fF]
         res["n_val_F"] = len(fF)
@@ -261,7 +293,8 @@ def main(m="o4d16"):
     res["halves"] = {}
     for vname, cands in views.items():
         las = [("joint", a) for a in ALPHAS] + ([("frac", a) for a in ALPHAS] if vname == "F" else [])
-        res["halves"][vname] = halves(cands, kinds if vname == "E" else kinds_F, las, rng)
+        kv = {"E": kinds, "F": kinds_F, **{pk: kinds[[a for a, _, _ in pl]] for pk, pl in prs.items()}}[vname]
+        res["halves"][vname] = halves(cands, kv, las, rng)
         for la, r in res["halves"][vname].items():
             print(f"\n{vname} view, {la}: size (log semi-axis), risk, worst kind, first")
             for c, x in sorted(r.items(), key=lambda kv: kv[1]["size"]["mean"]):
@@ -269,9 +302,9 @@ def main(m="o4d16"):
                 print(f"  {c:8s} size {x['size']['mean']:+.3f} ({x['size']['p05']:+.3f}..{x['size']['p95']:+.3f}) risk "
                       f"{x['risk']['mean']:.3f} worst {wk} {x['risk_by_kind'][wk]:.2f} first {x['first']:.2f}")
     res["seconds"] = time.time() - t0
-    json.dump(res, open(RESULTS / f"weight_sweep_{m}.json", "w"), indent=1)
+    json.dump(res, open(RESULTS / (f"weight_sweep_{m}.json" if cset == "base" else f"weight_sweep_{m}_{cset}.json"), "w"), indent=1)
     log("done")
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:2])
+    main(*sys.argv[1:3])
