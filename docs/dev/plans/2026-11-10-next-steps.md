@@ -827,7 +827,9 @@ Principles:
 4. *Stable, flat optima.* Report how often each setting wins across resamples; take the cheapest setting within the
    split-to-split noise of the best (the conformal form of the one-standard-error rule).
 5. *Evidence for continuous noise ratios, CRC to decide and validate.* Evidence-chosen per-quantity σ_E, σ_F, σ_V
-   (`runs/accuracy_cost/ace_per_quantity_noise`, o3d8–o4d16; check their command lines, which look copied from the shared fits)
+   (`runs/accuracy_cost/ace_per_quantity_noise`, o3d8–o4d16; checked 2026-11-12: they are the 2026-10-05 fits made before `--noise shared`, when per-quantity σ was the
+   default, moved aside when the shared refits replaced them, so `cmd.txt` and `fit.log` name `ace/<m>`; older code, so refit them
+   on the current version for the sweep rather than reuse them)
    are cheap and smooth but trust a Gaussian noise model the discrepancy results show is misspecified. CRC compares them with the
    hand weights and settles discrete choices (wL). If the two agree, the cheap route suffices.
 6. *Off distribution.* Repeat the held-out-type refits (crack, screw) for the top one or two candidates.
