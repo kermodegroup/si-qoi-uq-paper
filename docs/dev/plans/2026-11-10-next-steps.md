@@ -1158,6 +1158,35 @@ Section 3.2 says "after whole-configuration CRC, B1's held-out force risk is no 
 unresolved at both models; if CR3 is preferred on F at either, the narrowing is stated per model. The headline decision stands
 whatever the outcome.
 
+**D, step 3 follow-ups: the paper's models, results (2026-11-13).** `results/final_ood_o3d12.json`, `final_rules_o3d12.json`,
+`final_ood_o4d20.json`, `final_rules_o4d20.json` (100 paired splits; run `step0.sh`: o3d12 on dedicated218, 28 min; o4d20 on
+dedicated123, 5.3 h). CR3: exact PRESS (K 187 at o3d12, 2194 at o4d20; means against final.py's 9e-7, 3e-9). Ellipsoid: the
+paper's held-out fits reused as they are (`final_shapes.py ellipsoid_from`; o4d20 the 4 x 5000 fit, its refit's mean 9e-5 from
+this one; o3d12 the 2000-iteration fit of 2026-11-11, whose refit's coefficients differ by 0.76 (max relative) because its
+sigma_c sat at the 1e4 bound against 3.3e4 here, both nearly flat; test RMSE 15.24 against 15.12 meV/atom, F 0.1534 against
+0.1533, so the predictions agree and the shape is used about B1's mean).
+
+*Held out, alpha 0.1 joint, B1 - CR3, mean d (tau):*
+
+| model | E | F | F frac | dE_type | rule-1 form |
+|---|---|---|---|---|---|
+| o3d12 | +0.071 (0.096) unresolved (0.92 / 0.85) | -0.009 (0.043) unresolved (0.43 / 0.44) | -0.004 (0.005) | +0.054 (0.083) | unresolved |
+| o4d16 hand | +0.399 (0.102) CR3 | -0.145 (0.208) unresolved | -0.047 (0.020) reversed | | reversed (frac) |
+| o4d20 | +0.373 (0.112) CR3 (0.71 / 0.34) | -0.559 (0.133) **reversed** (0.24 / 0.80) | -0.172 (0.039) reversed | -0.003 (0.038) | reversed |
+
+(held-out risks B1 / CR3 in brackets; o4d16 from `final_rules.json`.) Per held-out type, F, o4d20: B1 crack_110 0.26,
+crack_111 0.64, screw 0.03; CR3 0.97, 1.00, 0.64. o3d12: B1 0.47 / 0.75 / 0.25, CR3 0.49 / 0.77 / 0.24. In distribution
+(test split) every shape is at alpha (0.09-0.10). Held-out sizes: o4d20 F +0.17 (B1 larger), E -0.53 (B1 smaller); o3d12
+within 0.02 on F.
+
+*Ellipsoid - CR3:* o3d12 E +0.034 (0.091), F -0.080 (0.102) unresolved (0.36 / 0.44); o4d20 E +0.267 (0.120) for CR3, F
+-0.317 (0.136) reversed (0.49 / 0.80), dE_type -0.058 (0.057) reversed.
+
+*Reading (as fixed):* F is unresolved at o3d12 and reversed at o4d20, so the Section 3.2 sentence holds as written: after
+whole-configuration CRC, B1's held-out force risk is no higher than CR3's at either paper model. The gap grows with the basis:
+at o3d12 every shape fails alike off distribution (F ~0.4, E ~0.9: the model, not the shape), at o4d20 CR3's whole-configuration
+force regions miss nearly every crack configuration. Energies go to CR3 where resolved (o4d20, o4d16), unresolved at o3d12.
+
 ## §0 results (2026-11-10)
 
 **Per-type per-atom force coverage** (Gaussian 90 % ellipsoid of each method's own 3×3 covariance,
