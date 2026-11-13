@@ -12,7 +12,7 @@ Rule 4: the outcome from rules 1 and 3.
 
     python -m bench.si_qoi_uq.analysis.final_rules   -> results/final_rules.json
 """
-import json, pathlib
+import json, pathlib, sys
 
 import numpy as np
 
@@ -74,14 +74,15 @@ def qoi(model):
             "tau_sens": {k: {t: res[v][t]["d2_over_n"] for t in ("tau0.01", "tau0.2")} for k, v in pick.items()}}
 
 
-def main():
-    ood = json.load(open(RESULTS / "final_ood.json"))
-    out = {"rule1_2": held_out(ood)}
-    r1 = out["rule1_2"].get("Ex10: B1 - CR3", {})
+def main(model=None):
+    tag = f"_{model}" if model else ""                     # the paper's models (hand only): rule 1 form, no rule 3
+    ood = json.load(open(RESULTS / f"final_ood{tag}.json"))
+    out = {"model": model or "o4d16", "rule1_2": held_out(ood)}
+    r1 = out["rule1_2"].get("hand: B1 - CR3" if model else "Ex10: B1 - CR3", {})
     v1 = [r1[k]["verdict"] for k in (f"F {LA}", f"E {LA}") if k in r1]
     out["rule1"] = ("CR3" if v1 and all(v == "CR3" for v in v1) else
                     "reversed" if "reversed" in v1 else "unresolved") if len(v1) == 2 else None
-    if (QOI / "qoi_joint_score.json").exists():
+    if not model and (QOI / "qoi_joint_score.json").exists():
         out["rule3"] = {m: qoi(m) for m in ("o4d16_Ex10", "o4d16")}
     r3 = out.get("rule3", {}).get("o4d16_Ex10", {}).get("verdict")
     n = (out["rule1"] == "CR3") + (r3 == "CR3")
@@ -95,9 +96,9 @@ def main():
     for m, r in out.get("rule3", {}).items():
         print(f"\n{m} QoIs: " + "  ".join(f"{k}: k95 {s['k95']}/{r['n']} d2/n {s['d2_over_n']:.2f} LS/n {s['ls_over_n']:.2f} sharpJ {s['sharp_j']:.3f}"
                                           for k, s in r["scores"].items()) + f"  -> {r['verdict']}")
-    print(f"\nrule 1 (Ex10): {out['rule1']}; rule 3 (Ex10): {r3}; rule 4: {out['rule4']}")
-    json.dump(out, open(RESULTS / "final_rules.json", "w"), indent=1)
+    print(f"\nrule 1 ({'hand' if model else 'Ex10'}): {out['rule1']}; rule 3 (Ex10): {r3}; rule 4: {out['rule4']}")
+    json.dump(out, open(RESULTS / f"final_rules{tag}.json", "w"), indent=1)
 
 
 if __name__ == "__main__":
-    main()
+    main(*sys.argv[1:2])

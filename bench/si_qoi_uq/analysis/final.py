@@ -30,8 +30,13 @@ import numpy as np
 
 from .weight_sweep import ALPHAS, DATA, candidates, eval_rows, map_fit, merge, pairs, problem, type_stats, views_of
 
-MODEL = "o4d16"
-NAMES = ("hand", "Ex5", "Ex10")
+MODEL = os.environ.get("FINAL_MODEL", "o4d16")             # the paper's o3d12 / o4d20: FINAL_MODEL=<m> FINAL_NAMES=hand
+NAMES = tuple(os.environ.get("FINAL_NAMES", "hand Ex5 Ex10").split())
+TAG = "" if MODEL == "o4d16" else f"_{MODEL}"                 # o4d16 keeps its original paths
+
+
+def out_dir_of(RUNS, setting):
+    return RUNS / "final" / setting if MODEL == "o4d16" else RUNS / "final" / MODEL / setting
 OOD = os.environ.get("OOD_DATA", "/storage/eng/essswb/projects/si-qoi-uq-paper/data/ood_holdout")
 N_SPLIT = int(os.environ.get("FINAL_SPLITS", 100))
 
@@ -89,7 +94,7 @@ def main(setting="in"):
     from ..run import RESULTS
     t0 = time.time()
     log = lambda *a: print(f"[{time.time() - t0:7.0f} s]", *a, flush=True)
-    out_dir = RUNS / "final" / setting
+    out_dir = out_dir_of(RUNS, setting)
     out_dir.mkdir(parents=True, exist_ok=True)
     if setting == "in":
         train, test, extra = f"{DATA}/train.xyz", f"{DATA}/test.xyz", None
@@ -161,7 +166,7 @@ def main(setting="in"):
                     print(f"  {c:5s} {tag:4s} n {y['n']:4d} size {y['size']['mean']:+.3f} ({y['size']['p05']:+.3f}..{y['size']['p95']:+.3f})"
                           f" risk {y['risk']['mean']:.3f} ({y['risk']['p05']:.3f}..{y['risk']['p95']:.3f}) worst {wk} {y['risk_by'][wk]:.2f}")
     res["seconds"] = time.time() - t0
-    json.dump(res, open(RESULTS / f"final_{setting}.json", "w"), indent=1)
+    json.dump(res, open(RESULTS / f"final_{setting}{TAG}.json", "w"), indent=1)
     log("done")
 
 

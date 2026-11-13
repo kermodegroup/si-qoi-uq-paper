@@ -1149,6 +1149,15 @@ and for held-out energies; for whole-configuration forces after CRC, in and out 
 reliable. The paper's force claims (§2) are restated as per-atom-scale results. Every number above is in
 `results/final_rules.json`.
 
+**D, step 3 follow-ups: the paper's models (fixed before the runs, 2026-11-13).** For the revision (revision branch,
+`docs/dev/plans/2026-11-13-paper-revision.md`, step 0): the held-out comparison above on o3d12 and o4d20 at hand weights
+(`FINAL_MODEL=<m> FINAL_NAMES=hand final.py ood`, `final_shapes.py` cr3 / ellipsoid, `final_rules.py <m>` ->
+`results/final_ood_<m>.json`, `final_rules_<m>.json`). Reading as rule 1, per model: alpha 0.1 joint, views F and E, d =
+risk(B1) - risk(CR3), tau = sd / sqrt 2; reported with the frac loss, ellipsoid - CR3, sizes and per held-out type. The paper's
+Section 3.2 says "after whole-configuration CRC, B1's held-out force risk is no higher than CR3's" only if F is reversed or
+unresolved at both models; if CR3 is preferred on F at either, the narrowing is stated per model. The headline decision stands
+whatever the outcome.
+
 ## §0 results (2026-11-10)
 
 **Per-type per-atom force coverage** (Gaussian 90 % ellipsoid of each method's own 3×3 covariance,

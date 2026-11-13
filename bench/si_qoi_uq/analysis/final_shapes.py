@@ -19,7 +19,7 @@ import json, sys, time
 
 import numpy as np
 
-from .final import MODEL, OOD
+from .final import MODEL, OOD, TAG, out_dir_of
 from .weight_sweep import DATA, base_cmd, candidates, frames, resolve
 
 MAX_ITER = 5000
@@ -40,7 +40,7 @@ def main(setting, name, shape):
     from ..run import RESULTS
     t0 = time.time()
     log = lambda *a: print(f"[{time.time() - t0:7.0f} s] {setting} {name} {shape}:", *a, flush=True)
-    d = RUNS / "final" / setting
+    d = out_dir_of(RUNS, setting)
     d.mkdir(parents=True, exist_ok=True)
     train = f"{DATA}/train.xyz" if setting == "in" else f"{OOD}/train.xyz"
     types = sorted(set(frames(train)[1]))
@@ -55,7 +55,7 @@ def main(setting, name, shape):
     cfg = cli._fit_config(a)
     data = load_fit_data(cfg, train=a.train, test=None, log=lambda *_: None)
     prob = build_problem(cfg, data).prob
-    th = Hypers(**{**json.load(open(th_path)), **json.load(open(RESULTS / f"final_{setting}.json"))["candidates"][name]["theta"]})
+    th = Hypers(**{**json.load(open(th_path)), **json.load(open(RESULTS / f"final_{setting}{TAG}.json"))["candidates"][name]["theta"]})
     qs = linear_qr_statistics(prob.model, prob.cfg, data.ds_train)
     mu, L = posterior_from_qr(th, qs, prob)
     mu, L = np.asarray(mu), np.asarray(L)
