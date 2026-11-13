@@ -205,20 +205,92 @@ def halves(cands, kinds, alphas, rng):
                                    for c, v in out[la].items()} for la in alphas}
 
 
+def problem(m, train, test, out_dir):
+    """The benchmark fit's problem for model key m with unit weights on (train, test) xyz paths: (cfg, data, prob, theta0)."""
+    from ace_jax import cli
+    from ace_jax.fit.hypers import Hypers
+    from ace_jax.fit.pipeline import load_fit_data
+    from ace_jax.fit.pipeline.problem import build_problem
+    json.dump({"default": {"E": 1.0, "F": 1.0, "V": 1.0}}, open(out_dir / "unit_weights.json", "w"))
+    argv, th_path = base_cmd(m)
+    for k, v in (("--train", train), ("--weights", out_dir / "unit_weights.json"), ("--out", out_dir / "fit")):
+        argv[argv.index(k) + 1] = str(v)
+    argv += ["--test", str(test)]
+    a = cli._parse(argv)
+    cfg = cli._fit_config(a)
+    data = load_fit_data(cfg, train=a.train, test=a.test, log=lambda *_: None)
+    return cfg, data, build_problem(cfg, data).prob, Hypers(**json.load(open(th_path)))
+
+
+def type_stats(cfg, data, prob, log):
+    """Per configuration type, the unit-weight QR factors of the training rows (structural 1/sqrt(n) kept)."""
+    from ace_jax.fit.data import build_dataset
+    from ace_jax.fit.stats import linear_qr_statistics
+    st = {}
+    for t in sorted({str(c.config_type) for c in data.train}):
+        sub = [c for c in data.train if str(c.config_type) == t]
+        ds = build_dataset(sub, data.meta, data.E0, cfg.batch, pack=cfg.pack_mode, log=lambda *_: None)
+        q = linear_qr_statistics(prob.model, prob.cfg, ds)
+        st[t] = {k: np.asarray(getattr(q, k)) for k in q._fields if getattr(q, k) is not None}
+        log(f"type {t}: {len(sub)} configurations")
+    return st
+
+
+def eval_rows(prob, ds):
+    """Unweighted rows of an evaluation dataset, one dict per configuration in file order (they do not depend on weights)."""
+    import jax
+    from ace_jax.fit.rows import linear_rows_bounded
+    rows = jax.jit(lambda b: linear_rows_bounded(prob.model, prob.cfg, b))
+    V = []
+    for i in range(ds.n_batches):
+        bt = jax.tree.map(lambda x, i=i: x[i], ds)
+        r = rows(bt)
+        live = np.flatnonzero(np.asarray(bt.cfg_mask))
+        nc, nm = np.asarray(bt.node_cfg), np.asarray(bt.node_mask)
+        for c in live:
+            s = np.flatnonzero(nm & (nc == c))
+            V.append({"cfg": len(V), "n": len(s), "yE": float(np.asarray(bt.y_E)[c]), "PE": np.asarray(r.E)[c],
+                      "yF": np.asarray(bt.y_F)[s].reshape(-1), "PF": np.asarray(r.F)[s].reshape(-1, r.F.shape[-1])})
+    return V
+
+
+def views_of(V, mu, mfac, prs):
+    """One candidate's views over evaluation rows V: {view: (View, owner)} (owner: the configuration index of each element:
+    F drops configurations with no live force component; a pair's owner is its first configuration), RMSE E (eV/atom), F."""
+    from ..diagnostics import SYM_ZERO
+    eE, cE, UE, eF, cF, UF, sdF, rT, MT = [], [], [], [], [], [], [], [], []
+    for v in V:
+        ME = mfac(v["PE"])
+        rT.append(v["yE"] - v["PE"] @ mu); MT.append(ME)          # total-energy residual and factor, for the pairs
+        eE.append(np.array([(v["yE"] - v["PE"] @ mu) / v["n"]])); cE.append(np.array([ME @ ME / v["n"] ** 2])); UE.append(np.ones((1, 1)))
+        MF = mfac(v["PF"].T).T
+        sdF.append(np.sqrt(np.sum(MF.reshape(v["n"], 3, -1) ** 2, axis=(1, 2))))
+        eF.append(v["yF"] - v["PF"] @ mu); UF.append(MF)
+    cut = SYM_ZERO * np.median(np.concatenate(sdF))
+    fF = []                                               # configurations with a live force component
+    for j in range(len(V)):
+        keep = np.repeat(sdF[j] > cut, 3)
+        if not keep.any():
+            continue
+        U, S, _ = np.linalg.svd(UF[j][keep], full_matrices=False)
+        r = S > 1e-12 * S[0]
+        eF[j] = eF[j][keep]; UF[j] = U[:, r]; cF.append(S[r] ** 2); fF.append(j)
+    eF, UF = [eF[j] for j in fF], [UF[j] for j in fF]
+    out = {"E": (View(eE, cE, UE), np.arange(len(V)))}
+    for pk, pl in prs.items():                            # eV per pair: dE = E_a - r E_b, g = M_a - r M_b
+        g = [MT[a] - r * MT[b] for a, b, r in pl]
+        out[pk] = (View([np.array([rT[a] - r * rT[b]]) for a, b, r in pl], [np.array([x @ x]) for x in g], [np.ones((1, 1))] * len(pl)),
+                   np.array([a for a, _, _ in pl], int))
+    out["F"] = (View(eF, cF, UF), np.array(fF, int))
+    return out, float(np.sqrt(np.mean([e[0] ** 2 for e in eE]))), float(np.sqrt(np.mean(np.concatenate(eF) ** 2)))
+
+
 def main(m="o4d16", cset="base"):
     import jax
     jax.config.update("jax_enable_x64", True)
     from scipy.linalg import solve_triangular
-    from ace_jax import cli
-    from ace_jax.fit.data import build_dataset
-    from ace_jax.fit.hypers import Hypers
     from ace_jax.fit.objective import posterior_from_qr
-    from ace_jax.fit.pipeline import load_fit_data
-    from ace_jax.fit.pipeline.problem import build_problem
-    from ace_jax.fit.rows import linear_rows_bounded
-    from ace_jax.fit.stats import linear_qr_statistics
     from .mv_conformal import kind_of
-    from ..diagnostics import SYM_ZERO
     from ..harness import RUNS
     from ..run import RESULTS
     t0 = time.time()
@@ -227,42 +299,14 @@ def main(m="o4d16", cset="base"):
     out_dir.mkdir(parents=True, exist_ok=True)
     fit_i, val_i, ct = split(out_dir)
     log(f"T_fit {len(fit_i)}, T_val {len(val_i)} configurations")
-    json.dump({"unit": {"default": {"E": 1.0, "F": 1.0, "V": 1.0}}}["unit"], open(out_dir / "unit_weights.json", "w"))
-    argv, th_path = base_cmd(m)
-    for k, v in (("--train", out_dir / "T_fit.xyz"), ("--weights", out_dir / "unit_weights.json"), ("--out", out_dir / "fit")):
-        argv[argv.index(k) + 1] = str(v)
-    argv += ["--test", str(out_dir / "T_val.xyz")]
-    a = cli._parse(argv)
-    cfg = cli._fit_config(a)
-    data = load_fit_data(cfg, train=a.train, test=a.test, log=lambda *_: None)
-    prob = build_problem(cfg, data).prob
-    theta0 = Hypers(**json.load(open(th_path)))
+    cfg, data, prob, theta0 = problem(m, out_dir / "T_fit.xyz", out_dir / "T_val.xyz", out_dir)
     types = sorted({str(c.config_type) for c in data.train})
     import pickle
     tmp = pathlib.Path(f"/tmp/essswb_wsweep_{m}.pkl")       # node-local cache of the per-type factors and T_val rows
     cached = pickle.load(open(tmp, "rb")) if tmp.exists() else None
-    st = cached["st"] if cached else {}
-    for t in ([] if cached else types):                                           # per-type QR factors, unit weights (structural 1/sqrt(n) kept)
-        sub = [c for c in data.train if str(c.config_type) == t]
-        ds = build_dataset(sub, data.meta, data.E0, cfg.batch, pack=cfg.pack_mode, log=lambda *_: None)
-        q = linear_qr_statistics(prob.model, prob.cfg, ds)
-        st[t] = {k: np.asarray(getattr(q, k)) for k in q._fields if getattr(q, k) is not None}
-        log(f"type {t}: {len(sub)} configurations")
-    # T_val rows, once (unweighted; they do not depend on the weights)
-    rows = jax.jit(lambda b: linear_rows_bounded(prob.model, prob.cfg, b))
-    V = cached["V"] if cached else []
-    ds = data.ds_test
+    st = cached["st"] if cached else type_stats(cfg, data, prob, log)
+    V = cached["V"] if cached else eval_rows(prob, data.ds_test)
     gc = len(V)
-    for i in ([] if cached else range(ds.n_batches)):
-        bt = jax.tree.map(lambda x, i=i: x[i], ds)
-        r = rows(bt)
-        live = np.flatnonzero(np.asarray(bt.cfg_mask))
-        nc, nm = np.asarray(bt.node_cfg), np.asarray(bt.node_mask)
-        for c in live:
-            s = np.flatnonzero(nm & (nc == c))
-            V.append({"cfg": gc, "n": len(s), "yE": float(np.asarray(bt.y_E)[c]), "PE": np.asarray(r.E)[c],
-                      "yF": np.asarray(bt.y_F)[s].reshape(-1), "PF": np.asarray(r.F)[s].reshape(-1, r.F.shape[-1])})
-            gc += 1
     assert gc == len(val_i), (gc, len(val_i))
     if not cached:
         pickle.dump({"st": st, "V": V}, open(tmp, "wb"), protocol=5)
@@ -296,32 +340,10 @@ def main(m="o4d16", cset="base"):
             dev = float(np.max(np.abs(z["mu"] - mu)) / np.max(np.abs(mu)))
             log(f"{name}: CR3 rank {z['Lcr3'].shape[1]}, max leverage {float(z['lev'].max()):.4f}, mean deviation {dev:.1e}")
             mfac = lambda P, Lf=z["Lcr3"]: Lf.T @ P
-        eE, cE, UE, eF, cF, UF, sdF, rT, MT = [], [], [], [], [], [], [], [], []
-        for v in V:
-            ME = mfac(v["PE"])
-            rT.append(v["yE"] - v["PE"] @ mu); MT.append(ME)          # total-energy residual and factor, for the pairs
-            eE.append(np.array([(v["yE"] - v["PE"] @ mu) / v["n"]])); cE.append(np.array([ME @ ME / v["n"] ** 2])); UE.append(np.ones((1, 1)))
-            MF = mfac(v["PF"].T).T
-            sdF.append(np.sqrt(np.sum(MF.reshape(v["n"], 3, -1) ** 2, axis=(1, 2))))
-            eF.append(v["yF"] - v["PF"] @ mu); UF.append(MF)
-        cut = SYM_ZERO * np.median(np.concatenate(sdF))
-        fF = []                                               # configurations with a live force component
-        for j in range(len(V)):
-            keep = np.repeat(sdF[j] > cut, 3)
-            if not keep.any():
-                continue
-            U, S, _ = np.linalg.svd(UF[j][keep], full_matrices=False)
-            r = S > 1e-12 * S[0]
-            eF[j] = eF[j][keep]; UF[j] = U[:, r]; cF.append(S[r] ** 2); fF.append(j)
-        eF, UF = [eF[j] for j in fF], [UF[j] for j in fF]
-        rmse_E = float(np.sqrt(np.mean([e[0] ** 2 for e in eE])))
-        rmse_F = float(np.sqrt(np.mean(np.concatenate(eF) ** 2)))
-        views["E"][name] = View(eE, cE, UE)
-        for pk, pl in prs.items():                            # eV per pair: dE = E_a - r E_b, g = M_a - r M_b
-            g = [MT[a] - r * MT[b] for a, b, r in pl]
-            views[pk][name] = View([np.array([rT[a] - r * rT[b]]) for a, b, r in pl], [np.array([x @ x]) for x in g],
-                                   [np.ones((1, 1))] * len(pl))
-        views["F"][name] = View(eF, cF, UF)
+        vw, rmse_E, rmse_F = views_of(V, mu, mfac, prs)
+        for vn, (vv, _) in vw.items():
+            views[vn][name] = vv
+        fF = vw["F"][1]
         kinds_F = kinds[fF]
         res["n_val_F"] = len(fF)
         res["candidates"][name] = {"mode": mode, "weights": w, "theta": {k: float(x) for k, x in th._asdict().items() if "sigma" in k},

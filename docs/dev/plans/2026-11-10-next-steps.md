@@ -1040,6 +1040,51 @@ Reading:
 4. *For step 3 the default wL 1.5 stays*: no wL resolvably improves the size–cost trade, and o4d16 is on the envelope over the
    λ range where o4d16 is the ladder's choice. wL is a basis-count lever, not a cost lever, on this kernel.
 
+**D, step 3: refit on T, calibrate and report on the test split; held-out types (2026-11-13).** `analysis/final.py in|ood` →
+`results/final_{in,ood}.json` (~25 min each on dedicated123). o4d16, wL 1.5, B1, one shared MAP σ; hand, × 5, × 10 (the choice
+and its alternative, with the reference). Fitted on all of T (2227 configurations) with weight_sweep's machinery (refactored into
+`problem` / `type_stats` / `eval_rows` / `views_of`; the refactor reran o4d16_wL1.5's sweep to 6e-5 in size, the
+thread-count L-BFGS noise). Test split, 248 configurations: per split shape on A1, CRC threshold on A2, risk and size on B (124;
+F 120, dE_type 58 and dE_form 32 pairs, drawn on the test split by `weight_sweep.pairs`), 100 paired splits. Nothing is chosen
+here. "ood": the same refits without cracks and screw dislocations (`ood/make_split.py`, 2194 configurations), calibrated on the
+test split without them (245), risk and size on the 36 held-out configurations in every split.
+
+Test split (in), α = 0.1, joint loss; RMSE E (meV/atom) / F (eV/Å); size (log semi-axis) / risk / worst kind:
+
+| | RMSE | E | F | dE_type | dE_form |
+|---|---|---|---|---|---|
+| hand | 4.45 / 0.101 | −5.29 / 0.097 / surface 0.34 | −2.52 / 0.102 / ext 0.29 | −1.54 / 0.098 | −0.16 / 0.052 |
+| × 5 | 4.20 / 0.119 | −5.71 / 0.093 / point 0.28 | −2.43 / 0.100 / ext 0.24 | −1.90 / 0.097 | −0.40 / 0.052 |
+| × 10 | 5.17 / 0.135 | −5.83 / 0.094 / point 0.25 | −2.37 / 0.099 / point 0.20 | −2.03 / 0.102 | −0.37 / 0.051 |
+| × 10 − hand (τ) | | −0.54 (0.14) | +0.15 (0.03) | −0.50 (0.24) | −0.21 (0.23) |
+
+Held out (ood; calibrated on the reduced test split, whose own risk is again at α: 0.093–0.102), α = 0.1, joint loss:
+
+| | RMSE E / F held out | E size / risk | F size / risk (frac risk) | dE_type risk | dE_form size / risk | worst type (E) |
+|---|---|---|---|---|---|---|
+| hand | 12.5 / 0.153 | −5.33 / 0.71 | −2.23 / 0.51 (0.30) | 0.21 | +0.25 / 0.44 | crack_111 1.00 |
+| × 5 | 9.9 / 0.174 | −5.16 / 0.51 | −2.11 / 0.39 (0.29) | 0.20 | +0.38 / 0.21 | crack_111 0.95 |
+| × 10 | 8.8 / 0.194 | −5.02 / 0.30 | −2.02 / 0.33 (0.28) | 0.21 | +0.54 / 0.08 | crack_111 0.73 |
+
+Reading:
+1. *The guarantee holds on test.* Mean risk is at α for every candidate, view and α (joint 0.1: 0.093–0.102; 0.05: 0.048–0.053;
+   frac: 0.085–0.088). dE_form at α = 0.05 is infeasible (≈ 16 calibration pairs per split, CRC needs ≥ 19: t = ∞), as it would be
+   for any method; the split design limits the energy-difference views to α ≥ ~0.06 on this test split.
+2. *Test confirms the T_val ordering.* × 10 − hand on test against T_val (step 1): E −0.54 (−0.73), F +0.15 (+0.14), dE_type −0.50
+   (−0.56), dE_form −0.21 (−0.57; 32 test pairs, τ 0.23). Profiles on test (J against hand, τ): energies × 5 −0.36 (0.10), × 10
+   −0.45 (0.11); balanced −0.13 / −0.13 (0.05–0.06); forces +0.09 / +0.15 (0.03); formation −0.08 / −0.03 (0.11, unresolved:
+   too few test pairs). The energy-weight effect transfers; its size on T_val was 20–30 % larger for E, more for dE_form.
+3. *Off distribution, × 10 is much better calibrated, with larger regions.* Held-out risk falls with the energy weight in every
+   energy view and in F: E 0.71 → 0.51 → 0.30, dE_form 0.44 → 0.21 → 0.08, F joint 0.51 → 0.39 → 0.33, while the held-out
+   regions grow (E +0.31, F +0.20, dE_form +0.29 nats, × 10 − hand). The in-distribution regions shrink at the same time, so
+   the heavier energy weight makes B1 discriminate: smaller where the data are, larger off them. Held-out RMSE E also falls
+   12.5 → 8.8 meV/atom (F rises 0.153 → 0.194). None reaches α off distribution; crack_111 is worst (E risk 0.73 at × 10). Per-split
+   held-out risk ranges widely (F joint 0.0–0.89): the 36 configurations are few and correlated, so one threshold moves many.
+4. *Recommendation stands: × 10 with B1* for energy and formation uses (the paper's QoIs), hand where forces are the only use.
+   The out-of-distribution result is a reason beyond the in-distribution score to prefer it. Still open: the paper's DFT QoIs
+   (relaxed vacancy, surfaces, ...) for the × 10 fit (needs a saved model and the relaxation pipeline; report, not tuning), and
+   CR3 / the ellipsoid for × 10 held out (the §2 out-of-distribution comparison was at hand weights).
+
 ## §0 results (2026-11-10)
 
 **Per-type per-atom force coverage** (Gaussian 90 % ellipsoid of each method's own 3×3 covariance,
@@ -1085,7 +1130,7 @@ this. §4 then becomes: does Σ + νI with a conformal scale cover the defect ce
 | §1 (111) | ~1 week; DFT only if needed | done (2026-11-10): DAS within 0.7 σ, order unresolved by either covariance (P(7×7 lowest) 0.05–0.15); spin DFT not triggered |
 | §2 ellipsoid | ~1 week, mnf148 | done (2026-11-11): needs a leverage cut; then the most even per-type force coverage, self-calibrated, stable across optima; non-convex, and the lower optimum is not better downstream; QoI widths reproducible once converged (an eigh scoring bug had made them look unstable); slightly sharper per QoI than CR3, worse jointly. Paper: discussion paragraph + SI forces table, optional SI QoI-score sentence (§2e) |
 | §4 multivariate | ~1–2 weeks | done (2026-11-11): joint guarantee holds on average, not by kind (surfaces 0.28–0.40); at o4d20 λ_mv covers 16/17 QoIs and is jointly calibrated without the discrepancy term, but scores worse than the headline; too wide at o3d12 |
-| §5 CRC | ~1 day | in progress (2026-11-11): CRC makes the per-atom guarantee exact for 2–4 % in q; calibrated size selects o4d20 over o3d12 for every method; among methods the per-atom score picks the ellipsoid shape, the whole-configuration score the parameter-covariance shapes (B1, CR3), as the QoI joint scores; ladder (2026-11-12): B1 on the whole-configuration front at every size, no saturation by o4d20, the worst kind moves surface → extended → point defect; D step 1 (o4d16): energy weight × 5–10 over hand (energy-difference regions 1.8× smaller, F 6–15 % larger), the evidence route best only for forces; a selection rule (declared priorities, one-SE tolerance, λ for cost, minimax regret) in `selection.py`; CR3 for × 5 / × 10: B1 kept (× 10 / B1 for step 3); wL (2026-11-13): lower wL wins at matched basis count but not at matched A100 cost, where no wL beats 1.5 resolvably: default kept; next step 3 |
+| §5 CRC | ~1 day | in progress (2026-11-11): CRC makes the per-atom guarantee exact for 2–4 % in q; calibrated size selects o4d20 over o3d12 for every method; among methods the per-atom score picks the ellipsoid shape, the whole-configuration score the parameter-covariance shapes (B1, CR3), as the QoI joint scores; ladder (2026-11-12): B1 on the whole-configuration front at every size, no saturation by o4d20, the worst kind moves surface → extended → point defect; D step 1 (o4d16): energy weight × 5–10 over hand (energy-difference regions 1.8× smaller, F 6–15 % larger), the evidence route best only for forces; a selection rule (declared priorities, one-SE tolerance, λ for cost, minimax regret) in `selection.py`; CR3 for × 5 / × 10: B1 kept (× 10 / B1 for step 3); wL (2026-11-13): lower wL wins at matched basis count but not at matched A100 cost, where no wL beats 1.5 resolvably: default kept; step 3 (2026-11-13): on test the CRC risk is at α for all, × 10 − hand E −0.54 / F +0.15 as on T_val; held out, × 10 cuts energy risk 0.71 → 0.30 (dE_form 0.44 → 0.08) with larger regions; next: DFT QoIs for the × 10 fit, CR3 / ellipsoid held out at × 10 |
 
 All four questions have answers. What is left is deciding what goes into the paper revision (branch `revision`, draft PR #1):
 candidates are §3 (barrier: a new QoI and the clearest miss), §2e items 2–4 (ellipsoid: discussion paragraph, SI forces table,
