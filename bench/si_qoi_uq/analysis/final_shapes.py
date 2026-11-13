@@ -10,10 +10,14 @@ the B1 mean).
              weighted residuals about the mean, columns rescaled by Lambda^-1/2 at the MAP, rows at or above the 50th
              percentile of leverage, popsregression `posterior="ellipsoid"`, whiten_ridge 1/N, 5000 L-BFGS iterations per
              continuation stage as o4d20's held-out run); Sigma_e = D B D / (P + 2)
+  ellipsoid_from  an ellipsoid already fitted by pops_ellipse_ood.py on the same held-out training set and recipe (the paper's
+             o3d12 / o4d20 held-out fits, OOD_RUNS/fits/<m>/pops_ellipse_sp_lev50*.npz; o4d20's took 3.9 h on 376 GB), taken
+             as it is: Sigma_e unchanged, the mean of its refit (theta_hat of OOD_RUNS/fits/<m>) compared with this problem's
 Nothing is chosen on the calibration or held-out files.
 
     PYTHONPATH=<popsregression checkout>:<this worktree> python -m bench.si_qoi_uq.analysis.final_shapes ood Ex10 cr3|ellipsoid
         -> RUNS/final/<setting>/<shape>_<candidate>.npz
+    FINAL_MODEL=o4d20 FINAL_NAMES=hand python -m ...final_shapes ood hand ellipsoid_from <npz>   -> RUNS/final/o4d20/ood/...
 """
 import json, sys, time
 
@@ -25,7 +29,24 @@ from .weight_sweep import DATA, base_cmd, candidates, frames, resolve
 MAX_ITER = 5000
 
 
-def main(setting, name, shape):
+def from_fit(d, name, path, mu, info, log):
+    """Reuse a pops_ellipse_ood.py fit: same rows, weights, leverage cut and solver, its own refit's mean (the B1 mean here up to
+    the MAP's tolerance, recorded)."""
+    import pathlib
+    from ..linear import LinearACE
+    from .pops_ellipse import factor_of
+    path = pathlib.Path(path)
+    lo = LinearACE(path.parent / "model.npz", path.parent / "posterior.npz")
+    th = np.asarray(lo.theta_hat, np.float64)
+    z = np.load(path)
+    Se = np.asarray(z["Sigma_e"])
+    dev = float(np.max(np.abs(th - mu)) / np.max(np.abs(mu)))
+    info.update(source=str(path), source_mean_rel_dev=dev, **{f"source_{k}": v for k, v in json.loads(str(z["info"])).items()})
+    np.savez(d / f"ellipsoid_{name}.npz", mu=mu, F=factor_of(Se), Sigma_e=Se, info=json.dumps(info, default=str))
+    log(f"ellipsoid from {path}: its refit's mean against this problem's {dev:.1e} (relative)")
+
+
+def main(setting, name, shape, src=None):
     import jax
     jax.config.update("jax_enable_x64", True)
     from ace_jax import cli
@@ -68,6 +89,8 @@ def main(setting, name, shape):
     sig = np.exp([float(getattr(th, f"log_sigma_{q}")) for q in "EFV"])
     info = {"setting": setting, "candidate": name, "train": train, "theta": {k: float(x) for k, x in th._asdict().items() if "sigma" in k},
             "mean_rel_dev_vs_final": dev}
+    if shape == "ellipsoid_from":
+        return from_fit(d, name, src, mu, info, log)
     if shape == "cr3":
         from ace_jax.fit.jackknife import press_scores, shape_factor
         body_col = body_order_columns(data.meta, prob.cfg)
@@ -113,4 +136,4 @@ def main(setting, name, shape):
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:4])
+    main(*sys.argv[1:5])

@@ -30,7 +30,9 @@ import numpy as np
 ALPHAS = (0.1, 0.05, 0.2)
 N_SPLIT = 100
 METHODS = ("headline", "B1", "B2", "ellipsoid")
-ELLIPSE = {"o3d12": "_sp_lev50_it20000", "o4d20": "_sp_lev50_it5000"}
+# one recipe on the whole ladder (2026-11-13): 4 x 5000 L-BFGS stages, leverage cut 50 %; o3d12 refitted at it5000 (its
+# it20000 fit is what results/crc_config.json of 2026-11-11 used)
+ELLIPSE = {m: "_sp_lev50_it5000" for m in ("o3d8", "o3d10", "o3d12", "o4d12", "o4d14", "o4d16", "o4d20")}
 LADDER = ("o3d8", "o3d10", "o3d12", "o4d12", "o4d14", "o4d16", "o4d20")   # the accuracy-cost fits, one split
 EPS_ATOM = 1e-3                                              # the ARD fit's eps (force_baselines.py)
 
@@ -46,12 +48,12 @@ def cache(m):
     from ..run import fit_dir, lin_for
     lin, linp = lin_for(m, "cr3"), lin_for(m, "kappa")
     facs = {"headline": np.asarray(lin.factor("cr3")), "B1": np.asarray(linp.factor("posterior"))}
-    fb = fit_dir(m, "pops") / "pops_box_lev50.npz"           # B2 and the ellipsoid only where fitted (o3d12, o4d20)
+    fb = fit_dir(m, "pops") / "pops_box_lev50.npz"           # B2 and the ellipsoid where fitted
     if fb.exists():
         b = np.load(fb)
         facs["B2"] = np.asarray(b["support"]) * ((np.asarray(b["hi"]) - np.asarray(b["lo"])) / np.sqrt(12))[None, :]
     Se = None
-    if m in ELLIPSE:
+    if m in ELLIPSE and (fit_dir(m, "cr3").parent / f"pops_ellipse{ELLIPSE[m]}.npz").exists():
         Se = np.asarray(np.load(fit_dir(m, "cr3").parent / f"pops_ellipse{ELLIPSE[m]}.npz")["Sigma_e"])
         Se = 0.5 * (Se + Se.T)
     meths = [*facs, *(["ellipsoid"] if Se is not None else [])]

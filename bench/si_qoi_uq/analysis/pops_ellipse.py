@@ -28,6 +28,7 @@ of test force components, and the delta-method QoIs (17 with DFT; z, 95 % covera
         [--param-prior]   (with --smooth-prior) the same prior inside the ellipsoid objective: popsregression branch
                  ellipse-param-prior's param_prior_precision = I in those coordinates (the KL from N(0, Lambda^-1) to
                  N(mu, B / (P + 2)), unit weight), at rank P so that B can be full rank
+        [--fit-only]   save the fit and stop (the CRC ladder models, which have no force_baselines / delta rows)
         [--leverage-pct p]   (with --smooth-prior) fit only the rows whose posterior leverage h_i = x_i^T (X^T X + Lambda)^-1 x_i
                  is at or above the p-th percentile, as the paper's B2 box (the reference package's default, p = 50)
         -> RUNS/fits/<m>/pops_ellipse.npz, results/pops_ellipse_<m>.json
@@ -253,6 +254,9 @@ def main():
     pac = "--pac-bayes" in args        # the PAC-Bayes layer (package defaults): a Gaussian hyperprior ridge on the ellipsoid's
     if pac:                            # parameters, which also bounds U in directions no training row touches
         args.remove("--pac-bayes")
+    fit_only = "--fit-only" in args
+    if fit_only:
+        args.remove("--fit-only")
     sp = "--smooth-prior" in args
     if sp:
         args.remove("--smooth-prior")
@@ -464,6 +468,8 @@ def main():
         del X, y
         np.savez(fout, **z)
         print(f"{m}: ellipsoid fitted: {info}", flush=True)
+    if fit_only:
+        return
     Se, B0, delta, info = z["Sigma_e"], z["B0"], z["delta"], json.loads(str(z["info"]))
     Se = 0.5 * (Se + Se.T)
     # the data span: the modes the package keeps in its whitening (eigenvalues of G above mode_threshold x the largest);

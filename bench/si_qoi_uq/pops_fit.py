@@ -7,7 +7,7 @@ principal directions of sum delta delta^T = A W A, bounds = the min/max of the p
 members theta_k = c* + support u_k with u_k uniform in the box (fixed seed): the box whose second moment
 is the POPS hypercube covariance.  Writes pops_box.npz (c_star, support, lo, hi, ridge) next to the fit.
 
-    python -m bench.si_qoi_uq.pops_fit o3d12|o4d20 [--levels 75,90,95,99]
+    python -m bench.si_qoi_uq.pops_fit o3d12|o4d20|<any ladder model o<order>d<degree>> [--levels 75,90,95,99]
 
 --ridge R: a fixed relative POPS ridge instead of the hold-out selection (the selection is most of the run time on
 o4d20; used to add a box at the ridge a full run selected).
@@ -23,7 +23,14 @@ import json, os, pathlib, subprocess, sys
 import numpy as np
 
 DATA = "/storage/eng/essswb/projects/ace-jax/data/si_accuracy_cost"
-BASIS = {"o4d20": ["--order", "4", "--max-degree", "20"], "o3d12": ["--order", "3", "--max-degree", "12"]}
+class _Basis(dict):                                      # o<order>d<degree>: every accuracy-cost ladder model (CRC ladder)
+    def __missing__(self, m):
+        import re
+        o, d = re.fullmatch(r"o(\d)d(\d+)", m).groups()
+        return ["--order", o, "--max-degree", d]
+
+
+BASIS = _Basis()
 
 
 def main():
