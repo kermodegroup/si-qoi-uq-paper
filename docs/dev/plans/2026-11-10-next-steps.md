@@ -1118,8 +1118,9 @@ QoIs without calibration data. The rules below decide whether the new runs suppo
 `results/final_ood.json` (`final.py ood` rerun with `<candidate>/CR3` and `/ellipsoid` beside B1; B1's per-split risks
 identical to the B1-only run, so every difference is paired) and `weights_qoi/results/` (assemble tables, the headline
 discrepancy for o4d16 and o4d16_Ex10 from their own defect residuals, `qoi_joint_score.py o4d16 o4d16_Ex10`). CR3 for the
-held-out refit: `final_shapes.py` (exact PRESS, K 2194; means against final.py's 3e-7 hand, 3e-4 x 10). Ellipsoid: hand done
-(4 x 5000 L-BFGS stages, coverage fraction 1.0); x 10 still running when this was written, so rule 2 has hand only.
+held-out refit: `final_shapes.py` (exact PRESS, K 2194; means against final.py's 3e-7 hand, 3e-4 x 10). Ellipsoid: hand and x 10
+(4 x 5000 L-BFGS stages each, coverage fraction 1.0, x 10 3.3 h on lestrade); the x 10 ellipsoid was added in a rerun of
+`final.py ood`, which left every earlier per-split risk unchanged.
 
 *Rule 1 (held out, x 10, alpha 0.1 joint): not for CR3; split by view.* d = risk(B1) - risk(CR3), mean (tau):
 E +0.194 (0.064), CR3 better (held-out risk B1 0.30, CR3 0.11); F -0.316 (0.206), **reversed** (B1 0.33, CR3 0.64). The F
@@ -1130,9 +1131,11 @@ frac -0.047 (0.020) reversed). dE_type leans CR3 (+0.07 (0.05)); dE_form unresol
 0.906 against B1 0.600 / 0.459) is a property of a per-atom calibrated scale: after CRC on whole-configuration forces, B1's
 shape is the more reliable one on cracks and screw dislocations. CR3 keeps the held-out energies.
 
-*Rule 2 (hand, informational): ellipsoid - CR3.* E +0.183 (0.110) and dE_type +0.160 (0.078) for CR3; F -0.216 (0.124)
-reversed (held-out F risk ellipsoid 0.44, CR3 0.66; ellipsoid per type crack_110 0.64, crack_111 0.90, screw 0.12). §2's ordering survives
-CRC for energies, not for forces.
+*Rule 2 (informational): ellipsoid - CR3.* Hand: E +0.183 (0.110) and dE_type +0.160 (0.078) for CR3; F -0.216 (0.124)
+reversed (held-out F risk ellipsoid 0.44, CR3 0.66; ellipsoid per type crack_110 0.64, crack_111 0.90, screw 0.12). x 10: E -0.025 (0.084)
+unresolved (ellipsoid 0.08, CR3 0.11), dE_type +0.082 (0.053) for CR3, F -0.243 (0.194) reversed (ellipsoid 0.40, CR3 0.64;
+per type crack_110 0.54, crack_111 0.87, screw 0.10). §2's ordering does not survive CRC for forces at either weight; for
+energies it holds at hand weights only.
 
 *Rule 3 (DFT QoIs, o4d16 x 10): for CR3.* 18 QoIs (the paper's 17 plus decohesion_max_stress, which has a DFT value and delta
 rows here; band chi^2_18 / 18 = 0.46-1.75), delta covariances with the shared discrepancy, tau 0.05: CR3 x lam_F k95 18/18,
@@ -1144,7 +1147,7 @@ the discrepancy).
 *Rule 4: one of rules 1 and 3, so the headline is narrowed.* CR3 is the method for QoIs propagated without calibration data,
 and for held-out energies; for whole-configuration forces after CRC, in and out of distribution, B1 is sharper and at least as
 reliable. The paper's force claims (§2) are restated as per-atom-scale results. Every number above is in
-`results/final_rules.json`; the x 10 ellipsoid will be added to rule 2 when it finishes, which changes no rule.
+`results/final_rules.json`.
 
 ## §0 results (2026-11-10)
 
