@@ -1085,6 +1085,35 @@ Reading:
    (relaxed vacancy, surfaces, ...) for the × 10 fit (needs a saved model and the relaxation pipeline; report, not tuning), and
    CR3 / the ellipsoid for × 10 held out (the §2 out-of-distribution comparison was at hand weights).
 
+**D, step 3 follow-ups: decision rules, fixed before any result (2026-11-13).** Running: CR3 and the POPS ellipsoid for hand and
+× 10 on the held-out refit (`analysis/final_shapes.py`, scored by `final.py ood` beside B1, same splits), and the paper's QoI
+propagation for o4d16 hand and × 10 (`blr_cr3.py o4d16_Ex10`, run.py diagnostics / samples / committees / delta, outputs in
+`weights_qoi/`). These bear on the paper's headline. Under CRC, B1 already gives smaller in-distribution regions than CR3 for
+whole-configuration forces (§5 C ladder; CR3 finalists +0.15 to +0.24): CRC recalibrates every shape in distribution, which
+fixes B1's scale. The headline's claim for CR3 is reliability where that recalibration cannot reach: off distribution and on
+QoIs without calibration data. The rules below decide whether the new runs support it. They are not changed after the results.
+
+1. *Held-out types (final.py ood, α = 0.1, joint loss, views F and E; hand and × 10 separately).* For each view, the paired
+   per-split difference of held-out risk, d = risk(B1) − risk(CR3), mean over the 100 splits and τ = sd / √2 (as the selection
+   rule). CR3 is **preferred off distribution** if mean d > τ in both views at × 10 (the weight the paper would recommend),
+   whatever the held-out size difference. If mean d ≤ τ in either view, the paper states that under CRC the held-out advantage of
+   CR3 is not resolved (or reversed, if mean d < −τ), and the §2 per-atom result (CR3 0.879 / 0.906 against B1 0.600 / 0.459 in /
+   out of distribution) is qualified as a property of a scale calibrated per atom, not of the shape after CRC. Reported with it,
+   not deciding: dE_type, dE_form (36 configurations, wide), sizes, per held-out type, hand weights.
+2. *The ellipsoid held out (same protocol).* The same d with the ellipsoid in place of B1. It answers only whether §2's ordering
+   off distribution (headline above the ellipsoid, which lost 0.10–0.14) survives CRC; no rule changes the paper's choice of
+   method on it alone.
+3. *DFT QoIs (weights_qoi, the paper's own propagation and scores).* For o4d16 at × 10: CR3 (× λ_F, as the headline) against B1
+   on the paper's measures, coverage of the 17 QoIs at 1.96 σ and the joint score d²/n with the shared discrepancy term
+   (qoi_joint_score's form). CR3 is **preferred on QoIs** if its coverage is at least B1's and its d²/n is inside the χ²₁₇/17 band
+   (0.44–1.78) while B1's is outside, or both inside with CR3's proper log score LS/n lower by at least 0.05. Otherwise the paper
+   states that at o4d16 × 10 B1 matches CR3 on QoIs. The hand-weight o4d16 run is the reference for whether the weight, not the
+   model size, changed the comparison.
+4. *Outcome for the paper.* Rules 1 and 3 both for CR3: the headline stands, with B1's in-distribution sharpness under CRC
+   reported as the counterpoint. One of them: the headline is narrowed to that use. Neither: the paper reports that after CRC
+   and the energy reweighting the posterior shape B1 is as reliable as CR3 and sharper, and the jackknife's case rests on its
+   behaviour without CRC (no held-out calibration, the per-atom scale). Every outcome is reported.
+
 ## §0 results (2026-11-10)
 
 **Per-type per-atom force coverage** (Gaussian 90 % ellipsoid of each method's own 3×3 covariance,
