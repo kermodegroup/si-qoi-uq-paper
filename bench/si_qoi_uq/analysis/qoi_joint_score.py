@@ -26,7 +26,7 @@ Scores (n = 17 QoIs, Sigma = S [+ D] + tau^2 I):
 
     SIQ_RUNS=<BLR root> python -m bench.si_qoi_uq.analysis.qoi_joint_score -> results/qoi_joint_score.json
 """
-import csv, json
+import csv, json, sys
 
 import numpy as np
 from scipy.stats import chi2, norm
@@ -81,7 +81,7 @@ def main():
     out = {"taus": TAUS, "z_ref": Z_REF, "band_absw": [Z_REF * np.exp(-1.96 * np.sqrt(np.pi ** 2 / 8 / 17)),
                                                       Z_REF * np.exp(1.96 * np.sqrt(np.pi ** 2 / 8 / 17))],
            "band_d2_over_n": [chi2.ppf(0.025, 17) / 17, chi2.ppf(0.975, 17) / 17], "models": {}}
-    for m in ("o3d12", "o4d20"):
+    for m in sys.argv[1:] or ("o3d12", "o4d20"):        # other fits (weights_qoi: o4d16, o4d16_Ex10) by argument
         keys = jt[m]["CR3/lam_F"]["delta"]["qois"]
         n = len(keys)
         hl = {r["qoi"]: r for r in rows if r["model"] == m and r["method"] == "CR3-headline" and r["scale"] == "lam_F"}
@@ -96,8 +96,9 @@ def main():
             for kind, r in jt[m].get(jname, {}).items():
                 idx = [r["qois"].index(k) for k in keys]
                 cases[f"{lab} ({kind})"] = (np.array(r["d_tol"])[idx], np.array(r["S_tol"])[np.ix_(idx, idx)])
-        mv = json.load(open(RESULTS / f"mv_conformal_{m}.json"))["methods"]      # §4: the whole-configuration scale
-        for lab, mk, jn in (("CR3 lam_mv", "cr3", "CR3/lam_F"), ("B1 lam_mv", "post", "B1/q_b1")):
+        mvf = RESULTS / f"mv_conformal_{m}.json"
+        mv = json.load(open(mvf))["methods"] if mvf.exists() else None     # §4: the whole-configuration scale
+        for lab, mk, jn in (("CR3 lam_mv", "cr3", "CR3/lam_F"), ("B1 lam_mv", "post", "B1/q_b1")) if mv else ():
             r = jt[m][jn]["delta"]
             idx = [r["qois"].index(k) for k in keys]
             f2 = (mv[mk]["lam_mv_all"] / mv[mk]["ref_scale"]) ** 2
@@ -105,7 +106,7 @@ def main():
         dz = np.load(RUNS / "delta" / f"{m}.npz")
         G = dict(zip((str(k) for k in dz["keys"]), np.asarray(dz["G"], np.float64)))
         d_hl = np.array([(float(hl[k]["dft"]) - float(hl[k]["mean"])) for k in keys]) / tol
-        for lab, sfx in ELLIPSOIDS[m].items():
+        for lab, sfx in ELLIPSOIDS.get(m, {}).items():
             z = np.load(RUNS / "fits" / m / f"pops_ellipse{sfx}.npz")
             Se = np.asarray(z["Sigma_e"])
             lam = json.load(open(RESULTS / f"pops_ellipse_{m}{sfx}.json"))["lam_per_atom_rms"]["ellipsoid"]
@@ -126,7 +127,7 @@ def main():
             print(f"{name:34s} {a['k95']:2d}/{n} {a['gm_sigma']:6.2f} {a['gm_absz']:6.2f} {a['gm_crps']:6.3f} | "
                   f"{a['sharp_j']:6.3f} {a['gm_absw']:6.2f} {a['d2_over_n']:6.2f} {a['ls_over_n']:6.2f} {a['es_over_sqrt_n']:6.3f} | "
                   f"{lo['d2_over_n']:9.2f} {hi['d2_over_n']:8.2f}")
-    json.dump(out, open(RESULTS / "qoi_joint_score.json", "w"), indent=1)
+    json.dump(out, open(RESULTS / "qoi_joint_score.json", "w"), indent=1)   # SIQ_RESULTS keeps other fits' apart
 
 
 if __name__ == "__main__":

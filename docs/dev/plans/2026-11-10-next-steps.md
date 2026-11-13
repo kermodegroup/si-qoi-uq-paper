@@ -1114,6 +1114,38 @@ QoIs without calibration data. The rules below decide whether the new runs suppo
    and the energy reweighting the posterior shape B1 is as reliable as CR3 and sharper, and the jackknife's case rests on its
    behaviour without CRC (no held-out calibration, the per-atom scale). Every outcome is reported.
 
+**D, step 3 follow-ups: the rules applied (2026-11-13).** `analysis/final_rules.py` -> `results/final_rules.json`, from
+`results/final_ood.json` (`final.py ood` rerun with `<candidate>/CR3` and `/ellipsoid` beside B1; B1's per-split risks
+identical to the B1-only run, so every difference is paired) and `weights_qoi/results/` (assemble tables, the headline
+discrepancy for o4d16 and o4d16_Ex10 from their own defect residuals, `qoi_joint_score.py o4d16 o4d16_Ex10`). CR3 for the
+held-out refit: `final_shapes.py` (exact PRESS, K 2194; means against final.py's 3e-7 hand, 3e-4 x 10). Ellipsoid: hand done
+(4 x 5000 L-BFGS stages, coverage fraction 1.0); x 10 still running when this was written, so rule 2 has hand only.
+
+*Rule 1 (held out, x 10, alpha 0.1 joint): not for CR3; split by view.* d = risk(B1) - risk(CR3), mean (tau):
+E +0.194 (0.064), CR3 better (held-out risk B1 0.30, CR3 0.11); F -0.316 (0.206), **reversed** (B1 0.33, CR3 0.64). The F
+view's frac loss agrees (-0.041 (0.017)). Held-out sizes about equal (F +0.04, E -0.22: B1 smaller); in distribution B1's F
+regions are smaller (-0.10) and its E regions larger (+0.16). Per held-out type (F, x 10): B1 crack_110 0.14, crack_111 0.49,
+screw 0.31; CR3 0.63, 0.83, 0.56. Hand weights give the same pattern (E +0.399 (0.102) for CR3, F -0.145 (0.208) unresolved,
+frac -0.047 (0.020) reversed). dE_type leans CR3 (+0.07 (0.05)); dE_form unresolved. So the §2 per-atom result (CR3 0.879 /
+0.906 against B1 0.600 / 0.459) is a property of a per-atom calibrated scale: after CRC on whole-configuration forces, B1's
+shape is the more reliable one on cracks and screw dislocations. CR3 keeps the held-out energies.
+
+*Rule 2 (hand, informational): ellipsoid - CR3.* E +0.183 (0.110) and dE_type +0.160 (0.078) for CR3; F -0.216 (0.124)
+reversed (held-out F risk ellipsoid 0.44, CR3 0.66; ellipsoid per type crack_110 0.64, crack_111 0.90, screw 0.12). §2's ordering survives
+CRC for energies, not for forces.
+
+*Rule 3 (DFT QoIs, o4d16 x 10): for CR3.* 18 QoIs (the paper's 17 plus decohesion_max_stress, which has a DFT value and delta
+rows here; band chi^2_18 / 18 = 0.46-1.75), delta covariances with the shared discrepancy, tau 0.05: CR3 x lam_F k95 18/18,
+d^2/n 0.66, LS/n 0.76; B1 k95 15/18, d^2/n 1.88 (outside), LS/n 1.07. Hand o4d16: CR3 18/18, 0.52, 1.13; B1 16/18, 1.46
+(inside), 1.19 (CR3 by the LS/n margin, 0.06). The weight changes CR3's lam_F (7.75 -> 1.89: the jackknife's raw scale is
+nearly right at x 10) more than B1's (q_b1 15.7 -> 18.5); B1 under-covers the interstitials at x 10 (z -1.7 to -2.2 with
+the discrepancy).
+
+*Rule 4: one of rules 1 and 3, so the headline is narrowed.* CR3 is the method for QoIs propagated without calibration data,
+and for held-out energies; for whole-configuration forces after CRC, in and out of distribution, B1 is sharper and at least as
+reliable. The paper's force claims (§2) are restated as per-atom-scale results. Every number above is in
+`results/final_rules.json`; the x 10 ellipsoid will be added to rule 2 when it finishes, which changes no rule.
+
 ## §0 results (2026-11-10)
 
 **Per-type per-atom force coverage** (Gaussian 90 % ellipsoid of each method's own 3×3 covariance,

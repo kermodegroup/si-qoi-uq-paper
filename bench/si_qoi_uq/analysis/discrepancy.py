@@ -44,7 +44,7 @@ def main():
     rows = list(csv.DictReader(open(RESULTS / "qoi_uq.csv")))
     out, summ = [], {}
     for m in models:
-        paired = json.load(open(RESULTS / f"bias_term_{m}.json"))["synthetic_rows"]
+        paired = json.load(open(RESULTS / f"bias_term_{m}.json"))["synthetic_rows"] if est == "paired" else None
         tr_ = json.load(open(RESULTS / "defect_trend.json"))[m]
         ve = json.load(open(RESULTS / "vacancy_evidence.json"))[m]["s_a=1"]["bma"]
         vac_bma = {"r_star_eV": ve["r215_mean_eV"], "se_eV": ve["r215_sd_eV"], "cr3_sigma_lamF_eV": None}

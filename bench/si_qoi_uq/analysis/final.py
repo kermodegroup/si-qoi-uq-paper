@@ -18,6 +18,10 @@ risk and size on the held-out configurations (ood.xyz: 33 + 3 crack and screw co
 of a held-out configuration take a diamond configuration of the calibration file, as on T_val. No guarantee applies off
 distribution: this measures how far it fails.
 
+Shapes: B1 for every candidate; CR3 and the POPS ellipsoid beside it where final_shapes.py has written
+RUNS/final/<setting>/{cr3,ellipsoid}_<candidate>.npz (named "<candidate>/CR3", "<candidate>/ellipsoid"; the B1 mean, each
+shape's own factor M_c = rows_c F, with Sigma_c = lam_s^2 M_c M_c^T + nu^2 I fitted per split as for B1).
+
     python -m bench.si_qoi_uq.analysis.final in|ood   (a compute node)  -> results/final_<setting>.json
 """
 import json, os, sys, time
@@ -124,6 +128,17 @@ def main(setting="in"):
         vw, _, _ = views_of(V, mu, lambda P, L=L: solve_triangular(L, P, lower=True), prs)
         for vn, x in vw.items():
             views.setdefault(vn, {})[name] = x
+        for shape, label in (("cr3", "CR3"), ("ellipsoid", "ellipsoid")):   # final_shapes.py, where it ran: same mean
+            f = out_dir / f"{shape}_{name}.npz"
+            if not f.exists():
+                continue
+            z = np.load(f)
+            dev = float(np.max(np.abs(z["mu"] - mu)) / np.max(np.abs(mu)))
+            sw, _, _ = views_of(V, mu, lambda P, F=z["F"]: F.T @ P, prs)
+            for vn, x in sw.items():
+                views[vn][f"{name}/{label}"] = x
+            res["candidates"][f"{name}/{label}"] = {"shape": json.loads(str(z["info"])), "mean_rel_dev": dev}
+            log(f"{name}/{label}: factor {z['F'].shape}, its mean against B1's {dev:.1e}")
         err = {}
         for tag, msk in (("test", cal), ("ood", ~cal)):
             if msk.any():

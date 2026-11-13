@@ -113,9 +113,11 @@ def main():
             if c.config_type in types and c.energy is not None]
     res = {"prior_intercept_sd_eV": list(S_A), "models": list(MODELS)}
     ys = {}
-    for m in ("o3d12", "o4d20"):
+    import os
+    for m in os.environ.get("SIQ_MODELS", "o3d12 o4d20").split():     # SIQ_MODELS: other fits (weights_qoi)
         ys[m] = residuals(m, cfgs)
-    ys["model_vs_model (o4d20 - o3d12)"] = (ys["o3d12"][0] - ys["o4d20"][0], ys["o3d12"][1], ys["o3d12"][2])
+    if "o3d12" in ys and "o4d20" in ys:
+        ys["model_vs_model (o4d20 - o3d12)"] = (ys["o3d12"][0] - ys["o4d20"][0], ys["o3d12"][1], ys["o3d12"][2])
     for m, (y, x, s) in ys.items():
         res[m] = {f"s_a={sa:g}": run(y, x, s, sa) for sa in S_A}
         res[m]["n_cells"] = {str(k): int(np.sum(s == k)) for k in SIZES}

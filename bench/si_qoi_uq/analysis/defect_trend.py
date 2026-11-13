@@ -6,7 +6,7 @@ model's formation energy at a relaxed (x -> 0) defect.  Training cells only (the
 split's, which are not used).
 
     python -m bench.si_qoi_uq.analysis.defect_trend      -> results/defect_trend.json (both models)"""
-import json, sys, pathlib
+import json, os, pathlib
 import numpy as np
 from ace_jax.fit.data import load_configs
 H = pathlib.Path("/storage/eng/essswb/projects/ace-jax/runs/si_qoi_uq_blr/defect_check")
@@ -52,4 +52,5 @@ def trend(m):
 
 
 from bench.si_qoi_uq.run import RESULTS
-json.dump({m: trend(m) for m in ("o3d12", "o4d20")}, open(RESULTS / "defect_trend.json", "w"), indent=1, default=float)
+MODELS_ = os.environ.get("SIQ_MODELS", "o3d12 o4d20").split()     # SIQ_MODELS: other fits (weights_qoi)
+json.dump({m: trend(m) for m in MODELS_}, open(RESULTS / "defect_trend.json", "w"), indent=1, default=float)
