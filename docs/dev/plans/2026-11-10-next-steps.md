@@ -1187,6 +1187,29 @@ whole-configuration CRC, B1's held-out force risk is no higher than CR3's at eit
 at o3d12 every shape fails alike off distribution (F ~0.4, E ~0.9: the model, not the shape), at o4d20 CR3's whole-configuration
 force regions miss nearly every crack configuration. Energies go to CR3 where resolved (o4d20, o4d16), unresolved at o3d12.
 
+**C, the ladder with every method (2026-11-13, for the revision's figure).** B2 (POPS box, leverage cut 50 %) and the ellipsoid
+(4 x 5000 L-BFGS stages, leverage cut 50 %, `pops_ellipse.py --fit-only`) fitted at o3d8, o3d10, o4d12, o4d14, o4d16 and o3d12
+refitted on the same recipe (lanes on mnf144, lestrade, dedicated218; 11 fits, all exit 0); caches rebuilt, `crc_config
+ladder` on the same 100 halves -> `results/crc_ladder.json`, `crc_pareto.py`, `crc_ladder_fig.py` -> `figures/fig11_crc_ladder`.
+Every earlier entry is unchanged; the o3d12 ellipsoid moves by < 0.001 in size (it20000 -> it5000). Alpha 0.1, mean size
+(log semi-axis), risk at alpha for every method:
+
+| | o3d8 | o3d10 | o3d12 | o4d12 | o4d14 | o4d16 | o4d20 |
+|---|---|---|---|---|---|---|---|
+| joint: CR3 | -1.44 | -1.60 | -1.84 | -1.90 | -2.13 | -2.31 | -2.65 |
+| joint: B1 | **-1.49** | **-1.63** | **-1.86** | **-1.95** | **-2.30** | **-2.51** | **-2.79** |
+| joint: B2 | -1.40 | -1.49 | -1.70 | -1.73 | -1.89 | -2.01 | -2.17 |
+| joint: ellipsoid | -1.48 | -1.59 | -1.76 | -1.80 | -1.92 | -1.99 | -2.13 |
+| atom: CR3 | -0.28 | -0.59 | -1.09 | -1.19 | -1.44 | -1.60 | -1.85 |
+| atom: B1 | -0.69 | -0.94 | -1.27 | -1.28 | -1.50 | -1.63 | -1.87 |
+| atom: B2 | -0.58 | -0.89 | -1.26 | -1.32 | -1.55 | -1.71 | -1.90 |
+| atom: ellipsoid | **-0.90** | **-1.13** | **-1.47** | **-1.51** | **-1.73** | **-1.88** | **-2.11** |
+
+Whole configuration: B1 smallest at every size, CR3 next (within 0.05 up to o4d12, 0.14-0.20 behind above); the POPS shapes
+level off from o4d14 (B2 and the ellipsoid 0.5-0.6 behind B1 at o4d20, larger than the test RMSE). Per atom: the ellipsoid
+smallest at every size; CR3 largest, most at the cheap end (0.6 behind at o3d8, 0.26 at o4d20). So the two scores pick
+opposite shapes at every size, not only at the paper's two models.
+
 ## §0 results (2026-11-10)
 
 **Per-type per-atom force coverage** (Gaussian 90 % ellipsoid of each method's own 3×3 covariance,

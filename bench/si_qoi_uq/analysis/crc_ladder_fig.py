@@ -1,7 +1,8 @@
 """CRC region size along the linear ACE ladder, one line per method (plan section 5 C, ladder; revision, new figure).
 
 results/crc_ladder.json (crc_config.py ladder: CR3 headline, B1, B2 and the POPS ellipsoid at every size since 2026-11-13; the
-same 100 random test halves; alpha 0.1) and results/ace_pareto.json (A100 float64 µs/atom-step, test force RMSE). Panels:
+same 100 random test halves; alpha 0.1) and results/ace_pareto.json (A100 float64 µs/atom-step, test force RMSE; methods dodged by up to ±4 % in cost so overlapping
+markers stay visible). Panels:
 whole-configuration CRC (joint loss: the Mahalanobis region of a configuration's force vector) and per-atom CRC (crc.py's
 loss). y: the geometric semi-axis per force component exp(size), eV/Å, mean over the halves, bars p05-p95; the test force RMSE
 as the reference a region cannot beat by much. B3 is not drawn: CRC refits the scale of every shape, so B3 (CR3 unscaled) gives
@@ -37,11 +38,11 @@ def main():
         H = lad["loss"][lo][ALPHA]["halves"]
         x_all = np.array([acc[m]["cost_gpu"] for m in models])
         ax.plot(x_all, [acc[m]["rmse_F"] for m in models], "--", color=F.MUTED, lw=1, zorder=1, label="test force RMSE")
-        for k, lab, col, mk in METHODS:
+        for i_m, (k, lab, col, mk) in enumerate(METHODS):
             ms = [m for m in models if f"{m}/{k}" in H]
             if not ms:
                 continue
-            x = np.array([acc[m]["cost_gpu"] for m in ms])
+            x = np.array([acc[m]["cost_gpu"] for m in ms]) * 10 ** (0.012 * (i_m - 1.5))   # dodge: B2 and the ellipsoid overlap
             s = [H[f"{m}/{k}"]["size"] for m in ms]
             y = np.exp([v["mean"] for v in s])
             err = np.abs(np.exp([[v["p05"] for v in s], [v["p95"] for v in s]]) - y)
