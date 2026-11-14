@@ -85,7 +85,13 @@ Every number from a results file (no hand-typed values in paper.py); `python -m 
 convert, `latexmk`, `latex.arxiv` (clean-room page count); reread the changed sections in the PDF; the PR #1 body updated.
 Commits per step (`docs(si-qoi-uq): ...`), results and scripts copied in with the paragraph that uses them.
 
-## Open questions for the author
+## Answered (author, 2026-11-14)
 
-- Title: it ends "compared with Bayesian and POPS baselines"; with CRC the Bayesian posterior is a winner for force regions. Keep?
-- Venue: arXiv v2 only, or a journal resubmission (length limits would decide what the appendices hold)?
+- Title: kept as is.
+- Venue: arXiv v2 only (no journal submission yet), so there is no length limit; the appendices are in the paper.
+
+## Done (2026-11-14)
+
+Steps 0-5 on `revision` (561a9dd .. dd2c172). Deviations from the plan above: the POPS/CR3 leverage-weight sentence went in 2.4
+(the comparison paragraph), not 2.6; the o3d12 vacancy barrier is covered with or without the beta-tin cell (only the vacancy
+formation energy's coverage rests on it); a v1 error in 2.7.2 was fixed (no delta row for bcc at o3d12 but hcp at o4d20).
