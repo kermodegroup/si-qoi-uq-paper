@@ -1453,6 +1453,51 @@ As Figure 1, with the headline discrepancy term on the four defect QoIs (CR3 × 
 interstitials and the size-model average for the vacancy. Thin black bars: the same QoIs' 95 % intervals without the term.
 Only the four defect QoIs change.</figcaption></figure>""", "", level=4)
 
+# the vacancy migration barrier (analysis/vacancy_barrier.py, vacancy_barrier_committee.py, barrier_influence.py,
+# barrier_novelty.py, bt_cell.py; next-steps plan section 3); added after the QoI results, outside the counts
+_vb = json.load(open(RES / "vacancy_barrier.json")) if (RES / "vacancy_barrier.json").exists() else {}
+_vbc = json.load(open(RES / "vacancy_barrier_committee.json")) if (RES / "vacancy_barrier_committee.json").exists() else {}
+_bi = json.load(open(RES / "barrier_influence.json")) if (RES / "barrier_influence.json").exists() else {}
+_bn = json.load(open(RES / "barrier_novelty.json")) if (RES / "barrier_novelty.json").exists() else {}
+_bt = json.load(open(RES / "bt_cell_o3d12.json")) if (RES / "bt_cell_o3d12.json").exists() else {}
+def vb_sz(m, k):
+    src = _vb[m]["pops" if k == "B2" else "cr3"]
+    return src["sigma"][k], src["z"][k]
+VB_METH = (("headline", "CR3 × λ<sub>F</sub>"), ("B1", "B1"), ("B2", "B2"), ("B3", "B3"))
+vb_rows = "".join(f"<tr><td>{m}</td><td class=n>{_vb[m]['cr3']['Eb']:.3f}</td><td class=n>{f"{_vb[m]['cr3']['Eb'] - _vb['E_dft']:+.3f}".replace("-", "−")}</td>"
+                  + "".join(f"<td class=n>{vb_sz(m, k)[0]:.3f} / {vb_sz(m, k)[1]:.2f}</td>" for k, _ in VB_METH) + "</tr>"
+                  for m in ("o3d12", "o4d20")) if _vb else ""
+if _vb and _vbc and _bi and _bn and _bt:
+    _rat = [_vbc[m][k]["ratio"] for m in ("o3d12", "o4d20") for k in ("headline", "B1", "B3")]
+    _sh = lambda m, t: _bi[m]["vacancy_barrier"]["share_by_type"][t]["share"]
+    _s04 = next(x for x in _bi["o4d20"]["vacancy_barrier"]["vacancy63_by_s"] if x["s"] == "0.4-1.0")
+    _gap = max(abs(_vb[m]["cr3"]["Eb"] - _vb[m]["cr3"]["Eb_harness"]) for m in ("o3d12", "o4d20"))
+    sec("results-barrier", "The vacancy migration barrier", f"""
+<p>The test framework also contains a vacancy-migration path, which is not among the 21 QoIs; Best et al. [2024] found that a
+posterior band with a conformal scale missed its barrier. We added it after the QoI results above had been computed, so it enters
+neither the coverage counts nor the joint tests. The reference is the GAP-18 study's CASTEP run of the framework's test (a 63-atom
+cell, nine interior images, plain nudged elastic band): E<sub>b</sub> = {_vb["E_dft"]:.3f} eV. With the mean models we ran the
+unmodified test and refined its band by a climbing image and a Newton step to a first-order saddle; the refined barriers lie within
+{1e3 * _gap:.1f} meV of the test's highest image. A saddle is a stationary point, as a minimum is, so the envelope-theorem rows of
+Section 2.7.2 apply unchanged, and λ = 1 committees of the test agree with them (σ ratios {min(_rat):.2f}–{max(_rat):.2f}). No
+discrepancy term applies: the vacancy term is an offset of formation energies and cancels in the barrier.</p>
+<div class="wrap"><table><caption>Table 8c. The vacancy migration barrier (eV): refined model value, error (model − DFT), and σ / |z| for
+each method; DFT {_vb["E_dft"]:.3f} eV.</caption>
+<thead><tr><th>model</th><th>E<sub>b</sub></th><th>error</th>{"".join(f"<th>{lab} σ / |z|</th>" for _, lab in VB_METH)}</tr></thead>
+<tbody>{vb_rows}</tbody></table></div>
+<p>o4d20 misses the barrier by {abs(_vb["o4d20"]["cr3"]["Eb"] - _vb["E_dft"]):.2f} eV (too low), outside the 95 % interval of the headline
+(|z| = {vb_sz("o4d20", "headline")[1]:.2f}), of B1 ({vb_sz("o4d20", "B1")[1]:.2f}) and, narrowly, of B2 ({vb_sz("o4d20", "B2")[1]:.2f}).
+The saddle is not new to the model: the migrating atom's extrapolation grade there is {_bn["o4d20"]["saddle"]["gamma_hop"]:.2f}, the
+{_bn["o4d20"]["saddle"]["gamma_hop_pct_test"]:.0f}th percentile of the test atoms, and the CR3 variance of the barrier comes from the
+right cells, the vacancy snapshots ({_sh("o4d20", "vacancy"):.2f} of it; {_s04["share"]:.2f} from the {_s04["n"]} 63-atom snapshots
+past 0.4 of the way along the hop) and the divacancies ({_sh("o4d20", "divacancy"):.2f}). The miss is model-form error on environments
+the fit has seen, not extrapolation. o3d12 is within every interval, but its CR3 σ is
+set by one β-tin training cell ({_sh("o3d12", "bt"):.2f} of the variance). Without that cell, and with λ<sub>F</sub> refitted, the
+barrier σ falls from {_bt["qoi"]["vacancy_barrier"]["sigma"]["full"]:.2f} to {_bt["qoi"]["vacancy_barrier"]["sigma"]["drop"]:.2f} eV
+and the barrier is still covered (|z| = {abs(_bt["qoi"]["vacancy_barrier"]["z"]["drop"]):.2f}); the vacancy formation energy, which the
+same cell dominates, is then missed (z {_bt["qoi"]["vacancy_energy"]["z"]["full"]:.2f} → {_bt["qoi"]["vacancy_energy"]["z"]["drop"]:.2f}).</p>""",
+        "", level=4)
+
 # Section 3.9: whole-configuration CRC (analysis/crc_config.py ladder, weight_sweep.py, selection.py, wl_sweep.py, final.py,
 # final_rules.py; next-steps plan section 5 C-D)
 _lad = json.load(open(RES / "crc_ladder.json"))["loss"] if (RES / "crc_ladder.json").exists() else {}
