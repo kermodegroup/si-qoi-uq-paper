@@ -280,7 +280,7 @@ by implicit differentiation through each relaxation and by committees, and is te
 For a smaller and a larger model the intervals cover most properties, and the larger model's are about {tight_ratio:.0f} times
 tighter. For propagation the Bayesian posterior with one calibrated scale has the wrong shape: it covers fewer properties and has
 far lower joint evidence. With every shape's size refitted by conformal risk control over whole configurations, the posterior gives the sharpest
-force regions, as reliable on held-out forces; the jackknife keeps held-out energies; the region size picks a tenfold energy
+force regions, as reliable on held-out forces; the jackknife keeps held-out energies; the region size favours a heavier energy
 weight. Pointwise optimal parameter sets (POPS) perform comparably on the properties, but their per-atom force regions are not calibrated
 to a target ({fb("o3d12", "B2")} and {fb("o4d20", "B2")} at a nominal 0.90). The jackknife fails for relaxed point defects, whose training cells are all hot snapshots: a bias shared by every snapshot is
 invisible to it, but measured from the training labels and added as a discrepancy term (devised after the property results were
@@ -346,7 +346,8 @@ scales. We therefore also compare the shapes on equal terms, by conformal risk c
 al. 2022; Fisher et al. 2026], which refits every shape's size on the same calibration data. The answer depends on the use. For
 propagation to QoIs, which have no calibration data, the CR3 shape is better; for whole-configuration force regions, the Bayesian
 posterior is. The calibrated region size also gives a score for the choices that a fit fixes by hand, which a point error cannot
-give: we use it, with a selection rule fixed in advance, to choose the energy weight and the basis.</p>
+give: with a selection rule fixed in advance it scores the energy weight and the basis, and the final choices, made by judgement,
+follow the rule only in part (Section 3.9).</p>
 <p>Section 2 sets out the methodology: the linear ACE fit (2.1–2.2), automatic relevance determination as a check on the prior
 (2.3), the CR3 shape (2.4), the per-atom force calibration (2.5), the baselines (2.6), the propagation to QoIs (2.7), conformal
 risk control over whole configurations (2.8) and the selection rule (2.9). Section 3 gives the validation statistics and the
@@ -410,7 +411,7 @@ detail by Witt et al. [2023].
 Table 0 lists the silicon QoIs, their DFT (CASTEP) values and the benchmark's tolerances: 10 % of the DFT value for the elastic
 constants, the bulk modulus, the unstable stacking-fault energies and the decohesion stress; 5 % for the (100) surface energy;
 10 meV/atom for the phase energies; 0.1 eV for the point-defect formation energies; and 0.2 THz for the root-mean-square (RMS) error of the phonon frequencies. The QoI error
-of a model is the geometric mean of |error|/tolerance over these QoIs. The ratios span orders of magnitude, so an arithmetic mean
+of a model is the geometric mean of |error|/tolerance over these QoIs, each ratio clipped to [0.05, 10] as the benchmark does. The ratios span orders of magnitude, so an arithmetic mean
 would be set by the one or two worst QoIs; the geometric mean, the exponential of the mean log ratio, counts a factor-of-two
 improvement equally on every QoI. o3d12 ({_a['n_params']} coefficients) is the cheaper model, with a
 test force RMS error (RMSE) of {_a['rmse_F']:.3f} eV/Å and a typical QoI error of one tolerance ({_a['qoi']:.2f}). o4d20 ({_b['n_params']} coefficients)
@@ -946,8 +947,9 @@ sec("method-valid", "3  Results", r"""
 <p>Section 2 ends with a σ for every prediction we test: a per-atom force covariance and conformal region (Section 2.5), a
 scaled CR3 covariance in θ (Section 2.4), and from it a σ<sub>Q</sub> for each QoI by the delta method or by committees, with or
 without the discrepancy term (Sections 2.7 and 2.7.4). The same few statistics judge all of them against held-out data or DFT. Two
-held-out sets are used, and they play different roles. The per-atom quantile comes from a hold-out of the training set, so the
-test split is an independent test of it. The propagation's global scale and B1's quantile are fitted on the test split's
+held-out sets are used, and they play different roles. The per-atom quantile comes from a hold-out of the training set, so it is
+not fitted on the test split; but the per-atom method itself (one quantile rather than the learned scale) was chosen after both had
+been compared on the test split and the out-of-distribution set (Section 6), so the per-atom comparison is not blind. The propagation's global scale and B1's quantile are fitted on the test split's
 residuals, as the specification fixed (Section 3.3), so their per-atom coverage on the test split is in sample. No DFT QoI value
 enters any scale.</p>
 <p><b>Sign conventions.</b> An error in Table 0 and in \(z_Q\) below is \(\text{model}-\text{DFT}\). The defect analysis
@@ -1103,13 +1105,20 @@ def fmt_t(m, t, k, fld="coverage", nd=2):
 _js = json.load(open(RES / "qoi_joint_score.json")) if (RES / "qoi_joint_score.json").exists() else {}
 _mv = {m: json.load(open(RES / f"mv_conformal_{m}.json"))["methods"]["cr3"] for m in ("o3d12", "o4d20") if (RES / f"mv_conformal_{m}.json").exists()}
 _jn = len(_js["models"]["o4d20"]["qois"]) if _js else 0
-_jband = _js.get("band_d2_over_n", [float("nan")] * 2)
 js = lambda m, k, f_, d=2: f"{_js['models'][m]['results'][k]['tau0.05'][f_]:.{d}f}"
+_jsc = lambda m, k: _js["models"][m]["results"][k]["tau0.05"]["scale"]          # joint scale s: posterior and log BF (s = 1)
+jss = lambda m, k: f"s = {_jsc(m, k)['s_med']:.2f} [{_jsc(m, k)['s_lo']:.2f}, {_jsc(m, k)['s_hi']:.2f}], log BF {_jsc(m, k)['log_bf']:+.1f}"
+_jprior = _jsc("o3d12", "CR3 (delta)")["prior"] if _js else [0.1, 10]
+_jbf_max = max(v["tau0.05"]["scale"]["log_bf"] for mm in _js.get("models", {}).values() for v in mm["results"].values()) if _js else 0
+_jbf_wide = max(abs(v["tau0.05"]["scale"]["log_bf_wide"] - v["tau0.05"]["scale"]["log_bf"]) for mm in _js.get("models", {}).values()
+                for v in mm["results"].values()) if _js else 0
 JS_ROWS = (("CR3 (delta)", "CR3 × λ<sub>F</sub> (headline)"), ("B1 (delta)", "B1: posterior × q̂"), ("B2lev50 (committee)", "B2: POPS box"),
            ("ellipsoid L-BFGS (delta)", "POPS ellipsoid"), ("CR3 lam_mv (delta)", "CR3 × λ<sub>mv</sub>"))
 _ls_rest = lambda m: " / ".join(js(m, k + " +disc", "ls_over_n") for k, _ in JS_ROWS[1:4]) + " (B1 / B2 / ellipsoid)"
-jrows_b = "".join(f"<tr><td>{m}</td><td>{lab}</td>" + "".join(f"<td class=n>{js(m, k + sfx, f_, 0 if f_ == 'k95' else 2)}</td>"
-                                                          for sfx in ("", " +disc") for f_ in ("k95", "d2_over_n", "ls_over_n")) + "</tr>"
+jrows_b = "".join(f"<tr><td>{m}</td><td>{lab}</td>" + "".join(
+    f"<td class=n>{js(m, k + sfx, 'k95', 0)}</td><td class=n>{_jsc(m, k + sfx)['s_med']:.2f} [{_jsc(m, k + sfx)['s_lo']:.2f}, "
+    f"{_jsc(m, k + sfx)['s_hi']:.2f}]</td><td class=n>{_jsc(m, k + sfx)['log_bf']:+.1f}</td><td class=n>{js(m, k + sfx, 'ls_over_n')}</td>"
+    for sfx in ("", " +disc")) + "</tr>"
                   for m in ("o3d12", "o4d20") for k, lab in JS_ROWS) if _js else ""
 sec("results", "3.4  Coverage and sharpness", f"""
 <div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % credible interval of the coverage probability]) and sharpness, for the four methods of Figures 1 and 1b.</caption>
@@ -1190,8 +1199,8 @@ covariance source. d² and log det are the two parts of the evidence: the misfit
 correlations form blocks: the elastic constants with each other and with the β-Sn and sh phase energies, which are both compressed
 diamond-like structures; and the four point defects with each other (0.3–0.8), most strongly the three interstitials. Most other pairs
 are only weakly correlated.</p>
-<p>Table 4 compares the methods by their evidence. The headline is far ahead of B1 and B3 for both models: by log Bayes
-factors of {lbf_txt("o3d12", "B1/q_b1")} (B1) and {lbf_txt("o3d12", "B3/lam_1")} (B3) for o3d12, and {lbf_txt("o4d20", "B1/q_b1")} and
+<p>Table 4 compares the methods by their evidence. The headline is far ahead of B1 and B3 for both models: their log Bayes
+factors against it are {lbf_txt("o3d12", "B1/q_b1")} (B1) and {lbf_txt("o3d12", "B3/lam_1")} (B3) for o3d12, and {lbf_txt("o4d20", "B1/q_b1")} and
 {lbf_txt("o4d20", "B3/lam_1")} for o4d20, with the committee covariance. On the scale of Kass and Raftery [1995] a log Bayes factor
 beyond about 3 is strong evidence and beyond 5 very strong. B3 loses through the misfit term, with intervals far too narrow for
 its errors. B1 loses less, because its overall size is calibrated, but its shape puts the width in the wrong places. POPS (B2) is
@@ -1207,40 +1216,48 @@ misses QoIs one at a time: o4d20's headline misses five QoIs, but three of the f
 expects to move together, so jointly they cost less than three independent misses.</p>
 <p>The virial scale is better than the force scale for o3d12 ({lbf_txt("o3d12", "CR3/lam_V")}), whose QoI errors are larger
 relative to its force errors, and about as good for o4d20 ({lbf_txt("o4d20", "CR3/lam_V")}). The discrepancy term of Section 3.8 is
-strongly supported for o3d12 ({lbf_txt("o3d12", "CR3/lam_F+disc")} with the committee covariance,
+supported for o3d12 ({lbf_txt("o3d12", "CR3/lam_F+disc")} with the committee covariance,
 {lbf_txt("o3d12", "CR3/lam_F+disc", "delta")} with the delta method), and roughly neutral for o4d20
 ({lbf_txt("o4d20", "CR3/lam_F+disc")} and {lbf_txt("o4d20", "CR3/lam_F+disc", "delta")}): o4d20's defect bias is small, so the term's
 extra width costs about as much as the misses it removes. The delta-method and committee covariances agree, and the ranking of the
 methods is the same for ε from 10<sup>−8</sup> to 10<sup>−4</sup>.</p>
 <p><b>Correlation-aware scores.</b> The QoI covariance of a parameter distribution is nearly singular, so the evidence above
 depends on its ridge. Table 4b gives two scores that depend on it less, on the {_jn} QoIs with delta-method rows, each σ with a floor
-of τ = 0.05 tolerances (τ²I added to the covariance; τ = 0.01 and 0.2 as checks): d²/n, the squared whitened error per QoI, which
-is χ²<sub>n</sub>/n for a calibrated Gaussian (95 % band [{_jband[0]:.2f}, {_jband[1]:.2f}]), and LS/n, the Gaussian log score per QoI
-(proper, lower is better). The discrepancy term enters as one shared bias per defect class, the three interstitials fully
-correlated. Without it, for o3d12, no method but the B2 committee is jointly calibrated (d²/n {js("o3d12", "CR3 (delta)", "d2_over_n")}
-for CR3, {js("o3d12", "B1 (delta)", "d2_over_n")} for B1, {js("o3d12", "ellipsoid L-BFGS (delta)", "d2_over_n")} for the ellipsoid),
-while with it CR3 is ({js("o3d12", "CR3 (delta) +disc", "d2_over_n")}); a correlated term is what makes the joint test pass. For
-o4d20 CR3 is inside the band with and without the term ({js("o4d20", "CR3 (delta)", "d2_over_n")},
-{js("o4d20", "CR3 (delta) +disc", "d2_over_n")}) and B1 is far outside ({js("o4d20", "B1 (delta)", "d2_over_n")},
-{js("o4d20", "B1 (delta) +disc", "d2_over_n")}). The POPS ellipsoid covers the most QoIs one at a time for o4d20
-({js("o4d20", "ellipsoid L-BFGS (delta)", "k95", 0)} of {_jn}) but is at the edge of the band jointly
-({js("o4d20", "ellipsoid L-BFGS (delta)", "d2_over_n")}): its narrower widths come with correlations that put the errors in
+of τ = 0.05 tolerances (τ²I added to the covariance; τ = 0.01 and 0.2 as checks). The first is a joint calibration scale, read
+in the same Bayesian way as the scales of Section 3.3 (Table 2b): the errors are modelled as d ~ N(0, s²Σ), with one scale s on the method's
+covariance Σ, log-uniform on [{_jprior[0]:g}, {_jprior[1]:g}] and integrated out. Only the whitened misfit d<sup>T</sup>Σ<sup>−1</sup>d
+and n enter. We quote the posterior median of s with its 95 % credible interval, and the log Bayes factor of a calibrated
+covariance (s = 1) against a free scale. With {_jn} QoIs the Occam factor caps that log Bayes factor near +{_jbf_max:.1f}, so a
+calibrated covariance can at best show positive evidence, while a miscalibrated one can be rejected decisively; a prior ten
+times wider moves every value by less than {_jbf_wide:.1f}. The second is LS/n, the Gaussian log score per QoI
+(proper, lower is better; note that the per-atom log score of Section 3.2 is the other way round, higher is better). The
+discrepancy term enters as one shared bias per defect class, the three interstitials fully correlated. Without it, for o3d12,
+the evidence is against a calibrated CR3 ({jss("o3d12", "CR3 (delta)")}), and more strongly against B1
+({jss("o3d12", "B1 (delta)")}) and the ellipsoid ({jss("o3d12", "ellipsoid L-BFGS (delta)")}); of the four compared methods only the B2 committee is
+positive ({jss("o3d12", "B2lev50 (committee)")}). With the term CR3 is positive ({jss("o3d12", "CR3 (delta) +disc")}): a
+correlated term is what makes o3d12 jointly calibrated. For o4d20 the evidence favours a calibrated CR3 with and without the term
+({jss("o4d20", "CR3 (delta)")}; {jss("o4d20", "CR3 (delta) +disc")}), and is decisively against B1 without it
+({jss("o4d20", "B1 (delta)")}). The POPS ellipsoid covers the most QoIs one at a time for o4d20
+({js("o4d20", "ellipsoid L-BFGS (delta)", "k95", 0)} of {_jn}) but is inconclusive jointly
+({jss("o4d20", "ellipsoid L-BFGS (delta)")}): its narrower widths come with correlations that put the errors in
 directions it calls thin. With the term, the log score ranks CR3 first for both models ({js("o3d12", "CR3 (delta) +disc", "ls_over_n")}
-and {js("o4d20", "CR3 (delta) +disc", "ls_over_n")}, against {_ls_rest("o3d12")} and {_ls_rest("o4d20")} for the others).</p>
+and {js("o4d20", "CR3 (delta) +disc", "ls_over_n")}, against {_ls_rest("o3d12")} and {_ls_rest("o4d20")} for the others); for o3d12
+the ellipsoid is close behind.</p>
 <p>A scale fitted for whole configurations rather than per force component is the alternative to λ<sub>F</sub>. λ<sub>mv</sub>
 scales the CR3 shape so that the whole-configuration Mahalanobis regions of Section 2.8 (with their nugget) cover 90 % of the test
 configurations ({_mv["o4d20"]["lam_mv_all"]:.1f} against λ<sub>F</sub> = {_mv["o4d20"]["ref_scale"]:.1f} for o4d20). Propagated, it covers
-{_mv["o4d20"]["qoi_k95"]} of {_mv["o4d20"]["qoi_n"]} QoIs for o4d20 and is jointly calibrated without the discrepancy term (d²/n
-{js("o4d20", "CR3 lam_mv (delta)", "d2_over_n")}), but with the term its log score is worse than the headline's
+{_mv["o4d20"]["qoi_k95"]} of {_mv["o4d20"]["qoi_n"]} QoIs for o4d20, and the evidence favours it as jointly calibrated without the
+discrepancy term ({jss("o4d20", "CR3 lam_mv (delta)")}), but with the term its log score is worse than the headline's
 ({js("o4d20", "CR3 lam_mv (delta) +disc", "ls_over_n")} against {js("o4d20", "CR3 (delta) +disc", "ls_over_n")}). For o3d12 it is
 {_mv["o3d12"]["lam_mv_all"]:.1f}, and its intervals are far too wide (median σ/tol {_mv["o3d12"]["qoi_median_sigma_over_tol"]:.1f}). The
 headline keeps λ<sub>F</sub>.</p>
 <div class="wrap"><table><caption>Table 4b. Correlation-aware scores of the {_jn} delta-method QoIs of Table 4 (all scored QoIs but the two
 stacking-fault energies), tolerance units, covariance floor τ = 0.05: the count inside the
-95 % interval (with the floor, so it can differ from Table 3), d²/n and the log score per QoI, without and with the discrepancy term
-as a shared bias. B2 from its committee; the others by the delta method. λ<sub>mv</sub>: the CR3 shape at the whole-configuration
+95 % interval (with the floor, so it can differ from Table 3); the joint scale s, posterior median [95 % credible interval], with
+s log-uniform on [{_jprior[0]:g}, {_jprior[1]:g}]; the log Bayes factor of s = 1 against a free s (positive favours a calibrated covariance); and the log
+score per QoI (lower is better), without and with the discrepancy term as a shared bias. B2 from its committee; the others by the delta method. λ<sub>mv</sub>: the CR3 shape at the whole-configuration
 scale (text).</caption>
-<thead><tr><th>model</th><th>method</th><th>95 %</th><th>d²/n</th><th>LS/n</th><th>95 % +disc</th><th>d²/n +disc</th><th>LS/n +disc</th></tr></thead>
+<thead><tr><th>model</th><th>method</th><th>95 %</th><th>s</th><th>log BF</th><th>LS/n</th><th>95 % +disc</th><th>s +disc</th><th>log BF +disc</th><th>LS/n +disc</th></tr></thead>
 <tbody>{jrows_b}</tbody></table></div>
 <figure><img src="fig3_qoi_correlation.png" alt="QoI correlation matrix of the o4d20 CR3 committee"><figcaption>Figure 3. Correlation
 between the QoIs in the CR3 committee for o4d20 (K = 200 members).</figcaption></figure>
@@ -1303,8 +1320,8 @@ members' bulk (diamond) energy, and QoI coverage and sharpness as in Table 3.</c
 <p><b>The POPS ellipsoid.</b> The ellipsoid of Swinburne et al. [2026] (Section 2.6) exists here only with the leverage cut: fitted
 to every row, its own scale on the test forces is {ell_nocut}. With the cut it needs almost no scale (λ<sub>e</sub> =
 {ell_lam("o3d12")} for o3d12 and {ell_lam("o4d20")} for o4d20, the RMS of the test-split per-atom scores, against λ<sub>F</sub> =
-{f(lam["o3d12"]["F"])} and {f(lam["o4d20"]["F"])} for CR3), and its per-atom force coverage is the most even of any method across
-configuration types: with λ<sub>e</sub>, the RMS deviation of the per-type 90 % coverage from nominal is {ell_rms("o3d12")} (o3d12) and
+{f(lam["o3d12"]["F"])} and {f(lam["o4d20"]["F"])} for CR3), and its per-atom force coverage is the most even of the propagation methods across
+configuration types (in sample: λ<sub>e</sub> is fitted on the test split): with λ<sub>e</sub>, the RMS deviation of the per-type 90 % coverage from nominal is {ell_rms("o3d12")} (o3d12) and
 {ell_rms("o4d20")} (o4d20), against {ell_rms("o3d12", "headline")} and {ell_rms("o4d20", "headline")} for CR3 × λ<sub>F</sub> and
 {ell_rms("o3d12", "B2_paper")} and {ell_rms("o4d20", "B2_paper")} for B2 (Appendix B). The evenness is an in-distribution property.
 Refitted without the cracks and screw dislocations (o3d12 at 2000 iterations per stage), it covers {ell_ood("o3d12")} (o3d12) and
@@ -1384,7 +1401,8 @@ residual (DFT − model) minus a temperature-matched bulk reference, extrapolate
 errors (DFT − model) of the dumbbell / hexagonal / tetrahedral interstitials, and the mean over the hot training cells.</caption>
 <thead><tr><th>model</th><th>extrapolated to F → 0</th><th>QoI errors</th><th>mean over hot cells</th></tr></thead>
 <tbody>{trend_rows}</tbody></table></div>
-<p>Over the hot cells the model's interstitial error averages near zero, so the CR3 intervals are calibrated there (test-split
+<p>Over the hot cells the model's mean interstitial error is small per atom and of the opposite sign to the
+extrapolated bias, so the CR3 intervals are calibrated there (test-split
 z RMS 0.85–1.13 for those cells). The error grows towards the cold limit, and the relaxed defect lies beyond the data along
 a bias that all interstitial clusters share. With per-atom energy weighting, 0.4–1.6 eV in a 217-atom cell costs only
 2–7 meV/atom in the fit.</p>""", "drafted", level=3)
@@ -1405,10 +1423,11 @@ if len(tj) == 2:
 their identical cells, and the other {sum(s == 1 for s in _g)} each have their own cell. We deleted each run as one cluster,
 exactly, with the cluster form of the leverage correction (Section 2.4), kept every other configuration as its own cluster, and refitted
 λ<sub>F</sub> on the test split ({tj["o3d12"]["lam_F"]["cr3"]:.2f} → {tj["o3d12"]["lam_F"]["traj"]:.2f} for o3d12,
-{tj["o4d20"]["lam_F"]["cr3"]:.2f} → {tj["o4d20"]["lam_F"]["traj"]:.2f} for o4d20). The interstitial σ grow by factors of
+{tj["o4d20"]["lam_F"]["cr3"]:.2f} → {tj["o4d20"]["lam_F"]["traj"]:.2f} for o4d20; both recomputed by the same rule from the CR3 columns
+cached by the delta stage; the headline's are {f(lam["o3d12"]["F"])} and {f(lam["o4d20"]["F"])}, so only the change is compared). The interstitial σ grow by factors of
 {min(_tj_ratio("o3d12", True)):.2f}–{max(_tj_ratio("o3d12", True)):.2f} (o3d12) and {min(_tj_ratio("o4d20", True)):.2f}–{max(_tj_ratio("o4d20", True)):.2f}
 (o4d20); the other σ change by factors of {min(min(_tj_ratio(m, False)) for m in tj):.2f}–{max(max(_tj_ratio(m, False)) for m in tj):.2f}.
-Without the discrepancy term, the interstitial |z| (dumbbell / hexagonal / tetrahedral) fall from {_tj_z("o3d12", "cr3")} to
+Without the discrepancy term, the delta-method interstitial |z| (dumbbell / hexagonal / tetrahedral) fall from {_tj_z("o3d12", "cr3")} to
 {_tj_z("o3d12", "traj")} for o3d12 and from {_tj_z("o4d20", "cr3")} to {_tj_z("o4d20", "traj")} for o4d20. Delta-method coverage at
 95 % rises from {tj["o3d12"]["covered95"]["cr3"]} to {tj["o3d12"]["covered95"]["traj"]} of {tj["o3d12"]["covered95"]["n"]} QoIs
 (o3d12) and from {tj["o4d20"]["covered95"]["cr3"]} to {tj["o4d20"]["covered95"]["traj"]} (o4d20), and no QoI loses coverage.
@@ -1433,7 +1452,7 @@ models of Table 8b, and s* is the standard deviation of that average.</caption>
 <thead><tr><th>model</th><th>class</th><th>estimator</th><th>r* (eV)</th><th>s* (eV)</th></tr></thead><tbody>{r7a_rows}</tbody></table></div>
 <div class="wrap"><table><caption>Table 7. Coverage of the 20 scored QoIs with the discrepancy term on the four defect QoIs
 (models with r*: {models_disc}).</caption>
-<thead><tr><th>model</th><th>method</th><th>95 % without</th><th>95 % with [credible interval]</th><th>68 %</th><th>median σ/tol</th><th>CRPS/tol without → with</th></tr></thead>
+<thead><tr><th>model</th><th>method</th><th>95 % without</th><th>95 % with [credible interval]</th><th>68 %</th><th>median σ/tol with</th><th>CRPS/tol without → with</th></tr></thead>
 <tbody>{dcov_rows}</tbody></table></div>
 <p>The term lowers the CRPS of every method (Table 7), most for o3d12, whose interstitial errors dominate its score. With the
 term, B1 and CR3 × λ<sub>F</sub> score almost the same ({dcrps("o3d12", "B1-headline", "q_b1")} against
@@ -1519,7 +1538,7 @@ the fit has seen, not extrapolation. o3d12 is within every interval, but its CR3
 set by one β-tin training cell ({_sh("o3d12", "bt"):.2f} of the variance). Without that cell, and with λ<sub>F</sub> refitted, the
 barrier σ falls from {_bt["qoi"]["vacancy_barrier"]["sigma"]["full"]:.2f} to {_bt["qoi"]["vacancy_barrier"]["sigma"]["drop"]:.2f} eV
 and the barrier is still covered (|z| = {abs(_bt["qoi"]["vacancy_barrier"]["z"]["drop"]):.2f}); the vacancy formation energy, which the
-same cell dominates, is then missed (z {_bt["qoi"]["vacancy_energy"]["z"]["full"]:.2f} → {_bt["qoi"]["vacancy_energy"]["z"]["drop"]:.2f}).</p>""",
+same cell dominates, is then missed (|z| {abs(_bt["qoi"]["vacancy_energy"]["z"]["full"]):.2f} → {abs(_bt["qoi"]["vacancy_energy"]["z"]["drop"]):.2f}).</p>""",
         "", level=4)
 
 # Section 3.9: whole-configuration CRC (analysis/crc_config.py ladder, weight_sweep.py, selection.py, wl_sweep.py, final.py,
@@ -1538,6 +1557,8 @@ _rng = lambda xs, d=3: f"{min(xs):.{d}f}–{max(xs):.{d}f}"
 def lad_gap(m, a, b, lo="joint"):
     return lz(m, a, lo) - lz(m, b, lo)
 _cr3_b1 = [lad_gap(m, "headline", "B1") for m in LADDER]
+_cr3_not2 = [m for m in LADDER if f"{m}/ellipsoid" in _lad["joint"]["0.1"]["halves"] and f"{m}/B2" in _lad["joint"]["0.1"]["halves"]
+             and lz(m, "headline") > min(lz(m, "B2"), lz(m, "ellipsoid"))]   # sizes where a POPS shape beats CR3 for whole configurations
 ws_z = lambda c, v: _ws["halves"][v]["joint 0.1"][c]["size"]["mean"]
 ws_wk = lambda c, v: max(_ws["halves"][v]["joint 0.1"][c]["risk_by_kind"].items(), key=lambda kv: kv[1])
 sel_ch = lambda p, k="sweep": _sel[k]["profiles"][p]["choice"].replace("Ex", "× ").replace("hand_pq", "per-quantity evidence noise")
@@ -1548,6 +1569,9 @@ def frd(m, cand, oth, v):
     return f"{x['mean']:+.2f} ({x['tau']:.2f})".replace("-", "−")
 _r3 = _fr.get("o4d16", {}).get("rule3", {})
 r3s = lambda w, k, f_: _r3[w]["scores"][k][f_]
+from bench.si_qoi_uq.analysis.joint_scale import joint_scale as _joint_scale   # rule 3 read as Section 3.5's joint scale
+r3j = lambda w, k: _joint_scale(r3s(w, k, "d2_over_n") * _r3[w]["n"], _r3[w]["n"])
+r3jt = lambda w, k: f"s = {r3j(w, k)['s_med']:.2f} [{r3j(w, k)['s_lo']:.2f}, {r3j(w, k)['s_hi']:.2f}], log BF {r3j(w, k)['log_bf']:+.1f}"
 def wl_m(b, v="F"):
     d_, t_ = _wl["by_weight"]["hand"]["matched"]["small"][b]["diff"][v]
     return f"{d_:+.2f} (τ {t_:.2f})".replace("-", "−")
@@ -1586,7 +1610,7 @@ if _lad and _ws and _sel and _fr and _fo:
     crc_p = f"""
 <p>The per-atom forces of Section 3.2 and the QoIs of Sections 3.4–3.8 test each method with the scale it was built with. Under
 conformal risk control (Section 2.8) every shape gets its own scale on the same calibration data, so this section compares the
-shapes alone, for whole configurations as well as per atom, and uses the calibrated size to choose the weights and basis
+shapes alone, for whole configurations as well as per atom, and uses the calibrated size to score the weights and basis
 that the benchmark fixes by hand (Section 2.9).</p>
 <p><b>In distribution, along the ladder.</b> Figure 11 shows the calibrated size of the four shapes for every model of the
 ladder, on the same 100 random halves of the test split. Every shape meets its target: the mean risk is
@@ -1594,12 +1618,12 @@ ladder, on the same 100 random halves of the test split. Every shape meets its t
 conservative. The two scores rank the shapes in opposite ways at every size. Per atom the POPS ellipsoid gives the smallest
 regions and CR3 the largest ({np.exp(lz("o3d12", "ellipsoid", "atom")):.3f} against {np.exp(lz("o3d12", "headline", "atom")):.3f} eV/Å
 for o3d12, {np.exp(lz("o4d20", "ellipsoid", "atom")):.3f} against {np.exp(lz("o4d20", "headline", "atom")):.3f} for o4d20). For whole
-configurations B1 gives the smallest regions at every size and CR3 the next smallest, within {max(_cr3_b1[:4]):.2f} in log size of B1
+configurations B1 gives the smallest regions at every size and CR3 the next smallest{(" except at " + ", ".join(_cr3_not2) + ", where a POPS shape is marginally smaller") if _cr3_not2 else ""}, within {max(_cr3_b1[:4]):.2f} in log size of B1
 up to o4d12 and {min(_cr3_b1[4:]):.2f}–{max(_cr3_b1[4:]):.2f} behind it above; the POPS box and ellipsoid level off from o4d14,
 and at o4d20 their regions ({np.exp(lz("o4d20", "B2")):.3f} and {np.exp(lz("o4d20", "ellipsoid")):.3f} eV/Å) are larger than the test
 force RMSE ({_par["o4d20"]["rmse_F"]:.3f}). A per-atom score sees each atom's 3×3 block only; a whole-configuration score also sees
-the correlations between atoms, which the parameter covariances (B1, CR3) carry and the POPS shapes, built row by row, do not. The
-same ordering holds for the QoIs jointly (Section 3.5). For models, every shape prefers the larger one, and the calibrated size has
+the correlations between atoms, which the parameter covariances (B1, CR3) carry and the POPS shapes, built row by row, do not. On the
+QoIs the joint ranking is different (Section 3.5): B1 is the worst calibrated jointly. For models, every shape prefers the larger one, and the calibrated size has
 not levelled off by o4d20 (B1, joint: {np.exp(lz("o4d16", "B1")):.3f} → {np.exp(lz("o4d20", "B1")):.3f} eV/Å from o4d16 to o4d20).
 Whatever the shape, the miss rate is not uniform across kinds of configuration: the guarantee is marginal, and the worst kind
 moves from surfaces for the small models to point defects for o4d20 (B1 misses
@@ -1612,9 +1636,12 @@ while the F size grows by {ws_z("Ex10", "F") - ws_z("hand", "F"):.2f}; beyond ×
 sizes stop improving. The worst-kind miss rate of the energy view falls from {ws_wk("hand", "E")[1]:.2f} ({ws_wk("hand", "E")[0]}) to
 {ws_wk("Ex10", "E")[1]:.2f}. The selection rule picks per use: forces, the per-quantity evidence noise (whose σ<sub>E</sub> all but
 ignores the energies); energies, {sel_ch("energies")}; balanced and formation, {sel_ch("balanced")}; and the minimax-regret choice
-over the four uses is {_sel["sweep"]["minimax_regret"]["choice"].replace("Ex", "× ")}. The hand
-weights are never chosen. Point errors would choose differently: the lowest validation energy RMSE belongs to a candidate that
-calibrated size never chooses. With CR3 in place of B1 the choice is the same (× 10), and CR3's regions are larger than B1's for
+over the four uses is {_sel["sweep"]["minimax_regret"]["choice"].replace("Ex", "× ")}. With B1 the hand
+weights are never chosen. We carry × 10 forward, not the minimax-regret choice: this is a judgement, not the rule's output. It gives the
+balanced and formation uses, through which silicon's properties depend on energy differences, priority over forces and raw energies, and
+the rule as fixed declared no such priority. Point errors would choose differently: the lowest validation energy RMSE belongs to a candidate that
+calibrated size never chooses. With CR3 in place of B1, over a narrower candidate set (the hand weights, × 5 and × 10), the energies,
+balanced and formation uses and the minimax-regret choice are all {sel_ch("balanced", "sweep_cr3")}, but the forces use picks the hand weights; and CR3's regions are larger than B1's for
 forces at every weight; its energy regions, smaller than B1's by {wcr("hand")} in log at the hand weights, are smaller by only {wcr("Ex10")} at
 × 10: raising the energy weight gives B1's posterior energy directions that match the errors.</p>
 <p><b>Basis.</b> At matched basis count a smaller w<sub>L</sub>, a more angular basis, gives smaller regions (hand weights, F
@@ -1622,7 +1649,11 @@ view, against w<sub>L</sub> 1.5 near {_wl["bases"]["o4d14_wL1.5"]["n_mb"]} funct
 {wl_m("o4d15_wL1.75")} for 1.75, {wl_m("o4d15_wL2.0")} for 2.0). Basis count is the wrong cost, though: a low-w<sub>L</sub> basis
 spends its functions on high angular channels, which need many more products each, so its A100 cost is higher at the same count.
 Over the cost price λ the lowest mean score goes to {wl_env()}, and at λ = 0.25 the tolerance set holds
-{wl_near(0.25)}. No w<sub>L</sub> gives a resolvably better size at its cost than the default, which we keep.</p>
+{wl_near(0.25)}. The rule therefore does not return the default: where the default has the lowest mean score the rule takes the
+cheapest member of the tolerance set, and elsewhere another w<sub>L</sub> scores lower; nor was a cost price fixed in advance. We keep
+the default w<sub>L</sub> 1.5 by judgement: at λ = 0.25 it has the lowest mean score and the rule's choice is within one standard
+error of it, and adopting
+another w<sub>L</sub> would replace the paper's models.</p>
 <p><b>The chosen fit, on the test split and held out.</b> The × 10 weights were refitted on all of \\(T\\) and CRC-calibrated on the
 test split. There every shape and view is at its risk ({_rng([v[c]["test"]["risk"]["mean"] for v in (_fin["views"]["E"]["joint 0.1"], _fin["views"]["F"]["joint 0.1"]) for c in v])} at α = 0.1, joint), and the
 validation ordering holds: × 10 against the hand weights shrinks the E regions by
@@ -1631,18 +1662,23 @@ regions by {_fin["views"]["F"]["joint 0.1"]["Ex10"]["test"]["size"]["mean"] - _f
 Off distribution, on the {_t["o4d16"]} cracks and screw dislocations held out of a refit, the heavier energy weight also makes the
 posterior far better calibrated: B1's held-out energy risk falls from {fo("o4d16", "hand", "E joint 0.1"):.2f} to
 {fo("o4d16", "Ex10", "E joint 0.1"):.2f} and its dE_form risk from {fo("o4d16", "hand", "dE_form joint 0.1"):.2f} to
-{fo("o4d16", "Ex10", "dE_form joint 0.1"):.2f}. No shape reaches α off distribution.</p>
-<p><b>Decision rules, fixed before the results.</b> Whether B1's in-distribution sharpness under CRC undermines the case for CR3
-was decided by four rules written down before the held-out shapes and the QoIs of the × 10 fit were computed (Appendix D). Rule 1
+{fo("o4d16", "Ex10", "dE_form joint 0.1"):.2f}. In the force views no shape reaches α off distribution (held-out risks from
+{min(fo("o4d16", c, v) for c in _fo["o4d16"]["views"]["F"]["joint 0.1"] for v in ("F joint 0.1", "F frac 0.1")):.2f} up); at × 10 every
+shape's dE_form risk is within it (at most {max(fo("o4d16", c, "dE_form joint 0.1") for c in ("Ex10", "Ex10/CR3", "Ex10/ellipsoid")):.2f}).</p>
+<p><b>Decision rules, fixed before the × 10 fit's held-out and QoI results.</b> Whether B1's in-distribution sharpness under CRC
+undermines the case for CR3 was decided by four rules written down before the CR3 and ellipsoid held-out refits and the QoIs of the
+× 10 fit were computed, but after the in-distribution results and B1's held-out risks were known (Appendix D). Rule 1
 compares held-out risk, d = risk(B1) − risk(CR3) over the 100 paired splits with τ = sd/√2, in the energy and force views at × 10;
 rule 3 compares the propagated DFT QoIs. Table 9 and Figure 12 give the held-out risks. At o4d16 × 10, CR3 is better on held-out
 energies (d = {frd("o4d16", "Ex10", "B1", "E joint 0.1")}) and worse on held-out forces (d = {frd("o4d16", "Ex10", "B1", "F joint 0.1")}): rule 1 is
 not met. B1 misses fewer held-out crack and dislocation configurations under whole-configuration CRC. On the {_r3["o4d16_Ex10"]["n"]} QoIs
 of the × 10 fit (the paper's scored QoIs except the two stacking-fault energies, which are committee-only; delta method with the shared
 discrepancy term), CR3 covers
-{r3s("o4d16_Ex10", "CR3", "k95")} at 95 % with d²/n = {r3s("o4d16_Ex10", "CR3", "d2_over_n"):.2f}, inside the χ² band
-[{_r3["o4d16_Ex10"]["band"][0]:.2f}, {_r3["o4d16_Ex10"]["band"][1]:.2f}], and B1 covers {r3s("o4d16_Ex10", "B1", "k95")} with
-d²/n = {r3s("o4d16_Ex10", "B1", "d2_over_n"):.2f}, outside it: rule 3 is met. One rule of two narrows the headline (rule 4): CR3 is the method
+{r3s("o4d16_Ex10", "CR3", "k95")} at 95 % and the evidence favours its covariance as jointly calibrated (Section 3.5's joint scale:
+{r3jt("o4d16_Ex10", "CR3")}); B1 covers {r3s("o4d16_Ex10", "B1", "k95")}, and its joint calibration is inconclusive
+({r3jt("o4d16_Ex10", "B1")}), with a log score per QoI {r3s("o4d16_Ex10", "B1", "ls_over_n") - r3s("o4d16_Ex10", "CR3", "ls_over_n"):.2f}
+worse than CR3's. Rule 3 is met. As written (Appendix D) it read the joint check as a χ²<sub>n</sub>/n band on d²/n, which puts
+B1 just outside; with B1 not rejected, its other branch (log score lower by at least 0.05) gives the same verdict. One rule of two narrows the headline (rule 4): CR3 is the method
 for QoIs propagated without calibration data, and for held-out energies; for whole-configuration force regions calibrated by CRC,
 B1 is sharper and at least as reliable. For the paper's own models the same comparison, at hand weights, gives the force difference
 d = {frd("o3d12", "hand", "B1", "F joint 0.1")} for o3d12 (unresolved: on the held-out configurations every shape fails alike, with
@@ -1822,11 +1858,12 @@ scale; POPS needs neither in principle, although here its ridge was chosen on a 
 <p>The scale is not unique. The virial scale is about a third larger than the force scale, and using it covers
 {k95("o3d12", "CR3-headline", "lam_V")} QoIs for o3d12 and {k95("o4d20", "CR3-headline", "lam_V")} for o4d20 with wider intervals; its joint evidence is higher than the force scale's for o3d12 and about equal for o4d20. Misspecification depends on the observable, and one could choose the scale by the QoI's physics, the virial scale
 for stress-like QoIs such as elastic constants, or report both. A single scale is also a compromise across configuration types
-(Figure 5), which a per-type scale in θ could relax. A learned per-atom scale cannot be used for this directly: it rescales
+(Table 2p, Figure 2), which a per-type scale in θ could relax. A learned per-atom scale cannot be used for this directly: it rescales
 force outputs atom by atom and defines no covariance in θ; a θ-space analogue would need a shape that depends on the
 environment.</p>
 <p>Linearisation is adequate at the size of the distribution, but not everywhere at the calibrated size. The delta method agrees
-with committees run through the unmodified benchmark for almost every QoI at λ = 1, and implicit differentiation through each
+with committees run through the unmodified benchmark at λ = 1 for all but {nflag["o3d12"]} of {ncmp["o3d12"]} QoIs (o3d12) and
+{nflag["o4d20"]} of {ncmp["o4d20"]} (o4d20; Section 3.6), and implicit differentiation through each
 relaxation, including that of the lattice constant, makes it cheap: one set of rows per QoI. At λ<sub>F</sub> the phase energies of
 the structures furthest from diamond become strongly nonlinear, because their relaxations change character; for those, committees
 are the safer route, and their spread is then a property of the relaxation path rather than of a Gaussian.</p>
@@ -1860,7 +1897,8 @@ training data, which the defects show is not always true. The hyperparameters ar
 uncertainty is not propagated. The locality of the model, which cannot represent interactions beyond its cutoff, appears here only
 as part of the effective error. And twenty QoIs give coarse coverage estimates: 17 of 20 leaves a 95 % credible interval from
 0.65 to 0.96 for the coverage probability, so the evidence of Section 3.5, which uses all the QoIs jointly, is the sharper comparison. The decision rules of Section 3.9 were fixed before the held-out shapes and the QoIs of the selected fit
-were computed, but after the in-distribution risk-control results were known, so they were not blind to the result they test.</p>""", "")
+were computed, but after the in-distribution risk-control results and B1's held-out risks were known, so they were not blind to the
+result they test.</p>""", "")
 
 sec("conclusions", "5  Conclusions", """
 <p>For linear ACE potentials, the delete-one-configuration (CR3) jackknife covariance, scaled once, gives uncertainties close
@@ -1879,10 +1917,11 @@ and dislocations, it covers """ + fmv("o3d12", "ood", "B2") + " of the held-out 
 relaxed point defects, the cause is a bias shared by all training snapshots of a kind, which no delete-one method can see; it can be
 measured from the training labels and added as a discrepancy term, which brings the coverage close to nominal. The comparison of
 shapes depends on the use. With each shape's size refitted on whole configurations by conformal risk control, the Bayesian
-posterior gives the sharpest force regions, in distribution and, for the larger models, on held-out cracks and dislocations, while
-CR3 keeps the held-out energies and the propagated properties. The same calibrated region size, with a selection rule fixed in
-advance, chooses a fit's hand-set weights: for the energy differences that silicon's properties depend on it prefers a tenfold
-energy weight, which also makes the posterior far better calibrated off distribution. The methods are implemented in ace-jax.</p>""", "")
+posterior gives the sharpest force regions in distribution and, for the larger models, the lower force risk on held-out cracks and
+dislocations, while CR3 keeps the held-out energies and the propagated properties. The same calibrated region size, with a selection
+rule fixed in advance, scores a fit's hand-set weights: every use that weights energies prefers a heavier energy weight than the
+benchmark's. We take a tenfold weight by judgement (the rule's minimax choice is fivefold); it also makes the posterior far better
+calibrated off distribution. The methods are implemented in ace-jax.</p>""", "")
 
 sec("methods-detail", "6  Computational details", """
 <p>The training and test data are the GAP-18 silicon database [Bartók et al. 2018], split once at random into 2227 training and
@@ -1904,7 +1943,8 @@ before that re-run), the discrepancy term and its estimators (Section 2.7.4; com
 cells being left out), the per-atom force method (Section 2.5, chosen after
 comparing it with a learned scale on the test split and on the out-of-distribution set), the use of the BLR posterior instead
 of ARD for that stage (so that one posterior serves forces and QoIs; Section 2.3 gives both), and Bayesian model comparison in place of
-the specification's fixed [0.8, 1.25] band on λ<sub>V</sub>/λ<sub>F</sub>. None of these uses a DFT QoI value as an input, but
+the specification's fixed [0.8, 1.25] band on λ<sub>V</sub>/λ<sub>F</sub>. The × 10 energy weight and keeping the default
+w<sub>L</sub> are judgement calls beside the selection rule's output (Section 3.9). None of these uses a DFT QoI value as an input, but
 they were not made blind. Added in this version, after the first version's results: the vacancy migration barrier (Section 3.8,
 outside the counts), the POPS ellipsoid, the risk-control comparison and the selection rule (Sections 2.8, 2.9 and 3.9; selection
 on the training hold-out only), and the decision rules of Section 3.9, fixed as Appendix D records.</p>
