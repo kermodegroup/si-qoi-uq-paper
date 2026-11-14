@@ -251,6 +251,7 @@ phase = {m: _ratios(m, True) for m in models}
 _dvc = [r for r in dvc if r.get("flagged") in ("True", "False", True, False) and "JAX" not in r["qoi"]]
 dvc_rng = {m: (min(float(r["ratio"]) for r in _dvc if r["model"] == m), max(float(r["ratio"]) for r in _dvc if r["model"] == m)) for m in models}
 dvc_flag = {m: [r["qoi"] for r in _dvc if r["model"] == m and r.get("flagged") in ("True", True)] for m in models}
+_pr = lambda m, q: next(f"{float(r['ratio']):.2f}" for r in _dvc if r["model"] == m and r["qoi"].startswith(q + " "))  # delta/committee sigma ratio
 disc_head = "; ".join(f"{m}: {v[k]['k95']}/{v[k]['n']}" for m, v in
                       (json.load(open(RES / "discrepancy.json")).items() if (RES / "discrepancy.json").exists() else [])
                       for k in ["CR3-headline+disc/lam_F"] if k in v) or "[pending]"
@@ -787,9 +788,15 @@ matscipy protocol (Voigt strain pattern e<sub>1</sub>+e<sub>4</sub>, 5 steps of 
 of patterns e<sub>1</sub>, e<sub>4</sub>, e<sub>1</sub>+e<sub>2</sub>.</li>
 <li><b>Decohesion.</b> Rigid openings of the relaxed bulk: linear in θ at fixed \(a_0\) plus the \(a_0\) term; the cubic-spline
 derivative is linear in the energies.</li>
+<li><b>Phase energies.</b> The protocol relaxes each phase freely, then relaxes it at fixed volumes on a grid of steps of 2.5 %
+around that volume, and takes the lowest point of the grid: a sampled stand-in for the minimum of the relaxed E(V) curve. Its row
+is the energy row at the lowest grid point, which is what the envelope theorem gives at the curve's minimum. The free relaxation
+stops within a loose stress tolerance, so the lowest grid point need not be the freely relaxed one (bcc for o3d12, four steps
+away; hcp for o4d20, one step). There a term of the order of the energy change per grid step is neglected, which the committee
+check (Section 3.6) tests. Both rows fail it (σ ratio """ + f"""{_pr("o3d12", "dE_bcc")} for o3d12 bcc, {_pr("o4d20", "dE_hcp")} for o4d20 hcp: each
+member's lowest grid point moves between grid points on a flat E(V)), so the headline takes their σ from the committee.</li>""" + r"""
 <li><b>Discrete steps</b> (E(V)-grid argmin, maximum over a grid) are held at their index; γ<sub>us</sub> and phonons are
-committee-only. So is one phase energy per model, bcc for o3d12 and hcp for o4d20: its E(V) minimum is not at the grid point
-of the freely relaxed volume, so the selected point changes with θ and has no derivative. The delta method therefore covers 17 of the 20 scored QoIs.</li>
+committee-only. The delta method therefore covers 18 of the 20 scored QoIs.</li>
 </ul>
 <p>Rows are checked against finite differences in θ (to ~10<sup>−5</sup>) and the values they imply reproduce the harness to
 ~10<sup>−10</sup> (energy QoIs) and 0.04 GPa (elastic constants).</p>
@@ -1174,7 +1181,7 @@ its 95 % coverage and median σ/tol.</figcaption></figure>
 <figure><img src="fig2_coverage.png" alt="Coverage per method with binomial intervals"><figcaption>Figure 1b. Fraction of the 20 scored QoIs inside the 68 % and 95 % intervals for the four methods of Figure 1
 (headline, B1, B2 with the 50 % leverage cut, B3), with 95 % credible intervals from the Jeffreys-prior Beta posterior; dashed lines are the nominal levels.</figcaption></figure>
 <h3>3.5 Joint evidence</h3>
-<div class="wrap"><table><caption>Table 4. Log evidence of the 20 scored DFT values (17 with the delta method) under each method's
+<div class="wrap"><table><caption>Table 4. Log evidence of the 20 scored DFT values (18 with the delta method) under each method's
 predictive distribution, in tolerance units (ε = 10<sup>−6</sup>), and the log Bayes factor against the headline with the same
 covariance source. d² and log det are the two parts of the evidence: the misfit of the errors, and the width of the covariance.</caption>
 <thead><tr><th>model</th><th>method</th><th>covariance from</th><th>n</th><th>log p</th><th>log BF vs headline</th><th>d²</th><th>log det</th></tr></thead>
@@ -1229,7 +1236,7 @@ configurations ({_mv["o4d20"]["lam_mv_all"]:.1f} against λ<sub>F</sub> = {_mv["
 {_mv["o3d12"]["lam_mv_all"]:.1f}, and its intervals are far too wide (median σ/tol {_mv["o3d12"]["qoi_median_sigma_over_tol"]:.1f}). The
 headline keeps λ<sub>F</sub>.</p>
 <div class="wrap"><table><caption>Table 4b. Correlation-aware scores of the {_jn} delta-method QoIs of Table 4 (all scored QoIs but the two
-stacking-fault energies and one phase energy per model, Section 2.7.2), tolerance units, covariance floor τ = 0.05: the count inside the
+stacking-fault energies), tolerance units, covariance floor τ = 0.05: the count inside the
 95 % interval (with the floor, so it can differ from Table 3), d²/n and the log score per QoI, without and with the discrepancy term
 as a shared bias. B2 from its committee; the others by the delta method. λ<sub>mv</sub>: the CR3 shape at the whole-configuration
 scale (text).</caption>
@@ -1238,10 +1245,11 @@ scale (text).</caption>
 <figure><img src="fig3_qoi_correlation.png" alt="QoI correlation matrix of the o4d20 CR3 committee"><figcaption>Figure 3. Correlation
 between the QoIs in the CR3 committee for o4d20 (K = 200 members).</figcaption></figure>
 <h3>3.6 Delta method, committees and nonlinearity</h3>
-<p>The two routes to σ<sub>Q</sub> agree where both apply. At λ = 1, the delta-method σ is within 10 % of the committee's for all but
+<p>The two routes to σ<sub>Q</sub> agree for most QoIs. At λ = 1, the delta-method σ is within 10 % of the committee's for all but
 {nflag["o3d12"]} of the {ncmp["o3d12"]} QoIs of o3d12 and {nflag["o4d20"]} of the {ncmp["o4d20"]} of o4d20; the ratio ranges from
 {dvc_rng["o3d12"][0]:.2f} to {dvc_rng["o3d12"][1]:.2f} for o3d12 and from {dvc_rng["o4d20"][0]:.2f} to {dvc_rng["o4d20"][1]:.2f} for o4d20.
-The flagged QoIs ({", ".join(_qn(k) for k in dvc_flag["o3d12"])} for o3d12; {", ".join(_qn(k) for k in dvc_flag["o4d20"])} for o4d20)
+Both phase energies whose lowest grid point is not the freely relaxed one (Section 2.7.2) are flagged.
+The flagged QoIs ({"; ".join(_qn(k) for k in dvc_flag["o3d12"])} for o3d12; {"; ".join(_qn(k) for k in dvc_flag["o4d20"])} for o4d20)
 are taken from the committee, as Section 2.7.3 prescribes. The implicit differentiation through each relaxation, including that of the
 lattice constant, is therefore accurate at the size of the CR3 distribution itself. The elastic constants are a stricter check,
 because they can be computed by two routes, from the stress or from the curvature of the energy. Figure 4 shows that the two give
@@ -2022,8 +2030,8 @@ reported as the counterpoint. One of them: the headline is narrowed to that use.
 energy reweighting the posterior shape B1 is as reliable as CR3 and sharper, and the jackknife's case rests on its behaviour without
 CRC (no held-out calibration, the per-atom scale). Every outcome is reported.</li>
 </ol>
-<p>Applied, rule 3 used the 18 QoIs that the × 10 fit's delta method gives (the 17 named there plus the decohesion stress, whose rows
-exist for this fit) and the χ² band for 18. The reading for the paper's models (o3d12 and o4d20 at the hand weights): rule 1's
+<p>Applied, rule 3 used the 18 QoIs that the × 10 fit's delta method gives (all scored QoIs but the two stacking-fault energies;
+the rule's 17 was the count for the paper's models before every phase energy had a row, Section 2.7.2) and the χ² band for 18. The reading for the paper's models (o3d12 and o4d20 at the hand weights): rule 1's
 form, per model, reported with the fraction loss, the ellipsoid and the sizes; Section 3.2 states that after whole-configuration
 CRC B1's held-out force risk is no higher than CR3's only if the force view is reversed or unresolved at both models, and otherwise
 states the narrowing per model. No outcome changes the decisions above.</p>""", "", level=2)
