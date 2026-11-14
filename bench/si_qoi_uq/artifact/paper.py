@@ -264,6 +264,10 @@ disc_txt = "; ".join(f"{m}: {disc_l[m]['CR3-headline+disc/lam_F']['k95']}/{disc_
 _cv = {r["model"]: float(r["median_sigma_over_tol"]) for r in rd("coverage.csv") if r["method"] == "CR3-headline" and r["scale"] == "lam_F"}
 tight_ratio = _cv["o3d12"] / _cv["o4d20"] if {"o3d12", "o4d20"} <= set(_cv) else float("nan")
 
+_abw = json.load(open(RES / "final_in.json"))["views"] if (RES / "final_in.json").exists() else {}   # Section 3.9, test split
+_abz = lambda v, c: _abw[v]["joint 0.1"][c]["test"]["size"]["mean"]
+_ab_e = float(np.exp(_abz("E", "hand") - _abz("E", "Ex10"))) if _abw else float("nan")
+_ab_f = 100 * float(np.exp(_abz("F", "Ex10") - _abz("F", "hand")) - 1) if _abw else float("nan")
 sec("abstract", "Abstract", f"""
 <p>Machine-learned interatomic potentials are misspecified, so Bayesian posterior variances understate their errors. For linear
 atomic cluster expansion (ACE) potentials we derive calibrated uncertainties from one misspecification-robust parameter
@@ -273,8 +277,11 @@ of the fit; screw dislocations left out are under-covered by the smaller of the 
 the same parameter distribution is propagated to 21 properties of silicon, from elastic constants to defect and surface energies,
 by implicit differentiation through each relaxation and by committees, and is tested against density functional theory (DFT) without tuning on any property.
 For a smaller and a larger model the intervals cover most properties, and the larger model's are about {tight_ratio:.0f} times
-tighter. The Bayesian posterior with one calibrated scale has the wrong shape: it covers fewer properties and has far lower joint
-evidence. Pointwise optimal parameter sets (POPS), once their hypercube is numerically defined, performs comparably on the properties, but its per-atom force
+tighter. For propagation the Bayesian posterior with one calibrated scale has the wrong shape: it covers fewer properties and has
+far lower joint evidence. When every shape's size is instead refitted by conformal risk control over whole configurations, the
+posterior gives the sharpest force regions, and on held-out cracks and dislocations it misses no more configurations than the
+jackknife, which keeps its advantage for held-out energies. The same calibrated region size chooses the fit's weights: a tenfold
+energy weight makes the energy regions {_ab_e:.1f} times smaller for force regions {_ab_f:.0f} % larger. Pointwise optimal parameter sets (POPS), once their hypercube is numerically defined, performs comparably on the properties, but its per-atom force
 regions are not calibrated to a target ({fb("o3d12", "B2")} and {fb("o4d20", "B2")} at a nominal 0.90). Where the jackknife fails is relaxed point defects, whose training cells are all hot snapshots: a bias that every configuration
 shares is invisible to a jackknife, but it can be measured from the training labels, and as a discrepancy term, devised
 after the property results were seen, it brings the coverage close to nominal.</p>""", "draft")
@@ -334,9 +341,19 @@ relaxation.</p>
 share is invisible to any delete-one jackknife; in the GAP-18 database [Bartók et al. 2018] every defect cell is a hot molecular-dynamics snapshot. We
 diagnose this bias, measure it from the training labels alone, and add it to the defect QoIs as a discrepancy term, which
 leaves the fit unchanged.</p>
-<p>Section 2 sets out the methodology: the linear ACE fit (2.1–2.2), automatic relevance determination as a check on the prior (2.3), the CR3 shape (2.4), the per-atom force calibration
-(2.5), the baselines (2.6) and the propagation to QoIs (2.7). Section 3 gives the validation statistics and the results: the per-atom forces first, then the global scale that the
-propagation uses, then the QoIs. Section 4 discusses them and Section 5 concludes.</p>""", "draft")
+<p>Each method above is tested with the scale it was built with, so a comparison of methods mixes their shapes with their
+scales. We therefore also compare the shapes on equal terms, by conformal risk control over whole configurations [Angelopoulos et
+al. 2022; Fisher et al. 2026], which refits every shape's size on the same calibration data. The answer depends on the use. For
+propagation to QoIs, which have no calibration data, the CR3 shape is better; for whole-configuration force regions, the Bayesian
+posterior is. The calibrated region size also gives a score for the choices that a fit fixes by hand, which a point error cannot
+give: we use it, with a selection rule fixed in advance, to choose the energy weight and the basis.</p>
+<p>Section 2 sets out the methodology: the linear ACE fit (2.1–2.2), automatic relevance determination as a check on the prior
+(2.3), the CR3 shape (2.4), the per-atom force calibration (2.5), the baselines (2.6), the propagation to QoIs (2.7), conformal
+risk control over whole configurations (2.8) and the selection rule (2.9). Section 3 gives the validation statistics and the
+results: the per-atom forces first, then the global scale that the propagation uses, then the QoIs, and finally the shapes under
+conformal risk control and the choice of weights and basis (3.9). Section 4 discusses them and Section 5 concludes; the appendices
+give details of the risk control, the POPS ellipsoid per configuration type, the order of the Si(111) reconstructions, and the
+decision rules as they were fixed.</p>""", "draft")
 
 B2_NOTE = ("<b>[Draft: the B2 (POPS) committees are being rerun with the rebuilt boxes of Section 3.7; every B2 number "
            "in this version comes from the earlier boxes and will change.]</b>")
@@ -1747,6 +1764,7 @@ regions in distribution, and on the held-out cracks and dislocations its risk is
 {fo("o4d20", "hand", "F joint 0.1"):.2f} against {fo("o4d20", "hand/CR3", "F joint 0.1"):.2f}). The case for the CR3 shape
 rests on what it does without per-shape recalibration: the per-atom regions above, and the QoIs, which have no calibration data.</p>""", "drafted", level=3)
 
+_s111 = json.load(open(RES / "s111.json")) if (RES / "s111.json").exists() else {}
 mond_dmax = (lambda v: f"{v:.2f}" if v is not None else "–")(max((abs(_ood_get(m, "mondrian", c) - _ood_get(m, "one_group", c))
                                                                 for m in _lso for c, _ in OOD_COLS), default=None))
 dk95 = lambda m: (lambda d_: f"{d_['k95']}/{d_['n']}" if d_ else "?")(disc.get(m, {}).get("CR3-headline+disc/lam_F"))
@@ -1760,9 +1778,14 @@ The same CR3 shape serves per-atom forces, with one conformal quantile (Section 
 scale. The second use is what a distribution over θ buys: one draw gives energies, forces, stresses and every QoI together,
 consistently.</p>
 <p>The baselines show which ingredient matters. The CR3 shape without a scale (B3) is far too narrow, so calibration is essential,
-as expected for a parameter variance that shrinks with the amount of data. The Bayesian posterior with a calibrated scale (B1)
-has the right overall size but the wrong shape: it under-covers the QoIs and its joint evidence is far lower, because the posterior describes
-noise in the labels, not the approximation error of a misspecified model. Shanks et al. [2026] find the same split between
+as expected for a parameter variance that shrinks with the amount of data. For propagation, the Bayesian posterior with a
+calibrated scale (B1) has the right overall size but the wrong shape: it under-covers the QoIs and its joint evidence is far lower,
+because the posterior describes noise in the labels, not the approximation error of a misspecified model. That verdict depends on
+the use. When every shape's size is refitted on whole configurations by conformal risk control (Section 3.9), B1 gives the smallest
+force regions for every model of the ladder, and its held-out force risk is no higher than CR3's; a heavier energy weight also makes
+it far better calibrated on held-out energies. A region refitted on configurations like those it is used on rewards the shape whose
+correlations match their errors, and the posterior's do; a QoI has no calibration data, and there the spread of the leave-one-out
+fits is what transfers. Neither result carries over to the other use. Shanks et al. [2026] find the same split between
 accuracy and uncertainty for argon: MACE committees and seed ensembles predict accurately but cover far fewer errors than their
 intervals claim, and calibration, sharpness and the ranking of errors need not improve together. POPS (B2) targets that error directly and, with a numerically defined box,
 performs comparably on these QoIs: similar coverage and widths. The joint evidence is mixed: without the discrepancy term it
@@ -1772,7 +1795,7 @@ prefers POPS for o3d12 (log Bayes factor {lbf2_txt("o3d12", "B2lev50/lam_1", "CR
 Implicit differentiation is no distinction either: Perez et al. [2025] combine it with POPS, and either distribution can be
 propagated by the delta method or by committees. What CR3 adds is a parameter distribution that is calibrated and numerically
 well posed.</p>
-<p>Three properties of the distribution make the difference. First, its size is one scale, fitted to held-out errors and
+<p>Three properties of the distribution make the difference for propagation. First, its size is one scale, fitted to held-out errors and
 interpretable as such. The size of the POPS box is set instead by the ridge and the leverage cut: across the numerically defined
 ridges the o3d12 box's bulk-energy spread changes by a factor of about 60, the held-out selection put the o3d12 ridge at the floor,
 and a box built from every row is unphysical. Second, a covariance is a sum over configurations, and it is formed here through its
@@ -1780,7 +1803,7 @@ factor L, never as an ill-conditioned quadratic form. A hypercube is bounded by 
 rows, mean and cut, equivalent evaluations of one box gave {pc_old_short}, and the box exists only above a ridge floor. Third, a
 covariance transforms consistently under a linear change of parameters, and a box does not: with the axes taken in θ or in the
 prior-scaled coefficients Γθ, the same corrections give different boxes ({pc_axes}). The ellipsoid of Swinburne et al. [2026] enters its objective only through
-the predicted widths \\(F^{{\\mathsf T}}BF\\), so it transforms consistently; its baseline, however, is the covariance of a POPS box. For forces the calibration is explicit. One conformal
+the predicted widths \\(F^{{\\mathsf T}}BF\\), so it transforms consistently; its baseline, however, is the covariance of a POPS box. For per-atom forces the calibration is explicit. One conformal
 quantile on the CR3 shape covers {lm("o3d12", "one_group")} and {lm("o4d20", "one_group")} of the test atoms against a nominal 0.90 (the
 o3d12 shortfall is the hold-out transfer of Section 3.2), and holds out of distribution on the cracks for both models and on
 the screw dislocations for o4d20, though not for o3d12 ({ood_v("o3d12", "one_group", "screw_disloc")}); the global force scale on the same
@@ -1811,6 +1834,10 @@ size dependence shows that the bias depends on the cell size; the 215-atom extra
 a reminder that such extrapolations depend on how the training data were made. Relaxed or low-temperature defect
 configurations in the training set would remove the need for the term, and the same diagnostic, a residual trend that extrapolates
 away from zero, can flag where such data are missing.</p>
+<p>Calibration also reports what the parameter uncertainty cannot resolve. The order of the Si(111) dimer–adatom–stacking-fault
+reconstructions, whose surface energies differ by less than a meV/Å<sup>2</sup>, is left open by both models' covariances: the
+probability that the 7×7 is the lowest is {_s111["o3d12"]["P_7x7_lowest"]:.2f} for o3d12 and {_s111["o4d20"]["P_7x7_lowest"]:.2f} for o4d20,
+below the 0.25 of a random order, while every reconstruction energy lies within one σ of the literature value (Appendix C).</p>
 <p>Mondrian conformal prediction [Vovk, Gammerman and Shafer 2005], which calibrates a separate quantile in each group of a
 partition fixed in advance, is a natural extension for environments absent from training. The ace-jax force uncertainty
 provides eight such groups of atoms, set by the distortion and coordination of each atom's first shell [ace-jax]. On a
@@ -1825,7 +1852,8 @@ bands or a descriptor-novelty axis, is left to future work.</p>
 training data, which the defects show is not always true. The hyperparameters are held fixed in the jackknife, so their own
 uncertainty is not propagated. The locality of the model, which cannot represent interactions beyond its cutoff, appears here only
 as part of the effective error. And twenty QoIs give coarse coverage estimates: 17 of 20 leaves a 95 % credible interval from
-0.65 to 0.96 for the coverage probability, so the evidence of Section 3.5, which uses all the QoIs jointly, is the sharper comparison.</p>""", "")
+0.65 to 0.96 for the coverage probability, so the evidence of Section 3.5, which uses all the QoIs jointly, is the sharper comparison. The decision rules of Section 3.9 were fixed before the held-out shapes and the QoIs of the selected fit
+were computed, but after the in-distribution risk-control results were known, so they were not blind to the result they test.</p>""", "")
 
 sec("conclusions", "5  Conclusions", """
 <p>For linear ACE potentials, the delete-one-configuration (CR3) jackknife covariance, scaled once, gives uncertainties close
@@ -1834,7 +1862,7 @@ force regions come close to their target coverage on held-out silicon data and o
 smaller model screw dislocations left out are under-covered; a scale learned from the site descriptor evens the coverage across
 environments seen in training but does not improve it on those left out, and for the larger model lowers it. For derived properties, the same covariance with one scale fitted to held-out forces,
 propagated by implicit differentiation through each relaxation, covers most of 20 silicon QoIs against DFT, with intervals that
-shrink with the accuracy of the model. It outperforms the Bayesian posterior and the uncalibrated shape, and on these QoIs it performs
+shrink with the accuracy of the model. For this use it outperforms the Bayesian posterior and the uncalibrated shape, and on these QoIs it performs
 comparably with POPS once the POPS box is numerically defined. Its advantage over POPS is not accuracy but calibration and numerical
 robustness: one interpretable scale, fitted to held-out errors, sets the width at both levels; the covariance needs no ridge or leverage
 cut beyond the fit's own prior, and does not depend on the parameterisation; and the per-atom regions are calibrated to a target
@@ -1842,8 +1870,12 @@ coverage. On per-atom forces left out of the fit, POPS is not consistent between
 and dislocations, it covers """ + fmv("o3d12", "ood", "B2") + " of the held-out atoms for o3d12, above the " + fmv("o3d12", "ood", "headline") + """ of the scaled CR3 covariance, but
 """ + fmv("o4d20", "ood", "B2") + " for o4d20, where the scaled CR3 covariance covers " + fmv("o4d20", "ood", "headline") + """. Where the CR3 covariance fails, for
 relaxed point defects, the cause is a bias shared by all training snapshots of a kind, which no delete-one method can see; it can be
-measured from the training labels and added as a discrepancy term, which brings the coverage close to nominal. The methods are
-implemented in ace-jax.</p>""", "")
+measured from the training labels and added as a discrepancy term, which brings the coverage close to nominal. The comparison of
+shapes depends on the use. With each shape's size refitted on whole configurations by conformal risk control, the Bayesian
+posterior gives the sharpest force regions, in distribution and, for the larger models, on held-out cracks and dislocations, while
+CR3 keeps the held-out energies and the propagated properties. The same calibrated region size, with a selection rule fixed in
+advance, chooses a fit's hand-set weights: for the energy differences that silicon's properties depend on it prefers a tenfold
+energy weight, which also makes the posterior far better calibrated off distribution. The methods are implemented in ace-jax.</p>""", "")
 
 sec("methods-detail", "6  Computational details", """
 <p>The training and test data are the GAP-18 silicon database [Bartók et al. 2018], split once at random into 2227 training and
