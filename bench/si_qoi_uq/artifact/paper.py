@@ -274,17 +274,16 @@ atomic cluster expansion (ACE) potentials we derive calibrated uncertainties fro
 covariance, the delete-one-configuration jackknife. Scaled by one conformal quantile from a held-out part of the training
 set, it gives per-atom force uncertainties close to their target coverage on held-out silicon data and on cracks left out
 of the fit; screw dislocations left out are under-covered by the smaller of the two models. With one scale fitted to the forces of a held-out test split,
-the same parameter distribution is propagated to 21 properties of silicon, from elastic constants to defect and surface energies,
+the same parameter distribution is propagated to 21 properties of silicon, from elastic constants to defect energies,
 by implicit differentiation through each relaxation and by committees, and is tested against density functional theory (DFT) without tuning on any property.
 For a smaller and a larger model the intervals cover most properties, and the larger model's are about {tight_ratio:.0f} times
 tighter. For propagation the Bayesian posterior with one calibrated scale has the wrong shape: it covers fewer properties and has
-far lower joint evidence. When every shape's size is instead refitted by conformal risk control over whole configurations, the
-posterior gives the sharpest force regions, and on held-out cracks and dislocations it misses no more configurations than the
-jackknife, which keeps its advantage for held-out energies. The same calibrated region size chooses the fit's weights: a tenfold
-energy weight makes the energy regions {_ab_e:.1f} times smaller for force regions {_ab_f:.0f} % larger. Pointwise optimal parameter sets (POPS), once their hypercube is numerically defined, performs comparably on the properties, but its per-atom force
-regions are not calibrated to a target ({fb("o3d12", "B2")} and {fb("o4d20", "B2")} at a nominal 0.90). Where the jackknife fails is relaxed point defects, whose training cells are all hot snapshots: a bias that every configuration
-shares is invisible to a jackknife, but it can be measured from the training labels, and as a discrepancy term, devised
-after the property results were seen, it brings the coverage close to nominal.</p>""", "draft")
+far lower joint evidence. With every shape's size refitted by conformal risk control over whole configurations, the posterior gives the sharpest
+force regions, as reliable on held-out forces; the jackknife keeps held-out energies; the region size picks a tenfold energy
+weight. Pointwise optimal parameter sets (POPS) perform comparably on the properties, but their per-atom force regions are not calibrated
+to a target ({fb("o3d12", "B2")} and {fb("o4d20", "B2")} at a nominal 0.90). The jackknife fails for relaxed point defects, whose training cells are all hot snapshots: a bias shared by every snapshot is
+invisible to it, but measured from the training labels and added as a discrepancy term (devised after the property results were
+seen) it brings the coverage close to nominal.</p>""", "draft")
 
 sec("intro", "1  Introduction", """
 <p>Machine-learned interatomic potentials are used for forces, in molecular dynamics and in active learning where force errors
@@ -1898,7 +1897,9 @@ cells being left out), the per-atom force method (Section 2.5, chosen after
 comparing it with a learned scale on the test split and on the out-of-distribution set), the use of the BLR posterior instead
 of ARD for that stage (so that one posterior serves forces and QoIs; Section 2.3 gives both), and Bayesian model comparison in place of
 the specification's fixed [0.8, 1.25] band on λ<sub>V</sub>/λ<sub>F</sub>. None of these uses a DFT QoI value as an input, but
-they were not made blind.</p>
+they were not made blind. Added in this version, after the first version's results: the vacancy migration barrier (Section 3.8,
+outside the counts), the POPS ellipsoid, the risk-control comparison and the selection rule (Sections 2.8, 2.9 and 3.9; selection
+on the training hold-out only), and the decision rules of Section 3.9, fixed as Appendix D records.</p>
 <p><b>Use of AI tools in the research.</b> The analysis software of this study was written and run with Claude Code (Anthropic;
 model Claude Opus 5.5): the uncertainty propagation, calibration and validation code in ace-jax and the scripts that produce
 every table and figure. Claude Code was used to implement the analysis the author specified, to carry out the runs and to draft

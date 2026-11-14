@@ -59,6 +59,7 @@ UNICODE = {
     "χ": r"\ensuremath{\chi}", "ψ": r"\ensuremath{\psi}", "ω": r"\ensuremath{\omega}", "Δ": r"\ensuremath{\Delta}",
     "Λ": r"\ensuremath{\Lambda}", "Γ": r"\ensuremath{\Gamma}", "Ψ": r"\ensuremath{\Psi}", "Φ": r"\ensuremath{\Phi}", "Ω": r"\ensuremath{\Omega}",
     "π": r"\ensuremath{\pi}", "ϱ": r"\ensuremath{\varrho}", "ϕ": r"\ensuremath{\phi}",
+    "§": r"\S{}", "µ": r"\ensuremath{\mu}", "¼": r"\ensuremath{\tfrac14}", "⅙": r"\ensuremath{\tfrac16}",
     "−": r"\ensuremath{-}", "×": r"\ensuremath{\times}", "±": r"\ensuremath{\pm}", "≤": r"\ensuremath{\leq}",
     "≥": r"\ensuremath{\geq}", "≈": r"\ensuremath{\approx}", "≠": r"\ensuremath{\neq}", "→": r"\ensuremath{\to}",
     "←": r"\ensuremath{\leftarrow}", "↔": r"\ensuremath{\leftrightarrow}", "∞": r"\ensuremath{\infty}", "√": r"\ensuremath{\surd}",
