@@ -3,7 +3,9 @@ the chi^2 band on d^2/n).
 
 The errors d of n QoIs, given a method's joint covariance Sigma (tolerance units, with its floor), are modelled as
 d ~ N(0, s^2 Sigma). s is log-uniform on [lo, hi] (default [0.1, 10]: a factor of ten either way), as the paper's scale
-evidence (Section 3.3, Table 2b) puts its scales, and integrated out. Only d^2 = d' Sigma^-1 d and n enter: log det Sigma
+evidence (Section 3.3, Table 2b) treats its scales but on a narrower range (Section 3.3 uses [0.1, 1000] for the unscaled CR3
+shape; every covariance here is already scaled), and integrated out. The log BF cap rises with the prior's log width:
+about +2.4 for n = 18 here, + log 2 on [0.01, 100]. Only d^2 = d' Sigma^-1 d and n enter: log det Sigma
 and n log 2 pi cancel in the Bayes factor and the posterior. Returned:
   s_med, s_lo, s_hi  posterior median and 95 % equal-tailed credible interval of s
   log_bf             log Bayes factor of "calibrated" (s = 1) against "free scale" (s integrated out); > 0 favours s = 1,
