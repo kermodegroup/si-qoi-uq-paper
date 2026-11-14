@@ -512,6 +512,11 @@ the BLR fit, which is the benchmark model. ARD is reported only as this check. T
 the ARD fits covers {ard_lm("o3d12")} (o3d12) and {ard_lm("o4d20")} (o4d20) of the test atoms at a nominal 0.90, against
 {lm("o3d12", "one_group")} and {lm("o4d20", "one_group")} on the BLR fits (Section 3.2).</p>""", "drafted", level=3)
 
+# the POPS ellipsoid (analysis/pops_ellipse.py, pops_ellipse_ood.py; next-steps plan §2b-2e): the leverage-cut L-BFGS fits
+_ell = {m: json.load(open(RES / f)) for m, f in (("o3d12", "pops_ellipse_o3d12_sp_lev50_it20000.json"),
+                                                  ("o4d20", "pops_ellipse_o4d20_sp_lev50_it5000.json"),
+                                                  ("o3d12_nocut", "pops_ellipse_o3d12_sp.json")) if (RES / f).exists()}
+ell_nocut = sci(_ell["o3d12_nocut"]["lam_per_atom_rms"]["ellipsoid"], 1) if "o3d12_nocut" in _ell else "(pending)"
 sec("theory-cr3", "2.4  Misspecification-robust shape: the CR3 jackknife", r"""
 <p><b>POPS.</b> The closest existing approach for linear potentials is POPS [Swinburne and Perez 2025]. For each training row
 \(i\), with residual \(r_i\) and leverage \(h_i=\psi_i^{\mathsf T}A^{-1}\psi_i\), the pointwise optimal parameter set is
@@ -526,7 +531,11 @@ the covariance of a POPS hypercube plus a low-rank correction. Their linear ACE 
 <p><b>Comparison.</b> CR3 below is built from the same per-row influence, \(A^{-1}\psi_i r_i\), but asks the opposite question:
 how far the fit moves when a configuration is removed, not how far it must move to fit a row exactly. For one row the two differ
 only in the leverage factor, \(1/(1-h_i)\) for deletion against \(1/h_i\) for an exact fit. CR3 is therefore largest for rows the
-fit leans on, and POPS for rows the fit hardly sees, whose corrections are unbounded as \(h_i\to0\) (Section 3.7). CR3 also deletes
+fit leans on, and POPS for rows the fit hardly sees, whose corrections are unbounded as \(h_i\to0\) (Section 3.7). The two are
+therefore one family: the second moment of the POPS corrections, \(\sum_i\delta_i\delta_i^{\mathsf T}=A^{-1}\big[\sum_i\psi_i\psi_i^{\mathsf T}r_i^2/h_i^2\big]A^{-1}\),
+is the row-wise jackknife sandwich with every row reweighted by \(((1-h_i)/h_i)^2\). That weight is what lets a few low-leverage
+rows dominate a POPS box or ellipsoid, and why both are built here only from the rows at or above the median leverage
+(Section 2.6). CR3 also deletes
 whole configurations, so that the correlated energy, force and virial rows of one configuration move together, and it is a
 covariance that is calibrated by one scale on held-out data (Section 3.3); POPS has no calibration step. Like any sampling variance,
 the CR3 covariance shrinks as data are added, which is why the scale is needed: CR3 supplies the shape, and the held-out data the
@@ -656,11 +665,20 @@ numerical corrections that this study prompted. B2 has no calibration step, so i
 fitted scale.</p>
 <p>The third baseline, B3, is the CR3 covariance with \(\lambda=1\). It isolates the effect of the scale: the difference between B3
 and the headline is entirely the calibration of Section 3.3.</p>
+<p>A fourth comparison, used in Sections 3.7 and 3.9, is the POPS ellipsoid of Swinburne et al. [2026], fitted with the
+development branch <code>ellipse-ev</code> of the reference package [Swinburne and Perez, POPSRegression] at its defaults: a
+uniform ellipsoid \(B=B_0+UU^{\mathsf T}\), with \(B_0\) the package's own POPS hypercube covariance and \(U\) of rank 32, that
+minimises a projected-ball negative log-likelihood under a barrier for the POPS covering condition. It is fitted to the headline
+fit's weighted rows in the coordinates of its prior, so that the package's Gram matrix is the BLR precision \(A\), and, as for
+B2, only to the rows at or above the median leverage: without that cut a handful of rows with leverage near zero set its size,
+and its own scale on held-out forces comes out at """ + ell_nocut + r""" for o3d12. It is read as the Gaussian \(\Sigma_e=B/(P+2)\), the
+covariance of a uniform P-dimensional ball, with QoI widths from \(g^{\mathsf T}\Sigma_eg\). The objective is not convex, and its
+fit is a long continuation in four stages (L-BFGS, 20,000 iterations per stage for o3d12 and 5000 for o4d20).</p>
 <p>Fisher et al. [2026] take the conformal step further. They calibrate joint conformal sets for energies, forces and virials
 (Bonferroni-corrected boxes, Mahalanobis ellipsoids, and losses under conformal risk control) and propagate them to derived
 quantities such as elastic constants and vacancy formation energies, where modelling the correlations captures error
-cancellation. B1 and our CR3 method use one scalar scale instead. We do not use multivariate conformal prediction here; combining
-it with the CR3 shape is left to future work.</p>""", "drafted from docs", level=3)
+cancellation. B1 and our CR3 method use one scalar scale for the QoIs. Section 2.8 uses their whole-configuration regions, under
+conformal risk control, to compare the shapes of all four methods with a scale refitted for each.</p>""", "drafted from docs", level=3)
 
 sec("method-calib", "3.3  One global scale for propagation", r"""
 <p>The per-atom scale of Section 3.2 calibrates force outputs atom by atom, but it does not define a covariance in θ
@@ -822,6 +840,74 @@ and one that no longer has a parameter vector; Table 8 gives the errors of that 
 <p>Nothing in this analysis is specific to the CR3 propagation. The bias r*<sub>t</sub> and its standard error come from the
 training labels and the fitted mean alone, so the same term can be added to the σ<sub>Q</sub> of any method that shares that mean,
 the baselines included.</p>""", "", level=4)
+
+_fin = json.load(open(RES / "final_in.json")) if (RES / "final_in.json").exists() else {}
+_ws = json.load(open(RES / "weight_sweep_o4d16_all.json")) if (RES / "weight_sweep_o4d16_all.json").exists() else {}
+sec("method-crc", "2.8  Conformal risk control over whole configurations", r"""
+<p>The per-atom regions of Section 2.5 and the QoI intervals of Section 2.7 are two uses of an uncertainty. A third is a region
+for the whole force vector of a configuration, a statement that holds or fails for all of its atoms at once, which is closer to
+how forces enter a relaxation or a molecular-dynamics step. Fisher et al. [2026] calibrate such regions by conformal risk
+control (CRC) [Angelopoulos et al. 2022]. We use the same construction for a second purpose: to compare the shapes of
+Section 2.6 on equal terms. CRC refits the size of every shape on the same calibration data, so a shape cannot look better by
+being too wide or too narrow, and what is left to compare is how well each shape follows the errors.</p>
+<p><b>Score.</b> For a configuration \(c\) with \(D_c\) live force components (those that vanish by site symmetry are dropped, as
+in Section 3.3), force error \(e_c\) and a method's predicted force covariance \(C_c\) (\(C_c=M_cM_c^{\mathsf T}\) with
+\(M_c=B_{F,c}L\) for CR3, B1 and B2, and \(B_{F,c}\Sigma_eB_{F,c}^{\mathsf T}\) for the ellipsoid), the shape is</p>
+\[ \Sigma_c=\lambda_s^2C_c+\nu^2I, \]
+<p>with the scale \(\lambda_s\) and a white nugget \(\nu\) fitted by Gaussian maximum likelihood. The nugget carries the part of
+a configuration's error that lies outside the span of \(C_c\); without it the whole-configuration score of a low-rank covariance
+is undefined. The whitened residual is \(w_c=\Sigma_c^{-1/2}e_c\) (symmetric root, as Fisher et al.'s \(\Delta\)), and a region
+of size \(t\) has one of two losses, both bounded by 1 and non-increasing in \(t\):</p>
+\[ L^{\text{joint}}_c(t)=\mathbb 1\big\{\lVert w_c\rVert/\sqrt{D_c}>t\big\},\qquad
+   L^{\text{frac}}_c(t)=\#\{i:\lvert w_{ci}\rvert>t\}/D_c . \]
+<p>The joint loss is a miss of the whole configuration (the Mahalanobis ellipsoid), and the fraction loss counts the whitened
+components outside \(\pm t\) (a box; the monotone form of Fisher et al.'s quantile loss). With \(n\) calibration configurations,</p>
+\[ \hat t=\inf\Big\{t:\frac{\sum_{c}L_c(t)+1}{n+1}\le\alpha\Big\},\qquad \mathbb E\big[L_{n+1}(\hat t)\big]\le\alpha \]
+<p>for a new configuration exchangeable with the calibration ones [Angelopoulos et al. 2022]. For the joint loss this is
+split-conformal coverage of whole configurations. The size of a region is its log geometric semi-axis per component,
+\(\log\hat t+\log\det\Sigma_c/(2D_c)\), in eV/Å for forces, averaged over the evaluation configurations with weight \(D_c\).</p>
+<p><b>Per atom.</b> The same control applies to the per-atom score \(s_i\) of Section 2.5, each method with its own 3×3 force
+covariance at unit scale, through the loss \(L_c(q)=\#\{i\in c:s_i>q\}/\bar n\), bounded by \(B=n_{\max}/\bar n\) (the largest
+and the mean number of atoms in a configuration), with \(B\) in place of the 1 above. It bounds the expected number of missed atoms
+of a new configuration by \(\alpha\bar n\): the atom-weighted target of Section 2.5, now with a finite-sample guarantee, which the
+atom-weighted quantile lacks because the atoms of one configuration are not exchangeable. The per-atom size is \(\log q+\log\det C_a/6\), with \(C_a\) the atom's 3×3 block.</p>
+<p><b>Views.</b> Besides forces (F) the regions are formed for energies per atom (E; one component per configuration), and for
+two energy differences that stay inside the labelled data and resemble the QoIs: dE_type, disjoint pairs of configurations of one
+configuration type, and dE_form, a defect, surface or extended-defect configuration against a diamond cell scaled to its atom
+count, \(E_a-(n_a/n_b)E_b\). The pairs are drawn once, before any candidate is scored. A one-component view has one loss, so its
+joint and fraction losses coincide.</p>
+<p><b>Protocol.</b> The calibration configurations are split at random into halves; the shape \((\lambda_s,\nu)\) is fitted on
+one quarter, \(\hat t\) on another, and the risk (mean loss) and size are measured on the remaining half. We repeat this over 100
+random splits, the same for every method and candidate, so that differences between methods are paired. The guarantee is marginal
+over configurations: it does not hold per kind of configuration, and we report the miss rate of the worst kind beside the mean.
+Off distribution, on the held-out refits of Section 3.2 (no cracks or screw dislocations in the fit), the regions are calibrated on
+the in-distribution test split and the risk is measured on the """ + (str(json.load(open(RES / "final_ood_o3d12.json"))["n_held"])
+                                                                     if (RES / "final_ood_o3d12.json").exists() else "(pending)") + r""" held-out
+configurations in every split; no guarantee applies there, and the risk measures how far it fails.</p>""", "", level=3)
+
+sec("method-select", "2.9  Choosing fixed hyperparameters by calibrated size", r"""
+<p>Two choices of the benchmark fit are made by hand: the weights of energies, forces and virials per configuration type, and the
+basis, through its total degree and the angular weight \(w_L\) of the one-particle level \(n_t+w_Ll_t\) (default 1.5). A point
+error cannot choose them, because a weight that favours forces always lowers the force error, and the force error does not
+predict the QoI error (Section 2.1). The calibrated size of Section 2.8 can: it measures how tightly a model's errors can be
+bounded at a guaranteed risk, for each use separately, and a candidate cannot gain by being overconfident.</p>
+<p><b>Data.</b> The training set is split, stratified by configuration type, into \(T_{\text{fit}}\) (""" + (str(_ws.get("n_fit", "?"))) + r""" configurations)
+and \(T_{\text{val}}\) (""" + (str(_ws.get("n_val", "?"))) + r"""). Every candidate is fitted on \(T_{\text{fit}}\), with its own MAP
+\(\sigma_c\) and shared \(\sigma\), and scored on \(T_{\text{val}}\) by the B1 shape, whose fit for a new weight vector is an exact
+rescale and merge of QR factors computed once per configuration type and quantity. The test split and the DFT QoIs take no part.</p>
+<p><b>The rule.</b> Fixed before any candidate is scored: a use, stated as priorities \(\pi_v\) over the views, and \(\alpha\). The
+score of candidate \(c\) on split \(s\) is</p>
+\[ J_{cs}=\sum_v\pi_v\big(S_{cvs}-S_{\text{ref},vs}\big)+\lambda\log\text{cost}_c , \]
+<p>with \(S_{cvs}\) the size of view \(v\). Log sizes add, so \(J\) is the log of a priority-weighted geometric mean of region
+volumes, and \(\lambda\) is the price, in nats of size, of a factor e in evaluation cost (A100 float64 µs per atom-step). With
+\(b\) the candidate of smallest mean \(J\), the tolerance set holds every candidate within one standard error of it,
+\(\overline{J}_c-\overline{J}_b\le\tau_c=\operatorname{sd}_s(J_{cs}-J_{bs})/\sqrt2\) (the halves are overlapping resamples of one
+\(T_{\text{val}}\), so the half-sample spread over \(\sqrt2\) is the noise of the difference on all of it). Within that set the rule
+takes the cheapest candidate, then the one with the smallest worst-kind risk, then the one nearest the default. When no single
+use is declared, it takes the candidate of smallest worst regret over the declared uses. The four uses here are forces (F), energies
+(E ½, dE_type ¼, dE_form ¼), balanced (F ½, each energy view ⅙) and formation (F ½, dE_form ½). The chosen candidate is then
+refitted on all of \(T\), CRC-calibrated on the test split and reported there; nothing is chosen on the test split or on a QoI.</p>""",
+    "", level=3)
 
 sec("method-valid", "3  Results", r"""
 <h3>3.1 Validation statistics</h3>
@@ -1535,6 +1621,7 @@ paper.</p>""", "draft")
 
 sec("refs", "References", """<p class="note">Checked against publisher or repository records, or the full text, on 2026-11-04.</p>
 <ol class="refs">
+<li>A. N. Angelopoulos, S. Bates, A. Fisch, L. Lei, T. Schuster, Conformal risk control, arXiv:2208.02814 (2022).</li>
 <li>D. M. Allen, The relationship between variable selection and data augmentation and a method for prediction, Technometrics 16, 125–127 (1974). PRESS was introduced in Allen's 1971 technical report; this is its usual published citation.</li>
 <li>A. P. Bartók, J. Kermode, N. Bernstein, G. Csányi, Machine learning a general-purpose interatomic potential for silicon, Phys. Rev. X 8, 041048 (2018).</li>
 <li>R. F. Barber, E. J. Candès, A. Ramdas, R. J. Tibshirani, Predictive inference with the jackknife+, Ann. Stat. 49, 486–507 (2021).</li>

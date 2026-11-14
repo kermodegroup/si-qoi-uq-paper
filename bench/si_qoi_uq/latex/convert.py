@@ -32,7 +32,7 @@ FULL_PAGE = {"fig6_model_compare": 0.8}   # height caps (x textheight): 0.6 lets
                                          # the four-row QoI comparison keeps a page of its own, legible
 
 CITE = {
-    "Allen 1974": "allen1974", "Cook and Weisberg 1982": "cook1982", "Bartók et al. 2018": "bartok2018",
+    "Allen 1974": "allen1974", "Angelopoulos et al. 2022": "angelopoulos2022", "Cook and Weisberg 1982": "cook1982", "Bartók et al. 2018": "bartok2018",
     "Bigi et al. 2024": "bigi2024", "Drautz 2019": "drautz2019", "Gneiting and Raftery 2007": "gneiting2007",
     "Grossfield and Zuckerman 2009": "grossfield2009", "Lelièvre, Rousset and Stoltz 2010": "lelievre2010",
     "Hoeting et al. 1999": "hoeting1999", "Huber 1967": "huber1967", "White 1982": "white1982",
