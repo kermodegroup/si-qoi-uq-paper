@@ -1,5 +1,5 @@
 """Joint (correlation-aware) QoI scores beside the diagonal soft scores of qoi_soft_score.py, for every method on the
-same 17 QoIs (the delta set: the coverage QoIs with DFT values and delta rows).
+same n QoIs (the delta set: the coverage QoIs with DFT values and delta rows; 18 per model since every phase energy has a row).
 
 Inputs, all in tolerance units (x / tol, tolerances of ace-jax bench/si_qoi/score.py):
   committee and delta covariances S and errors d of CR3 (lam_F), B1 (q_b1), B2 (lev50, lev5: committee only) and B3
@@ -14,12 +14,12 @@ Inputs, all in tolerance units (x / tol, tolerances of ace-jax bench/si_qoi/scor
   errors below 5 % of a tolerance do not count). S is nearly singular (shared parameters), so a joint score is only
   defined with a floor; tau = 0.01 and 0.2 are reported as sensitivities.
 
-Scores (n = 17 QoIs, Sigma = S [+ D] + tau^2 I):
+Scores (n QoIs, Sigma = S [+ D] + tau^2 I):
   diagonal  gm sigma/t, gm |z|, gm CRPS/t (as qoi_soft_score.py, from diag Sigma), k95
   joint     sharp_j = det(Sigma)^(1/2n): the geometric mean of the principal widths (= gm sigma/t when uncorrelated)
-            gm |w|, w = Sigma^-1/2 d (symmetric root): 17 whitened errors, N(0, 1) when calibrated, reference 0.530,
-            band 0.31-0.90 as gm |z|
-            d2/n = |w|^2 / n, chi^2_n / n when calibrated (17: 95 % band 0.44-1.78; one draw per model, weak evidence)
+            gm |w|, w = Sigma^-1/2 d (symmetric root): n whitened errors, N(0, 1) when calibrated, reference 0.530
+            d2/n = |w|^2 / n, and its Bayesian reading (joint_scale.py): the posterior of one scale s on Sigma, s log-uniform
+            on [0.1, 10], and the log Bayes factor of s = 1 against a free s (one draw per model, so the posterior is broad)
             LS/n: the Gaussian log score 0.5 (d^2 + log det(2 pi Sigma)) / n (proper; lower is better; sensitive to tau)
             ES/sqrt n: the energy score E|X - y| - 0.5 E|X - X'|, X ~ N(0, Sigma), y = d (the multivariate CRPS, proper,
             robust to thin directions; Monte Carlo, 20000 draws, fixed seed)
@@ -29,10 +29,11 @@ Scores (n = 17 QoIs, Sigma = S [+ D] + tau^2 I):
 import csv, json, sys
 
 import numpy as np
-from scipy.stats import chi2, norm
+from scipy.stats import norm
 
 from ..harness import RUNS
 from ..run import RESULTS
+from .joint_scale import joint_scale
 
 TAUS = (0.05, 0.01, 0.2)
 Z_REF = float(np.exp(-(np.euler_gamma + np.log(2.0)) / 2.0))
@@ -70,7 +71,7 @@ def scores(d, S, tau):
     logdet = float(np.sum(np.log(w_)))
     return {"k95": int(np.sum(np.abs(d / s) <= 1.96)), "gm_sigma": gm(s), "gm_absz": gm(np.abs(d / s), 1e-3, 1e3),
             "gm_crps": gm(crps(d, s)), "sharp_j": float(np.exp(logdet / (2 * n))), "gm_absw": gm(np.abs(wh), 1e-3, 1e3),
-            "d2_over_n": d2 / n, "p_chi2": float(chi2.sf(d2, n)),
+            "d2_over_n": d2 / n, "scale": joint_scale(d2, n),
             "ls_over_n": 0.5 * (d2 + logdet + n * np.log(2 * np.pi)) / n, "es_over_sqrt_n": energy_score(d, Sig) / np.sqrt(n)}
 
 
@@ -78,9 +79,7 @@ def main():
     jt = json.load(open(RESULTS / "joint_tests.json"))
     rows = list(csv.DictReader(open(RESULTS / "qoi_uq.csv")))
     disc = list(csv.DictReader(open(RESULTS / "discrepancy.csv")))
-    out = {"taus": TAUS, "z_ref": Z_REF, "band_absw": [Z_REF * np.exp(-1.96 * np.sqrt(np.pi ** 2 / 8 / 17)),
-                                                      Z_REF * np.exp(1.96 * np.sqrt(np.pi ** 2 / 8 / 17))],
-           "band_d2_over_n": [chi2.ppf(0.025, 17) / 17, chi2.ppf(0.975, 17) / 17], "models": {}}
+    out = {"taus": TAUS, "z_ref": Z_REF, "models": {}}
     for m in sys.argv[1:] or ("o3d12", "o4d20"):        # other fits (weights_qoi: o4d16, o4d16_Ex10) by argument
         keys = jt[m]["CR3/lam_F"]["delta"]["qois"]
         n = len(keys)
@@ -118,14 +117,15 @@ def main():
             res[name] = {f"tau{t:g}": scores(d, S, t) for t in TAUS}
             res[name + " +disc"] = {f"tau{t:g}": scores(d, S + D, t) for t in TAUS}
         out["models"][m] = {"qois": keys, "results": res}
-        print(f"\n{m}: {n} QoIs, tau = 0.05 tol (diagonal | joint); calibrated: gm|z|, gm|w| in "
-              f"{out['band_absw'][0]:.2f}-{out['band_absw'][1]:.2f}, d2/n in {out['band_d2_over_n'][0]:.2f}-{out['band_d2_over_n'][1]:.2f}")
+        print(f"\n{m}: {n} QoIs, tau = 0.05 tol (diagonal | joint); s: posterior median [95 % CI] of one scale on Sigma, "
+              f"log BF of s = 1 against a free s")
         print(f"{'method':34s} {'k95':>5s} {'gmσ':>6s} {'gm|z|':>6s} {'CRPS':>6s} | {'sharpJ':>6s} {'gm|w|':>6s} {'d2/n':>6s} "
-              f"{'LS/n':>6s} {'ES/√n':>6s} | {'d2/n τ.01':>9s} {'d2/n τ.2':>8s}")
+              f"{'LS/n':>6s} {'ES/√n':>6s} | {'s [95 % CI]':>17s} {'logBF':>6s} | {'d2/n τ.01':>9s} {'d2/n τ.2':>8s}")
         for name, v in res.items():
             a, lo, hi = v["tau0.05"], v["tau0.01"], v["tau0.2"]
             print(f"{name:34s} {a['k95']:2d}/{n} {a['gm_sigma']:6.2f} {a['gm_absz']:6.2f} {a['gm_crps']:6.3f} | "
                   f"{a['sharp_j']:6.3f} {a['gm_absw']:6.2f} {a['d2_over_n']:6.2f} {a['ls_over_n']:6.2f} {a['es_over_sqrt_n']:6.3f} | "
+                  f"{a['scale']['s_med']:5.2f} [{a['scale']['s_lo']:4.2f}, {a['scale']['s_hi']:4.2f}] {a['scale']['log_bf']:+6.2f} | "
                   f"{lo['d2_over_n']:9.2f} {hi['d2_over_n']:8.2f}")
     json.dump(out, open(RESULTS / "qoi_joint_score.json", "w"), indent=1)   # SIQ_RESULTS keeps other fits' apart
 
