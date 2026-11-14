@@ -1924,6 +1924,28 @@ development was supported by credits from Anthropic's AI for Science program. Th
 results and text, and takes full responsibility for the correctness of the resulting implementation and for the content of this
 paper.</p>""", "draft")
 
+_fin_pairs = _fin.get("pairs", {})
+sec("appendix-a", "Appendix A  Conformal risk control: data and protocol", f"""
+<p><b>Splits.</b> In-distribution comparisons (Figure 11, the ladder) use the {_fin.get("n_cal", "?")} test configurations, of which those
+with live force components enter the force views; each of 100 random splits puts a quarter of them in A1 (the shape
+\\((\\lambda_s,\\nu)\\) by Gaussian maximum likelihood), a quarter in A2 (the CRC threshold) and half in B (risk and size). The
+held-out comparisons (Table 9, Figure 12) use the same protocol on the test split of the reduced refit and score every split on all
+held-out configurations. Selection (Section 2.9) uses \\(T_{{\\text{{val}}}}\\) with 100 random halves (the shape and threshold on
+one half, by the same quarter split, and the size on the other); every candidate sees the same halves, so their differences are
+paired.</p>
+<p><b>Energy-difference views.</b> The pairs are drawn once per data set before any candidate is scored: on the test split
+{_fin_pairs.get("dE_type", "?")} dE_type pairs (disjoint pairs of one configuration type) and {_fin_pairs.get("dE_form", "?")} dE_form pairs
+(each defect, surface or extended-defect configuration with a diamond configuration). A pair belongs to the split of its
+configurations.</p>
+<p><b>Feasibility.</b> With \\(n\\) calibration elements the threshold is finite only if \\((n+1)\\alpha\\ge1\\). A2 holds about
+{_fin_pairs.get("dE_form", 0) // 4} dE_form pairs, fewer than the 19 that α = 0.05 needs, so at α = 0.05 the dE_form region is the whole line
+(t̂ = ∞) for every method; the energy-difference views are reported at α = 0.1 and above. The same limit rules out a Mondrian
+(per-kind) whole-configuration CRC on these splits: the test split holds only tens of configurations of the rarer kinds.</p>
+<p><b>Per-atom bound.</b> The per-atom loss is bounded by \\(B=n_{{\\max}}/\\bar n\\), the largest over the mean number of atoms in a
+configuration (from atom counts of the calibration data, no labels), and the threshold is
+\\(\\hat q=\\inf\\{{q:(\\sum_cL_c(q)+B)/(n+1)\\le\\alpha\\}}\\). The margin \\(B/(n+1)\\) is why the per-atom risks in Figure 11 lie below α.</p>""",
+    "", level=2)
+
 ELL_COLS = (("ellipsoid+lam", "ellipsoid × λ<sub>e</sub>"), ("ellipsoid", "ellipsoid"), ("headline", "CR3 × λ<sub>F</sub>"), ("B2_paper", "B2"))
 def _ellb_rows():
     out = ""
@@ -1943,6 +1965,67 @@ configuration type with at least 300 test atoms, for the leverage-cut POPS ellip
 <div class="wrap"><table><caption>Table B1. Per-type per-atom force coverage at nominal 0.90 on the test split.</caption>
 <thead><tr><th>model</th><th>configuration type</th><th>atoms</th>{"".join(f"<th>{lab}</th>" for _, lab in ELL_COLS)}</tr></thead>
 <tbody>{_ellb_rows()}</tbody></table></div>""", "", level=2)
+
+if _s111:
+    _sz = lambda m, k: _s111[m]["qoi"][k]
+    s111_rows = "".join(f"<tr><td>{m}</td><td>{k.replace('x', '×')}</td><td class=n>{1e3 * _sz(m, k)['Q_rows']:.1f} ± {1e3 * _sz(m, k)['sigma']:.1f}</td>"
+                        f"<td class=n>{1e3 * _sz(m, k)['ref']:.1f}</td><td>{_sz(m, k)['ref_kind'].replace('literature (shifted)', 'DFT literature, shifted')}</td>"
+                        f"<td class=n>{-_sz(m, k)['z']:+.2f}</td></tr>"   # s111.json's z is (reference - model) / sigma.replace("+-", "−").replace("-", "−")
+                        for m in ("o3d12", "o4d20") for k in ("1x1", "3x3", "5x5", "7x7", "9x9"))
+    s111_d = "".join(f"<tr><td>{m}</td><td>{k.replace('x', '×')}</td><td class=n>{1e3 * d_['mean']:+.1f} ± {1e3 * d_['sigma']:.1f}</td>"
+                     f"<td class=n>{1e3 * d_['ref_literature']:+.1f}</td><td class=n>{d_['corr']:.2f}</td></tr>".replace("-", "−").replace("+", "+")
+                     for m in ("o3d12", "o4d20") for k, d_ in _s111[m]["differences"].items())
+    sec("appendix-c", "Appendix C  The order of the Si(111) reconstructions", f"""
+<p>The framework's (111) surface tests give a relaxed 1×1 cell, with a CASTEP reference, and the dimer–adatom–stacking-fault (DAS)
+reconstructions (2n+1)×(2n+1), n = 1–4, whose only reference is the framework's DFT literature value [Solares et al. 2005]: a
+different functional and protocol, shifted to the CASTEP 1×1. No harness test forms the 2×1 Pandey chain. The rows come from the
+envelope theorem on the relaxed slabs, with the a<sub>0</sub> term, as for the (100) surface (Section 2.7.2), and reproduce the harness
+values to 10<sup>−5</sup>; σ is CR3 × λ<sub>F</sub>. Under ASE 3.23 and later the unmodified DAS test fails on reading its fixed-atom
+mask; our harness restores the mask on reading and changes nothing else.</p>
+<div class="wrap"><table><caption>Table C1. Si(111) surface energies (meV/Å<sup>2</sup>), CR3 × λ<sub>F</sub>, and z = (model − reference)/σ.</caption>
+<thead><tr><th>model</th><th>cell</th><th>model ± σ</th><th>reference</th><th>reference kind</th><th>z</th></tr></thead><tbody>{s111_rows}</tbody></table></div>
+<div class="wrap"><table><caption>Table C2. Differences between successive DAS reconstructions (meV/Å<sup>2</sup>), from the joint covariance,
+the literature difference, and the correlation of the two surface energies.</caption>
+<thead><tr><th>model</th><th>difference</th><th>model ± σ</th><th>literature</th><th>correlation</th></tr></thead><tbody>{s111_d}</tbody></table></div>
+<p>Every DAS energy is within one σ of the literature. The surface energies are correlated at 0.97 and above, but the σ of each
+difference is still larger than the difference, so the order is not resolved: the probability that the 7×7 is the lowest is
+{_s111["o3d12"]["P_7x7_lowest"]:.2f} (o3d12) and {_s111["o4d20"]["P_7x7_lowest"]:.2f} (o4d20), against 0.25 for a random order of four. The mean
+model of o4d20 has the 7×7 lowest, as GAP-18 does; that of o3d12 falls monotonically to the 9×9. No miss here is left unexplained by
+the covariance, so we did not run spin-polarised DFT for these surfaces.</p>""", "", level=2)
+
+sec("appendix-d", "Appendix D  The decision rules as fixed", """
+<p>The four rules of Section 3.9 were committed to the analysis repository on 2026-11-13 at 00:31 UTC (commit e631f67), before
+the CR3 and POPS-ellipsoid held-out refits of the × 10 fit and before its QoIs were computed; the in-distribution results of
+Section 3.9 and B1's held-out risks were known. They were applied without change (commit 98932d4, 03:36 UTC). The reading for the
+paper's own models was fixed at 11:26 UTC (commit e306a9b), before those runs. The text is reproduced as written, with the
+section numbers of the plan.</p>
+<ol>
+<li><em>Held-out types (final.py ood, α = 0.1, joint loss, views F and E; hand and × 10 separately).</em> For each view, the paired
+per-split difference of held-out risk, d = risk(B1) − risk(CR3), mean over the 100 splits and τ = sd / √2 (as the selection rule).
+CR3 is <b>preferred off distribution</b> if mean d &gt; τ in both views at × 10 (the weight the paper would recommend), whatever the
+held-out size difference. If mean d ≤ τ in either view, the paper states that under CRC the held-out advantage of CR3 is not resolved
+(or reversed, if mean d &lt; −τ), and the §2 per-atom result (CR3 0.879 / 0.906 against B1 0.600 / 0.459 in / out of distribution)
+is qualified as a property of a scale calibrated per atom, not of the shape after CRC. Reported with it, not deciding: dE_type,
+dE_form (36 configurations, wide), sizes, per held-out type, hand weights.</li>
+<li><em>The ellipsoid held out (same protocol).</em> The same d with the ellipsoid in place of B1. It answers only whether §2's
+ordering off distribution (headline above the ellipsoid, which lost 0.10–0.14) survives CRC; no rule changes the paper's choice of
+method on it alone.</li>
+<li><em>DFT QoIs (weights_qoi, the paper's own propagation and scores).</em> For o4d16 at × 10: CR3 (× λ_F, as the headline) against
+B1 on the paper's measures, coverage of the 17 QoIs at 1.96 σ and the joint score d²/n with the shared discrepancy term
+(qoi_joint_score's form). CR3 is <b>preferred on QoIs</b> if its coverage is at least B1's and its d²/n is inside the χ²<sub>17</sub>/17
+band (0.44–1.78) while B1's is outside, or both inside with CR3's proper log score LS/n lower by at least 0.05. Otherwise the paper
+states that at o4d16 × 10 B1 matches CR3 on QoIs. The hand-weight o4d16 run is the reference for whether the weight, not the model
+size, changed the comparison.</li>
+<li><em>Outcome for the paper.</em> Rules 1 and 3 both for CR3: the headline stands, with B1's in-distribution sharpness under CRC
+reported as the counterpoint. One of them: the headline is narrowed to that use. Neither: the paper reports that after CRC and the
+energy reweighting the posterior shape B1 is as reliable as CR3 and sharper, and the jackknife's case rests on its behaviour without
+CRC (no held-out calibration, the per-atom scale). Every outcome is reported.</li>
+</ol>
+<p>Applied, rule 3 used the 18 QoIs that the × 10 fit's delta method gives (the 17 named there plus the decohesion stress, whose rows
+exist for this fit) and the χ² band for 18. The reading for the paper's models (o3d12 and o4d20 at the hand weights): rule 1's
+form, per model, reported with the fraction loss, the ellipsoid and the sizes; Section 3.2 states that after whole-configuration
+CRC B1's held-out force risk is no higher than CR3's only if the force view is reversed or unresolved at both models, and otherwise
+states the narrowing per model. No outcome changes the decisions above.</p>""", "", level=2)
 
 sec("refs", "References", """<p class="note">Checked against publisher or repository records, or the full text, on 2026-11-04.</p>
 <ol class="refs">
@@ -1988,6 +2071,7 @@ sec("refs", "References", """<p class="note">Checked against publisher or reposi
 <li>T. D. Swinburne, D. Perez, POPSRegression: Bayesian regression for low-noise data with misspecification uncertainty, Python package version 0.4.0, https://pypi.org/project/popsregression/ (2026).</li>
 <li>R. J. Tibshirani, R. F. Barber, E. J. Candès, A. Ramdas, Conformal prediction under covariate shift, Adv. Neural Inf. Process. Syst. 32, 2530–2540 (2019).</li>
 <li>V. Vovk, A. Gammerman, G. Shafer, Algorithmic Learning in a Random World, Springer (2005).</li>
+<li>S. D. Solares, S. Dasgupta, P. A. Schultz, Y.-H. Kim, C. B. Musgrave, W. A. Goddard, Density functional theory study of the geometry, energetics, and reconstruction process of Si(111) surfaces, Langmuir 21, 12404–12414 (2005).</li>
 <li>H. White, Maximum likelihood estimation of misspecified models, Econometrica 50, 1–25 (1982).</li>
 </ol>""")
 
