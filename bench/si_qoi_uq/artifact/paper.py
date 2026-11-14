@@ -924,7 +924,7 @@ basis, through its total degree and the angular weight \(w_L\) of the one-partic
 error cannot choose them, because a weight that favours forces always lowers the force error, and the force error does not
 predict the QoI error (Section 2.1). The calibrated size of Section 2.8 can: it measures how tightly a model's errors can be
 bounded at a guaranteed risk, for each use separately, and a candidate cannot gain by being overconfident.</p>
-<p><b>Data.</b> The training set is split, stratified by configuration type, into \(T_{\text{fit}}\) (""" + (str(_ws.get("n_fit", "?"))) + r""" configurations)
+<p><b>Data.</b> The training set is split again, independently of the per-atom hold-out of Section 2.5, stratified by configuration type, into \(T_{\text{fit}}\) (""" + (str(_ws.get("n_fit", "?"))) + r""" configurations)
 and \(T_{\text{val}}\) (""" + (str(_ws.get("n_val", "?"))) + r"""). Every candidate is fitted on \(T_{\text{fit}}\), with its own MAP
 \(\sigma_c\) and shared \(\sigma\), and scored on \(T_{\text{val}}\) by the B1 shape, whose fit for a new weight vector is an exact
 rescale and merge of QR factors computed once per configuration type and quantity. The test split and the DFT QoIs take no part.</p>
@@ -1196,7 +1196,7 @@ covariance source. d² and log det are the two parts of the evidence: the misfit
 <thead><tr><th>model</th><th>method</th><th>covariance from</th><th>n</th><th>log p</th><th>log BF vs headline</th><th>d²</th><th>log det</th></tr></thead>
 <tbody>{jrows}</tbody></table></div>
 <p>The QoIs share one coefficient vector, so their errors are correlated, and Figure 3 shows how. In the CR3 committee for o4d20 the
-correlations form blocks: the elastic constants with each other and with the β-Sn and sh phase energies, which are both compressed
+correlations form blocks: the bulk modulus with C<sub>11</sub> and C<sub>12</sub>, C<sub>11</sub> with C<sub>44</sub>, and these with the β-Sn and sh phase energies, which are both compressed
 diamond-like structures; and the four point defects with each other (0.3–0.8), most strongly the three interstitials. Most other pairs
 are only weakly correlated.</p>
 <p>Table 4 compares the methods by their evidence. The headline is far ahead of B1 and B3 for both models: their log Bayes
@@ -1224,12 +1224,17 @@ methods is the same for ε from 10<sup>−8</sup> to 10<sup>−4</sup>.</p>
 <p><b>Correlation-aware scores.</b> The QoI covariance of a parameter distribution is nearly singular, so the evidence above
 depends on its ridge. Table 4b gives two scores that depend on it less, on the {_jn} QoIs with delta-method rows, each σ with a floor
 of τ = 0.05 tolerances (τ²I added to the covariance; τ = 0.01 and 0.2 as checks). The first is a joint calibration scale, read
-in the same Bayesian way as the scales of Section 3.3 (Table 2b): the errors are modelled as d ~ N(0, s²Σ), with one scale s on the method's
-covariance Σ, log-uniform on [{_jprior[0]:g}, {_jprior[1]:g}] and integrated out. Only the whitened misfit d<sup>T</sup>Σ<sup>−1</sup>d
+in the same Bayesian way as the scales of Section 3.3 (Table 2b), but with a narrower prior: the errors are modelled as
+d ~ N(0, s²Σ), with one scale s on the method's covariance Σ, log-uniform on [{_jprior[0]:g}, {_jprior[1]:g}] and integrated out.
+Every method's covariance is already scaled, so a factor of ten either way bounds what is plausible; Section 3.3's range, for the
+unscaled CR3 shape, spans four decades. Only the whitened misfit d<sup>T</sup>Σ<sup>−1</sup>d
 and n enter. We quote the posterior median of s with its 95 % credible interval, and the log Bayes factor of a calibrated
-covariance (s = 1) against a free scale. With {_jn} QoIs the Occam factor caps that log Bayes factor near +{_jbf_max:.1f}, so a
-calibrated covariance can at best show positive evidence, while a miscalibrated one can be rejected decisively; a prior ten
-times wider moves every value by less than {_jbf_wide:.1f}. The second is LS/n, the Gaussian log score per QoI
+covariance (s = 1) against a free scale. With {_jn} QoIs and this prior the Occam factor caps that log Bayes factor near +{_jbf_max:.1f}, so a
+calibrated covariance can at best show positive evidence, while a miscalibrated one can be rejected decisively. The cap rises
+with the log width of the prior: on [0.01, 100] every log Bayes factor is higher by {_jbf_wide:.2f} (log 2), and on Section 3.3's
+range by about the same, which would take the cap just past 3. The posterior of s barely moves, since it lies well inside
+[{_jprior[0]:g}, {_jprior[1]:g}] for every method. A small Bayes factor with a credible interval that excludes 1 means a moderate
+miscalibration that {_jn} QoIs cannot reject. The second is LS/n, the Gaussian log score per QoI
 (proper, lower is better; note that the per-atom log score of Section 3.2 is the other way round, higher is better). The
 discrepancy term enters as one shared bias per defect class, the three interstitials fully correlated. Without it, for o3d12,
 the evidence is against a calibrated CR3 ({jss("o3d12", "CR3 (delta)")}), and more strongly against B1
@@ -1238,7 +1243,7 @@ positive ({jss("o3d12", "B2lev50 (committee)")}). With the term CR3 is positive 
 correlated term is what makes o3d12 jointly calibrated. For o4d20 the evidence favours a calibrated CR3 with and without the term
 ({jss("o4d20", "CR3 (delta)")}; {jss("o4d20", "CR3 (delta) +disc")}), and is decisively against B1 without it
 ({jss("o4d20", "B1 (delta)")}). The POPS ellipsoid covers the most QoIs one at a time for o4d20
-({js("o4d20", "ellipsoid L-BFGS (delta)", "k95", 0)} of {_jn}) but is inconclusive jointly
+({js("o4d20", "ellipsoid L-BFGS (delta)", "k95", 0)} of {_jn}) but is jointly inconclusive, its widths about {100 * (_jsc("o4d20", "ellipsoid L-BFGS (delta)")["s_med"] - 1):.0f} % too narrow by the posterior of s yet not rejected
 ({jss("o4d20", "ellipsoid L-BFGS (delta)")}): its narrower widths come with correlations that put the errors in
 directions it calls thin. With the term, the log score ranks CR3 first for both models ({js("o3d12", "CR3 (delta) +disc", "ls_over_n")}
 and {js("o4d20", "CR3 (delta) +disc", "ls_over_n")}, against {_ls_rest("o3d12")} and {_ls_rest("o4d20")} for the others); for o3d12
@@ -1535,7 +1540,9 @@ The saddle is not new to the model: the migrating atom's extrapolation grade the
 right cells, the vacancy snapshots ({_sh("o4d20", "vacancy"):.2f} of it; {_s04["share"]:.2f} from the {_s04["n"]} 63-atom snapshots
 past 0.4 of the way along the hop) and the divacancies ({_sh("o4d20", "divacancy"):.2f}). The miss is model-form error on environments
 the fit has seen, not extrapolation. o3d12 is within every interval, but its CR3 σ is
-set by one β-tin training cell ({_sh("o3d12", "bt"):.2f} of the variance). Without that cell, and with λ<sub>F</sub> refitted, the
+set by one β-tin training cell: the β-tin cells carry {_sh("o3d12", "bt"):.2f} of the variance, that one cell
+{_bi["o3d12"]["vacancy_barrier"]["top20"][0]["share"]:.2f}. The same cell also sets much of o3d12's global scale: without it λ<sub>F</sub>
+rises from {_bt["lam_F"]["full"]:.2f} to {_bt["lam_F"]["drop"]:.2f}. Without that cell, and with that refitted λ<sub>F</sub>, the
 barrier σ falls from {_bt["qoi"]["vacancy_barrier"]["sigma"]["full"]:.2f} to {_bt["qoi"]["vacancy_barrier"]["sigma"]["drop"]:.2f} eV
 and the barrier is still covered (|z| = {abs(_bt["qoi"]["vacancy_barrier"]["z"]["drop"]):.2f}); the vacancy formation energy, which the
 same cell dominates, is then missed (|z| {abs(_bt["qoi"]["vacancy_energy"]["z"]["full"]):.2f} → {abs(_bt["qoi"]["vacancy_energy"]["z"]["drop"]):.2f}).</p>""",
@@ -1662,7 +1669,7 @@ regions by {_fin["views"]["F"]["joint 0.1"]["Ex10"]["test"]["size"]["mean"] - _f
 Off distribution, on the {_t["o4d16"]} cracks and screw dislocations held out of a refit, the heavier energy weight also makes the
 posterior far better calibrated: B1's held-out energy risk falls from {fo("o4d16", "hand", "E joint 0.1"):.2f} to
 {fo("o4d16", "Ex10", "E joint 0.1"):.2f} and its dE_form risk from {fo("o4d16", "hand", "dE_form joint 0.1"):.2f} to
-{fo("o4d16", "Ex10", "dE_form joint 0.1"):.2f}. In the force views no shape reaches α off distribution (held-out risks from
+{fo("o4d16", "Ex10", "dE_form joint 0.1"):.2f}. In the force views no shape reaches α off distribution (o4d16 held-out risks from
 {min(fo("o4d16", c, v) for c in _fo["o4d16"]["views"]["F"]["joint 0.1"] for v in ("F joint 0.1", "F frac 0.1")):.2f} up); at × 10 every
 shape's dE_form risk is within it (at most {max(fo("o4d16", c, "dE_form joint 0.1") for c in ("Ex10", "Ex10/CR3", "Ex10/ellipsoid")):.2f}).</p>
 <p><b>Decision rules, fixed before the × 10 fit's held-out and QoI results.</b> Whether B1's in-distribution sharpness under CRC
@@ -1675,7 +1682,7 @@ not met. B1 misses fewer held-out crack and dislocation configurations under who
 of the × 10 fit (the paper's scored QoIs except the two stacking-fault energies, which are committee-only; delta method with the shared
 discrepancy term), CR3 covers
 {r3s("o4d16_Ex10", "CR3", "k95")} at 95 % and the evidence favours its covariance as jointly calibrated (Section 3.5's joint scale:
-{r3jt("o4d16_Ex10", "CR3")}); B1 covers {r3s("o4d16_Ex10", "B1", "k95")}, and its joint calibration is inconclusive
+{r3jt("o4d16_Ex10", "CR3")}); B1 covers {r3s("o4d16_Ex10", "B1", "k95")}, and its joint calibration is inconclusive: its intervals look about {100 * (r3j("o4d16_Ex10", "B1")["s_med"] - 1):.0f} % too narrow, but {_r3["o4d16_Ex10"]["n"]} QoIs cannot reject that
 ({r3jt("o4d16_Ex10", "B1")}), with a log score per QoI {r3s("o4d16_Ex10", "B1", "ls_over_n") - r3s("o4d16_Ex10", "CR3", "ls_over_n"):.2f}
 worse than CR3's. Rule 3 is met. As written (Appendix D) it read the joint check as a χ²<sub>n</sub>/n band on d²/n, which puts
 B1 just outside; with B1 not rejected, its other branch (log score lower by at least 0.05) gives the same verdict. One rule of two narrows the headline (rule 4): CR3 is the method
@@ -1725,7 +1732,7 @@ the shortfall. We report this as found: the transfer rule was fixed before any t
 be tuning on the test split. Where the transfer worked, for o4d20, one quantile reaches the nominal level overall with no
 environment-dependent scale: the shape carries most of the dependence of the error on the environment. The estimate of β is
 fragile in one respect. It is taken from RMS scales, which a few atoms with almost no CR3 variance can dominate: in the
-out-of-distribution refits below, the first group's RMS scale is {sci(_atr["ood_o4d20"]["group_lam_rms"][0], 1)} (o4d20) where its
+out-of-distribution refits below, the first of the groups into which the per-atom stage divides the hold-out configurations has an RMS scale of {sci(_atr["ood_o4d20"]["group_lam_rms"][0], 1)} (o4d20) where its
 90 % quantile is {_atr["ood_o4d20"]["group_q"][0]:.1f}, and that refit's β = {atr("ood_o4d20", "beta")} (factor
 {atr("ood_o4d20", "factor", ".3f")}) reflects those atoms rather than the data size. An estimate from quantiles would be robust to
 them; as with the clipping, we keep the rule as it was fixed.</p>
@@ -2039,7 +2046,7 @@ the literature difference, and the correlation of the two surface energies.</cap
 <p>Every DAS energy is within one σ of the literature. The surface energies are correlated at 0.97 and above, but the σ of each
 difference is still larger than the difference, so the order is not resolved: the probability that the 7×7 is the lowest is
 {_s111["o3d12"]["P_7x7_lowest"]:.2f} (o3d12) and {_s111["o4d20"]["P_7x7_lowest"]:.2f} (o4d20), against 0.25 for a random order of four. The mean
-model of o4d20 has the 7×7 lowest, as GAP-18 does; that of o3d12 falls monotonically to the 9×9. No miss here is left unexplained by
+model of o4d20 has the 7×7 lowest, as the literature does (GAP-18 has the 5×5); that of o3d12 falls monotonically to the 9×9. No miss here is left unexplained by
 the covariance, so we did not run spin-polarised DFT for these surfaces.</p>""", "", level=2)
 
 sec("appendix-d", "Appendix D  The decision rules as fixed", """
