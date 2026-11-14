@@ -1385,6 +1385,158 @@ As Figure 1, with the headline discrepancy term on the four defect QoIs (CR3 × 
 interstitials and the size-model average for the vacancy. Thin black bars: the same QoIs' 95 % intervals without the term.
 Only the four defect QoIs change.</figcaption></figure>""", "", level=4)
 
+# Section 3.9: whole-configuration CRC (analysis/crc_config.py ladder, weight_sweep.py, selection.py, wl_sweep.py, final.py,
+# final_rules.py; next-steps plan section 5 C-D)
+_lad = json.load(open(RES / "crc_ladder.json"))["loss"] if (RES / "crc_ladder.json").exists() else {}
+_sel = json.load(open(RES / "selection.json")) if (RES / "selection.json").exists() else {}
+_wl = json.load(open(RES / "wl_sweep.json")) if (RES / "wl_sweep.json").exists() else {}
+_fr = {m: json.load(open(RES / ("final_rules.json" if m == "o4d16" else f"final_rules_{m}.json"))) for m in ("o3d12", "o4d16", "o4d20")
+       if (RES / ("final_rules.json" if m == "o4d16" else f"final_rules_{m}.json")).exists()}
+_fo = {m: json.load(open(RES / ("final_ood.json" if m == "o4d16" else f"final_ood_{m}.json"))) for m in ("o3d12", "o4d16", "o4d20")
+       if (RES / ("final_ood.json" if m == "o4d16" else f"final_ood_{m}.json")).exists()}
+LADDER = ("o3d8", "o3d10", "o3d12", "o4d12", "o4d14", "o4d16", "o4d20")
+lz = lambda m, k, lo="joint": _lad[lo]["0.1"]["halves"][f"{m}/{k}"]["size"]["mean"]            # log semi-axis (eV/Å)
+lzr = lambda lo: [v["risk"]["mean"] for v in _lad[lo]["0.1"]["halves"].values()]
+_rng = lambda xs, d=3: f"{min(xs):.{d}f}–{max(xs):.{d}f}"
+def lad_gap(m, a, b, lo="joint"):
+    return lz(m, a, lo) - lz(m, b, lo)
+_cr3_b1 = [lad_gap(m, "headline", "B1") for m in LADDER]
+ws_z = lambda c, v: _ws["halves"][v]["joint 0.1"][c]["size"]["mean"]
+ws_wk = lambda c, v: max(_ws["halves"][v]["joint 0.1"][c]["risk_by_kind"].items(), key=lambda kv: kv[1])
+sel_ch = lambda p, k="sweep": _sel[k]["profiles"][p]["choice"].replace("Ex", "× ").replace("hand_pq", "per-quantity evidence noise")
+fo = lambda m, c, v, tag="ood", f="risk": _fo[m]["views"][v.rsplit(" ", 2)[0]][" ".join(v.rsplit(" ", 2)[1:])][c][tag][f]["mean"]
+fr1 = lambda m, cand, oth, v: _fr[m]["rule1_2"][f"{cand}: {oth} - CR3"][v]
+def frd(m, cand, oth, v):
+    x = fr1(m, cand, oth, v)["risk"]
+    return f"{x['mean']:+.2f} ({x['tau']:.2f})".replace("-", "−")
+_r3 = _fr.get("o4d16", {}).get("rule3", {})
+r3s = lambda w, k, f_: _r3[w]["scores"][k][f_]
+def wl_m(b, v="F"):
+    d_, t_ = _wl["by_weight"]["hand"]["matched"]["small"][b]["diff"][v]
+    return f"{d_:+.2f} (τ {t_:.2f})".replace("-", "−")
+_wl_name = lambda b: (lambda m_: f"{m_.split('_')[0]} at w<sub>L</sub> {_wl['bases'][b]['wL']:g}")(b)
+def wl_env():
+    e = _wl["by_weight"]["hand"]["profiles"]["forces"]["a100"]["envelope"]
+    parts = [f"{_wl_name(x['choice'])} " + (f"below {x['lam_hi']:.2f}" if x["lam_lo"] == 0 else
+                                             f"from {x['lam_lo']:.2f}" + (f" to {x['lam_hi']:.2f}" if x["lam_hi"] else "")) for x in e]
+    return ", then ".join(parts) + " (hand weights, F view)"
+def wl_near(lam):
+    r = _wl["by_weight"]["hand"]["profiles"]["forces"]["a100"]["lam"][f"{lam:g}"]
+    nn = [b for b, x in r["rows"].items() if x["near"]]
+    return ", ".join(_wl_name(b) for b in nn) + f" (best {_wl_name(r['best'])}; the rule takes the cheapest, {_wl_name(r['choice'])})"
+_wcr = json.load(open(RES / "weight_sweep_o4d16_cr3.json"))["halves"]["E"]["joint 0.1"] if (RES / "weight_sweep_o4d16_cr3.json").exists() else {}
+def wcr(c):
+    d_ = np.array(_wcr[c + "/CR3"]["split"]["size"]) - np.array(_wcr[c]["split"]["size"])
+    return f"{-d_.mean():.2f} (τ {d_.std(ddof=1) / np.sqrt(2):.2f})"
+HO_ROWS = (("o3d12", "hand", "o3d12"), ("o4d16", "hand", "o4d16"), ("o4d16", "Ex10", "o4d16, energy × 10"), ("o4d20", "hand", "o4d20"))
+HO_METH = (("", "B1: posterior"), ("/CR3", "CR3"), ("/ellipsoid", "POPS ellipsoid"))
+def _ho_rows():
+    out = ""
+    for m, cand, lab in HO_ROWS:
+        if m not in _fo:
+            continue
+        for suf, ml in HO_METH:
+            c = cand + suf
+            if c not in _fo[m]["views"]["F"]["joint 0.1"]:
+                continue
+            cells = "".join(f"<td class=n>{fo(m, c, v):.2f}</td>" for v in ("E joint 0.1", "F joint 0.1", "F frac 0.1", "dE_type joint 0.1"))
+            out += (f"<tr><td>{lab}</td><td>{ml}</td><td class=n>{fo(m, c, 'F joint 0.1', 'test'):.2f}</td>{cells}"
+                    f"<td class=n>{np.exp(fo(m, c, 'F joint 0.1', 'ood', 'size')):.3f}</td></tr>")
+    return out
+ho_rows = _ho_rows() if _fo else ""
+if _lad and _ws and _sel and _fr and _fo:
+    _t = {m: _fo[m]["n_held"] for m in _fo}
+    crc_p = f"""
+<p>The per-atom forces of Section 3.2 and the QoIs of Sections 3.4–3.8 test each method with the scale it was built with. Under
+conformal risk control (Section 2.8) every shape gets its own scale on the same calibration data, so this section compares the
+shapes alone, for whole configurations as well as per atom, and uses the calibrated size to choose the weights and basis
+that the benchmark fixes by hand (Section 2.9).</p>
+<p><b>In distribution, along the ladder.</b> Figure 11 shows the calibrated size of the four shapes for every model of the
+ladder, on the same 100 random halves of the test split. Every shape meets its target: the mean risk is
+{_rng(lzr("joint"))} for the joint loss at α = 0.1, and {_rng(lzr("atom"))} for the per-atom loss, whose bound B makes it
+conservative. The two scores rank the shapes in opposite ways at every size. Per atom the POPS ellipsoid gives the smallest
+regions and CR3 the largest ({np.exp(lz("o3d12", "ellipsoid", "atom")):.3f} against {np.exp(lz("o3d12", "headline", "atom")):.3f} eV/Å
+for o3d12, {np.exp(lz("o4d20", "ellipsoid", "atom")):.3f} against {np.exp(lz("o4d20", "headline", "atom")):.3f} for o4d20). For whole
+configurations B1 gives the smallest regions at every size and CR3 the next smallest, within {max(_cr3_b1[:4]):.2f} in log size of B1
+up to o4d12 and {min(_cr3_b1[4:]):.2f}–{max(_cr3_b1[4:]):.2f} behind it above; the POPS box and ellipsoid level off from o4d14,
+and at o4d20 their regions ({np.exp(lz("o4d20", "B2")):.3f} and {np.exp(lz("o4d20", "ellipsoid")):.3f} eV/Å) are larger than the test
+force RMSE ({_par["o4d20"]["rmse_F"]:.3f}). A per-atom score sees each atom's 3×3 block only; a whole-configuration score also sees
+the correlations between atoms, which the parameter covariances (B1, CR3) carry and the POPS shapes, built row by row, do not. The
+same ordering holds for the QoIs jointly (Section 3.5). For models, every shape prefers the larger one, and the calibrated size has
+not levelled off by o4d20 (B1, joint: {np.exp(lz("o4d16", "B1")):.3f} → {np.exp(lz("o4d20", "B1")):.3f} eV/Å from o4d16 to o4d20).
+Whatever the shape, the miss rate is not uniform across kinds of configuration: the guarantee is marginal, and the worst kind
+moves from surfaces for the small models to point defects for o4d20 (B1 misses
+{_lad["joint"]["0.1"]["halves"]["o4d20/B1"]["risk_by_kind"]["point defect"]:.2f} of the point-defect cells at α = 0.1).</p>
+<p><b>Energy weight.</b> On \\(T_{{\\text{{val}}}}\\) (Section 2.9; o4d16, B1), raising every energy weight trades a small loss in
+force size for a large gain in the energy views: from the hand weights to × 10 the E size falls by
+{ws_z("hand", "E") - ws_z("Ex10", "E"):.2f} and the dE_form size by {ws_z("hand", "dE_form") - ws_z("Ex10", "dE_form"):.2f} in log
+(regions {np.exp(ws_z("hand", "E") - ws_z("Ex10", "E")):.1f}× and {np.exp(ws_z("hand", "dE_form") - ws_z("Ex10", "dE_form")):.1f}× smaller),
+while the F size grows by {ws_z("Ex10", "F") - ws_z("hand", "F"):.2f}; beyond × 10 the force cost steepens and the energy-difference
+sizes stop improving. The worst-kind miss rate of the energy view falls from {ws_wk("hand", "E")[1]:.2f} ({ws_wk("hand", "E")[0]}) to
+{ws_wk("Ex10", "E")[1]:.2f}. The selection rule picks per use: forces, the per-quantity evidence noise (whose σ<sub>E</sub> all but
+ignores the energies); energies, {sel_ch("energies")}; balanced and formation, {sel_ch("balanced")}; and the minimax-regret choice
+over the four uses is {_sel["sweep"]["minimax_regret"]["choice"].replace("Ex", "× ")}. The hand
+weights are never chosen. Point errors would choose differently: the lowest validation energy RMSE belongs to a candidate that
+calibrated size never chooses. With CR3 in place of B1 the choice is the same (× 10), and CR3's regions are larger than B1's for
+forces at every weight; its energy regions, smaller than B1's by {wcr("hand")} in log at the hand weights, are smaller by only {wcr("Ex10")} at
+× 10: raising the energy weight gives B1's posterior energy directions that match the errors.</p>
+<p><b>Basis.</b> At matched basis count a smaller w<sub>L</sub>, a more angular basis, gives smaller regions (hand weights, F
+view, against w<sub>L</sub> 1.5 near {_wl["bases"]["o4d14_wL1.5"]["n_mb"]} functions: {wl_m("o4d14_wL1.25")} for w<sub>L</sub> 1.25,
+{wl_m("o4d15_wL1.75")} for 1.75, {wl_m("o4d15_wL2.0")} for 2.0). Basis count is the wrong cost, though: a low-w<sub>L</sub> basis
+spends its functions on high angular channels, which need many more products each, so its A100 cost is higher at the same count.
+Over the cost price λ the lowest mean score goes to {wl_env()}, and at λ = 0.25 the tolerance set holds
+{wl_near(0.25)}. No w<sub>L</sub> gives a resolvably better size at its cost than the default, which we keep.</p>
+<p><b>The chosen fit, on the test split and held out.</b> The × 10 weights were refitted on all of \\(T\\) and CRC-calibrated on the
+test split. There every shape and view is at its risk ({_rng([v[c]["test"]["risk"]["mean"] for v in (_fin["views"]["E"]["joint 0.1"], _fin["views"]["F"]["joint 0.1"]) for c in v])} at α = 0.1, joint), and the
+validation ordering holds: × 10 against the hand weights shrinks the E regions by
+{_fin["views"]["E"]["joint 0.1"]["hand"]["test"]["size"]["mean"] - _fin["views"]["E"]["joint 0.1"]["Ex10"]["test"]["size"]["mean"]:.2f} and grows the F
+regions by {_fin["views"]["F"]["joint 0.1"]["Ex10"]["test"]["size"]["mean"] - _fin["views"]["F"]["joint 0.1"]["hand"]["test"]["size"]["mean"]:.2f} in log.
+Off distribution, on the {_t["o4d16"]} cracks and screw dislocations held out of a refit, the heavier energy weight also makes the
+posterior far better calibrated: B1's held-out energy risk falls from {fo("o4d16", "hand", "E joint 0.1"):.2f} to
+{fo("o4d16", "Ex10", "E joint 0.1"):.2f} and its dE_form risk from {fo("o4d16", "hand", "dE_form joint 0.1"):.2f} to
+{fo("o4d16", "Ex10", "dE_form joint 0.1"):.2f}. No shape reaches α off distribution.</p>
+<p><b>Decision rules, fixed before the results.</b> Whether B1's in-distribution sharpness under CRC undermines the case for CR3
+was decided by four rules written down before the held-out shapes and the QoIs of the × 10 fit were computed (Appendix D). Rule 1
+compares held-out risk, d = risk(B1) − risk(CR3) over the 100 paired splits with τ = sd/√2, in the energy and force views at × 10;
+rule 3 compares the propagated DFT QoIs. Table 9 and Figure 12 give the held-out risks. At o4d16 × 10, CR3 is better on held-out
+energies (d = {frd("o4d16", "Ex10", "B1", "E joint 0.1")}) and worse on held-out forces (d = {frd("o4d16", "Ex10", "B1", "F joint 0.1")}): rule 1 is
+not met. B1 misses fewer held-out crack and dislocation configurations under whole-configuration CRC. On the {_r3["o4d16_Ex10"]["n"]} QoIs
+of the × 10 fit (the paper's scored QoIs except the two stacking-fault energies, which are committee-only; delta method with the shared
+discrepancy term), CR3 covers
+{r3s("o4d16_Ex10", "CR3", "k95")} at 95 % with d²/n = {r3s("o4d16_Ex10", "CR3", "d2_over_n"):.2f}, inside the χ² band
+[{_r3["o4d16_Ex10"]["band"][0]:.2f}, {_r3["o4d16_Ex10"]["band"][1]:.2f}], and B1 covers {r3s("o4d16_Ex10", "B1", "k95")} with
+d²/n = {r3s("o4d16_Ex10", "B1", "d2_over_n"):.2f}, outside it: rule 3 is met. One rule of two narrows the headline (rule 4): CR3 is the method
+for QoIs propagated without calibration data, and for held-out energies; for whole-configuration force regions calibrated by CRC,
+B1 is sharper and at least as reliable. For the paper's own models the same comparison, at hand weights, gives the force difference
+d = {frd("o3d12", "hand", "B1", "F joint 0.1")} for o3d12 (unresolved: on the held-out configurations every shape fails alike, with
+force risk near {fo("o3d12", "hand/CR3", "F joint 0.1"):.1f} and energy risk near {fo("o3d12", "hand/CR3", "E joint 0.1"):.1f}) and
+{frd("o4d20", "hand", "B1", "F joint 0.1")} for o4d20 (B1 better: CR3 misses {fo("o4d20", "hand/CR3", "F joint 0.1"):.2f} of the held-out
+configurations against B1's {fo("o4d20", "hand", "F joint 0.1"):.2f}), and the energy difference
+{frd("o3d12", "hand", "B1", "E joint 0.1")} (unresolved) and {frd("o4d20", "hand", "B1", "E joint 0.1")} (CR3 better). The POPS ellipsoid
+behaves like B1 off distribution: better than CR3 on held-out forces and worse on held-out energies at o4d20
+(d = {frd("o4d20", "hand", "ellipsoid", "F joint 0.1")} and {frd("o4d20", "hand", "ellipsoid", "E joint 0.1")}). The per-atom result of Section 3.2, where CR3 with its own scale covers held-out atoms far better than B1, is therefore a
+result about a per-atom scale: once each shape's size is refitted for whole configurations, the posterior's shape is the better one for
+held-out forces.</p>
+<div class="wrap"><table><caption>Table 9. Whole-configuration CRC off distribution: BLR refits without cracks and screw dislocations,
+each shape CRC-calibrated on the in-distribution test split (α = 0.1), and its mean risk over 100 paired splits on the test half
+(F, joint loss) and on the {_t["o4d20"]} held-out configurations (energy, force joint and fraction losses, dE_type pairs), with the
+held-out geometric semi-axis of the force regions (eV/Å).</caption>
+<thead><tr><th>model</th><th>shape</th><th>test F</th><th>held-out E</th><th>F joint</th><th>F fraction</th><th>dE_type</th><th>F semi-axis</th></tr></thead>
+<tbody>{ho_rows}</tbody></table></div>
+<figure><img src="fig11_crc_ladder.png" alt="CRC region size against A100 cost for the ACE ladder, four shapes, whole-configuration and per-atom losses"><figcaption>Figure 11.
+Calibrated region size along the linear ACE ladder: the geometric semi-axis per force component of the CRC-calibrated regions
+(α = 0.1, mean over 100 random halves of the test split, bars 5–95 %) against A100 cost, for the headline's CR3 shape, B1, B2 and
+the POPS ellipsoid, each with its own refitted scale. Left: whole-configuration regions (joint loss); right: per-atom regions.
+Dashed: the test force RMSE. B3 is not drawn: under CRC it is the headline's shape and gives the same regions. Markers are offset
+by up to ±4 % in cost where they would overlap. The paper's two models are in bold.</figcaption></figure>
+<figure><img src="fig12_crc_heldout.png" alt="Paired held-out risk differences against CR3 for B1 and the POPS ellipsoid, per view and model"><figcaption>Figure 12.
+Off distribution, under whole-configuration CRC (α = 0.1): the mean paired difference of held-out risk, risk(shape) − risk(CR3),
+over 100 splits, with ± τ (τ = sd/√2), for B1 and the POPS ellipsoid. Left of zero the shape misses fewer held-out
+configurations than CR3. o4d16 at the hand and the selected × 10 energy weights; o3d12 and o4d20 at the hand weights.</figcaption></figure>"""
+else:
+    crc_p = "<p>(pending)</p>"
+sec("results-crc", "3.9  Calibrated region size: the shapes under CRC, and selection", crc_p, "", level=3)
+
 sec("results-forces", "3.2  Calibrated per-atom forces", f"""
 <p>Figure 2 and Table 2p test the per-atom force uncertainty of Section 2.5 on the 248 test configurations, with the BLR fits
 whose CR3 posteriors the QoIs use; atoms whose force rows vanish by site symmetry are dropped by the rule of Section 3.3. At a
