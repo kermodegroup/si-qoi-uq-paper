@@ -1624,7 +1624,15 @@ refit's coverage on the in-distribution test split.</caption>
 about λ<sub>F</sub> times too narrow everywhere. B1, the posterior shape with one scale, under-covers
 ({fb("o3d12", "B1")} for o3d12, {fb("o4d20", "B1")} for o4d20), most in the amorphous, point-defect and surface cells. B2
 over-covers for o3d12 ({fb("o3d12", "B2")}; per type {fb_types("o3d12", "B2")}). For o4d20 it under-covers overall
-({fb("o4d20", "B2")}) and unevenly: per type {fb_types("o4d20", "B2")}, low on the liquid and surface cells.</p>""", "drafted", level=3)
+({fb("o4d20", "B2")}) and unevenly: per type {fb_types("o4d20", "B2")}, low on the liquid and surface cells.</p>
+<p>These comparisons give each method the scale it was built with, and they are properties of those scales as much as of the
+shapes. B1's single scale, a pooled quantile over energies, forces and virials, is what leaves its per-atom regions short: given
+its own per-atom scale by conformal risk control (Section 3.9, Figure 11), B1 meets the target with regions smaller than CR3's for
+every model of the ladder. For whole configurations, with each shape's scale refitted on the same data, B1 gives the smallest force
+regions in distribution, and on the held-out cracks and dislocations its risk is no higher than CR3's
+(o3d12: {fo("o3d12", "hand", "F joint 0.1"):.2f} against {fo("o3d12", "hand/CR3", "F joint 0.1"):.2f}; o4d20:
+{fo("o4d20", "hand", "F joint 0.1"):.2f} against {fo("o4d20", "hand/CR3", "F joint 0.1"):.2f}). The case for the CR3 shape
+rests on what it does without per-shape recalibration: the per-atom regions above, and the QoIs, which have no calibration data.</p>""", "drafted", level=3)
 
 mond_dmax = (lambda v: f"{v:.2f}" if v is not None else "–")(max((abs(_ood_get(m, "mondrian", c) - _ood_get(m, "one_group", c))
                                                                 for m in _lso for c, _ in OOD_COLS), default=None))
