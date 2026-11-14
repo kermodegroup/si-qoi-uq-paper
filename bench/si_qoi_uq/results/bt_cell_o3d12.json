@@ -1,0 +1,320 @@
+{
+ "model": "o3d12",
+ "cell": 996,
+ "lam_F": {
+  "full": 5.785196085073578,
+  "drop": 8.09504676222894
+ },
+ "lam_F_stored": 5.823133931108571,
+ "qoi": {
+  "dE_bc8 (meV/at)": {
+   "sigma": {
+    "full": 27.84723772314273,
+    "drop": 27.33026801327709
+   },
+   "z": {
+    "full": 0.04658833987121617,
+    "drop": 0.04746958847568078
+   },
+   "covered95": {
+    "full": true,
+    "drop": true
+   },
+   "sigma_ratio_drop_full": 0.9814355120243756,
+   "csv_sigma_source": "delta"
+  },
+  "dE_bcc (meV/at)": {
+   "sigma": {
+    "full": 207.410521885285,
+    "drop": 116.75178484247922
+   },
+   "z": {
+    "full": 0.14858756239326082,
+    "drop": 0.26396704686980904
+   },
+   "covered95": {
+    "full": true,
+    "drop": true
+   },
+   "sigma_ratio_drop_full": 0.5629019385383569,
+   "csv_sigma_source": "committee (csv sigma 138)"
+  },
+  "dE_beta-Sn (meV/at)": {
+   "sigma": {
+    "full": 2.7577034841283363,
+    "drop": 3.584933740869832
+   },
+   "z": {
+    "full": 0.7538472261083533,
+    "drop": 0.5798955495994959
+   },
+   "covered95": {
+    "full": true,
+    "drop": true
+   },
+   "sigma_ratio_drop_full": 1.299970704429439,
+   "csv_sigma_source": "delta"
+  },
+  "dE_fcc (meV/at)": {
+   "sigma": {
+    "full": 23.849057106111054,
+    "drop": 22.400753331976205
+   },
+   "z": {
+    "full": 0.8265086622094915,
+    "drop": 0.879945955013588
+   },
+   "covered95": {
+    "full": true,
+    "drop": true
+   },
+   "sigma_ratio_drop_full": 0.9392720740408753,
+   "csv_sigma_source": "delta"
+  },
+  "dE_hcp (meV/at)": {
+   "sigma": {
+    "full": 46.06765409520007,
+    "drop": 20.840866025596856
+   },
+   "z": {
+    "full": -0.030205808067596335,
+    "drop": -0.06676837306160747
+   },
+   "covered95": {
+    "full": true,
+    "drop": true
+   },
+   "sigma_ratio_drop_full": 0.45239694607692926,
+   "csv_sigma_source": "committee (csv sigma 71.8)"
+  },
+  "dE_hex_diamond (meV/at)": {
+   "sigma": {
+    "full": 12.429420495213348,
+    "drop": 15.054620045988138
+   },
+   "z": {
+    "full": -0.12487666780884844,
+    "drop": -0.10310088261914496
+   },
+   "covered95": {
+    "full": true,
+    "drop": true
+   },
+   "sigma_ratio_drop_full": 1.2112085235016203,
+   "csv_sigma_source": "delta"
+  },
+  "dE_sh (meV/at)": {
+   "sigma": {
+    "full": 6.821854174584762,
+    "drop": 6.368229158901336
+   },
+   "z": {
+    "full": 0.6036226561828889,
+    "drop": 0.6466202195628277
+   },
+   "covered95": {
+    "full": true,
+    "drop": true
+   },
+   "sigma_ratio_drop_full": 0.9335041465158499,
+   "csv_sigma_source": "delta"
+  },
+  "dE_st12 (meV/at)": {
+   "sigma": {
+    "full": 69.18549592903791,
+    "drop": 19.784262657670137
+   },
+   "z": {
+    "full": 0.2461769239453944,
+    "drop": 0.8608798247451539
+   },
+   "covered95": {
+    "full": true,
+    "drop": true
+   },
+   "sigma_ratio_drop_full": 0.2859596855092639,
+   "csv_sigma_source": "delta"
+  },
+  "decohesion_max_stress": {
+   "sigma": {
+    "full": 0.04543831775293035,
+    "drop": 0.04970940268636511
+   },
+   "z": {
+    "full": -0.23720976373714617,
+    "drop": -0.2168284476639349
+   },
+   "covered95": {
+    "full": true,
+    "drop": true
+   },
+   "sigma_ratio_drop_full": 1.0939974265037424,
+   "csv_sigma_source": "delta"
+  },
+  "diamond_bulk_modulus": {
+   "sigma": {
+    "full": 10.739857939564185,
+    "drop": 14.61634098271164
+   },
+   "z": {
+    "full": 0.4358601083800711,
+    "drop": 0.3202631664834474
+   },
+   "covered95": {
+    "full": true,
+    "drop": true
+   },
+   "sigma_ratio_drop_full": 1.3609436051166948,
+   "csv_sigma_source": "delta"
+  },
+  "diamond_c11": {
+   "sigma": {
+    "full": 13.06963106148874,
+    "drop": 18.16141125902305
+   },
+   "z": {
+    "full": 1.7619703216794107,
+    "drop": 1.2679797685987364
+   },
+   "covered95": {
+    "full": true,
+    "drop": true
+   },
+   "sigma_ratio_drop_full": 1.3895886711399117,
+   "csv_sigma_source": "delta"
+  },
+  "diamond_c12": {
+   "sigma": {
+    "full": 12.44085861022686,
+    "drop": 16.90228122313243
+   },
+   "z": {
+    "full": -0.36111153540807206,
+    "drop": -0.2657947465922692
+   },
+   "covered95": {
+    "full": true,
+    "drop": true
+   },
+   "sigma_ratio_drop_full": 1.358610506933831,
+   "csv_sigma_source": "delta"
+  },
+  "diamond_c44": {
+   "sigma": {
+    "full": 7.93322737156727,
+    "drop": 11.100709039020206
+   },
+   "z": {
+    "full": -0.1555976009753132,
+    "drop": -0.11119930651893829
+   },
+   "covered95": {
+    "full": true,
+    "drop": true
+   },
+   "sigma_ratio_drop_full": 1.3992677278865355,
+   "csv_sigma_source": "delta"
+  },
+  "dumbbell_interstitial_energy": {
+   "sigma": {
+    "full": 0.3495473005068344,
+    "drop": 0.48500151276757064
+   },
+   "z": {
+    "full": 3.3777746689950177,
+    "drop": 2.434408937263259
+   },
+   "covered95": {
+    "full": false,
+    "drop": false
+   },
+   "sigma_ratio_drop_full": 1.387513255185582,
+   "csv_sigma_source": "delta"
+  },
+  "hexagonal_interstitial_energy": {
+   "sigma": {
+    "full": 0.5231358816967934,
+    "drop": 0.5343111091975415
+   },
+   "z": {
+    "full": 2.767128853782373,
+    "drop": 2.709253780753581
+   },
+   "covered95": {
+    "full": false,
+    "drop": false
+   },
+   "sigma_ratio_drop_full": 1.0213619976983825,
+   "csv_sigma_source": "delta"
+  },
+  "surface_100 (J/m2)": {
+   "sigma": {
+    "full": 0.08299932552865005,
+    "drop": 0.11316855032134178
+   },
+   "z": {
+    "full": 0.7751489954199668,
+    "drop": 0.5685046209515242
+   },
+   "covered95": {
+    "full": true,
+    "drop": true
+   },
+   "sigma_ratio_drop_full": 1.363487589815146,
+   "csv_sigma_source": "delta"
+  },
+  "tetrahedral_interstitial_energy": {
+   "sigma": {
+    "full": 0.8415061693354177,
+    "drop": 0.678712007729053
+   },
+   "z": {
+    "full": 2.0654846621819622,
+    "drop": 2.560906638014974
+   },
+   "covered95": {
+    "full": false,
+    "drop": false
+   },
+   "sigma_ratio_drop_full": 0.8065443040840309,
+   "csv_sigma_source": "delta"
+  },
+  "vacancy_energy": {
+   "sigma": {
+    "full": 0.5420402865529178,
+    "drop": 0.27302486469296106
+   },
+   "z": {
+    "full": 1.6250925034795762,
+    "drop": 3.2263200908520693
+   },
+   "covered95": {
+    "full": true,
+    "drop": false
+   },
+   "sigma_ratio_drop_full": 0.5036984730955167,
+   "csv_sigma_source": "delta"
+  },
+  "vacancy_barrier": {
+   "sigma": {
+    "full": 0.4786195654260304,
+    "drop": 0.2191411141963935
+   },
+   "z": {
+    "full": 0.12584827948499017,
+    "drop": 0.2748614702339178
+   },
+   "covered95": {
+    "full": true,
+    "drop": true
+   },
+   "sigma_ratio_drop_full": 0.4578607521013708,
+   "csv_sigma_source": "delta"
+  }
+ },
+ "covered95": {
+  "n": 19,
+  "full": 16,
+  "drop": 15
+ }
+}

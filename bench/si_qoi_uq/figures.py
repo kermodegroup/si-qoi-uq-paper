@@ -364,7 +364,8 @@ def force_calibration(results, out, nbins=20, level=0.9, min_atoms=300):
     """Per-atom force uncertainty against the observed error on the test split, per model.  Top: binned on predicted sigma
     (equal counts), RMS |error| against RMS sigma, for the CR3 shape with one hold-out conformal quantile and with the
     learned continuous scale (ARD fit, ood/learned_scale.py; sigma = radius sqrt(v) / chi_3^-1(level)), and the
-    propagation's methods on the BLR fit (analysis/force_baselines.py: CR3 x lam_F, B1, B2, B3), per-atom density behind.
+    propagation's methods on the BLR fit (analysis/force_baselines.py: CR3 x lam_F, B1, B2, B3); the grey per-atom density
+    behind is the one-quantile method's (traces[0]) only.
     Bottom: coverage at `level` overall and per GAP-18 configuration type with >= min_atoms test atoms, every method's
     region the Gaussian ellipsoid of its own 3x3 force covariance, e^T (C + eps tr C/3 I)^-1 e <= chi_3^-1(level)^2: for the
     one quantile and the learned scale that is their conformal region (s <= q); for the others d_<k> of force_baselines
@@ -384,13 +385,16 @@ def force_calibration(results, out, nbins=20, level=0.9, min_atoms=300):
         z = np.load(results / f"learned_scale_{m}_atoms.npz", allow_pickle=True)
         e, v, s, t = z["test_e"], z["test_v"], z["test_s"], z["test_t"]
         q1, rl = float(z["q_one"]), z["test_radius_seed0"]
-        traces = [("CR3 shape × one hold-out quantile", e, q1 * np.sqrt(v) / k3, t, s <= q1, "o", CAT[0]),
-                  ("learned continuous scale", e, rl * np.sqrt(v) / k3, t, s <= rl, "P", CAT[5])]
+        # method colours as the talk figures (METH_COL), never the model blue/orange of fig6: both CR3 scales share the
+        # headline magenta (solid: one quantile; dash-dot: lam_F), the learned scale is grey
+        traces = [("CR3 shape × one hold-out quantile", e, q1 * np.sqrt(v) / k3, t, s <= q1, "o", METH_COL["headline"]),
+                  ("learned continuous scale", e, rl * np.sqrt(v) / k3, t, s <= rl, "P", MUTED)]
         pb = results / f"force_baselines_{m}.npz"
         if pb.exists():
             b = np.load(pb, allow_pickle=True)
-            for k, lab, mk, col in (("headline", "CR3 × λ$_F$ (in sample on test)", "s", CAT[1]), ("B1", "B1: posterior × q̂", "^", CAT[2]),
-                                    ("B2", "B2: POPS (50 % cut)", "D", CAT[3]), ("B3", "B3: CR3, λ = 1", "v", CAT[4])):
+            for k, lab, mk, col in (("headline", "CR3 × λ$_F$ (in sample on test)", "s", METH_COL["headline"]),
+                                    ("B1", "B1: posterior × q̂", "^", METH_COL["B1"]),
+                                    ("B2", "B2: POPS (50 % cut)", "D", METH_COL["B2"]), ("B3", "B3: CR3, λ = 1", "v", CAT[4])):
                 sd = b[f"sd_{k}"]
                 traces.append((lab, b["err_norm"], sd, b["config_type"], b[f"d_{k}"] <= k3, mk, col))
         allsd = np.concatenate([tr[2] for tr in traces])
@@ -403,7 +407,8 @@ def force_calibration(results, out, nbins=20, level=0.9, min_atoms=300):
                   linewidths=0, alpha=0.35, extent=(np.log10(lo), np.log10(hi), np.log10(lo), np.log10(hi)))
         for lab, ee, sd, *_, mk, col in traces:
             bx, by = binned(sd, ee, sd)
-            ax.plot(bx, by, marker=mk, color=col, lw=1.8, ms=5, mec=SURFACE, label=lab, zorder=3)
+            ax.plot(bx, by, marker=mk, color=col, lw=1.8, ms=5, mec=SURFACE, label=lab, zorder=3,
+                    ls="-." if lab.startswith("CR3 × λ") else "-")
         ax.plot([lo, hi], [lo, hi], color=INK, lw=1, ls="--", label="calibrated")
         ax.set_xscale("log"); ax.set_yscale("log"); ax.set_xlim(lo, hi); ax.set_ylim(lo, hi)
         ax.set_xlabel("predicted per-atom σ (eV/Å), bin RMS", color=INK, fontsize="small")
@@ -416,7 +421,8 @@ def force_calibration(results, out, nbins=20, level=0.9, min_atoms=300):
         xs = np.arange(len(types) + 1)
         for k_, (lab, _e, _s, tt_, c, mk, col) in enumerate(traces):
             y = [c.mean()] + [c[tt_ == tt].mean() if (tt_ == tt).any() else np.nan for tt in types]
-            ax.plot(xs + (k_ - 2.5) * 0.07, y, marker=mk, color=col, lw=1.0, ms=5, mec=SURFACE, label=lab, zorder=3)
+            ax.plot(xs + (k_ - 2.5) * 0.07, y, marker=mk, color=col, lw=1.0, ms=5, mec=SURFACE, label=lab, zorder=3,
+                    ls="-." if lab.startswith("CR3 × λ") else "-")
         ax.axhline(level, color=INK, lw=1, ls="--", label=f"nominal {level:.0%}")
         ax.axvline(0.5, color=GRID, lw=0.8)
         ax.set_xticks(xs); ax.set_xticklabels(["all"] + list(types), fontsize="x-small", rotation=50, ha="right")
@@ -533,11 +539,11 @@ def cr3_schematic(out, seed=0, n=500, noise=0.001, P=6, calib=0.2):
     axa = fig.add_axes([0.08, 0.60, 0.50, 0.36]); axb = fig.add_axes([0.70, 0.60, 0.22, 0.36])
     axc = fig.add_axes([0.0, 0.0, 1.0, 0.50]); axc.axis("off"); axc.set_xlim(0, 1); axc.set_ylim(0, 1)
     _style(axa); _style(axb)
-    axa.fill_between(xg, fit - lam * sd_c(Bg), fit + lam * sd_c(Bg), color=CAT[0], alpha=0.20, lw=0,
+    axa.fill_between(xg, fit - lam * sd_c(Bg), fit + lam * sd_c(Bg), color=METH_COL["headline"], alpha=0.20, lw=0,
                      label=f"CR3 band, λ σ (λ = {lam:.1f} from calibration)")
-    axa.fill_between(xg, fit - sd_post, fit + sd_post, color=CAT[1], alpha=0.6, lw=0, label="posterior band, σ²A⁻¹")
+    axa.fill_between(xg, fit - sd_post, fit + sd_post, color=METH_COL["B1"], alpha=0.5, lw=0, label="posterior band, σ²A⁻¹")
     axa.scatter(Xtr[:, 0], ytr, s=5, color=MUTED, alpha=0.6, lw=0, label="training points", zorder=2)
-    axa.scatter(Xc[:, 0], yc, s=7, color=CAT[2], alpha=0.8, lw=0, label="calibration points", zorder=2)
+    axa.scatter(Xc[:, 0], yc, s=12, color=INK, marker="x", alpha=0.8, lw=0.8, label="calibration points", zorder=2)
     axa.plot(xg, _lj_demo(xg), color=INK, lw=1.2, ls="--", label="truth (LJ)")
     axa.plot(xg, fit, color=INK, lw=2, label="fit to all data, θ̂")
     axa.set_xlim(X_MIN, 10); axa.set_ylim(-1.25, 0.6)
@@ -553,7 +559,7 @@ def cr3_schematic(out, seed=0, n=500, noise=0.001, P=6, calib=0.2):
     proj = lambda S: U2.T @ (Bg @ S @ Bg.T / ng) @ U2
     pts = -(Bg @ shifts.T).T @ U2 / np.sqrt(ng)                     # prediction of theta_(-k) - theta, projected
     sc = axb.scatter(pts[:, 0], pts[:, 1], c=Xtr[:, 0], cmap="viridis", s=12, lw=0, zorder=3)
-    for S, col, lab, a_ in ((proj(Scr3), CAT[0], "CR3, 1 sd (λ = 1)", 0.22), (proj(Ai), CAT[1], "posterior, 1 sd", 0.6)):
+    for S, col, lab, a_ in ((proj(Scr3), METH_COL["headline"], "CR3, 1 sd (λ = 1)", 0.22), (proj(Ai), METH_COL["B1"], "posterior, 1 sd", 0.5)):
         ww, V = np.linalg.eigh(S)
         ang = np.degrees(np.arctan2(V[1, 1], V[0, 1]))
         axb.add_patch(Ellipse((0, 0), 2 * np.sqrt(ww[1]), 2 * np.sqrt(ww[0]), angle=ang, facecolor=col, alpha=a_, edgecolor=col,

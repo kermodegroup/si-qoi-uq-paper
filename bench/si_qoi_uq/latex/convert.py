@@ -32,11 +32,11 @@ FULL_PAGE = {"fig6_model_compare": 0.8}   # height caps (x textheight): 0.6 lets
                                          # the four-row QoI comparison keeps a page of its own, legible
 
 CITE = {
-    "Allen 1974": "allen1974", "Cook and Weisberg 1982": "cook1982", "Bartók et al. 2018": "bartok2018",
+    "Allen 1974": "allen1974", "Solares et al. 2005": "solares2005", "Angelopoulos et al. 2022": "angelopoulos2022", "Cook and Weisberg 1982": "cook1982", "Bartók et al. 2018": "bartok2018",
     "Bigi et al. 2024": "bigi2024", "Drautz 2019": "drautz2019", "Gneiting and Raftery 2007": "gneiting2007",
     "Grossfield and Zuckerman 2009": "grossfield2009", "Lelièvre, Rousset and Stoltz 2010": "lelievre2010",
     "Hoeting et al. 1999": "hoeting1999", "Huber 1967": "huber1967", "White 1982": "white1982",
-    "Kleijn and van der Vaart 2012": "kleijn2012", "Müller 2013": "muller2013", "Swinburne and Perez 2025": "swinburne2025",
+    "Kleijn and van der Vaart 2012": "kleijn2012", "Müller 2013": "muller2013", "Swinburne and Perez 2025": "swinburne2025", "Swinburne et al. 2026": "swinburne2026",
     "MacKinnon and White 1985": "mackinnon1985", "Musil et al. 2019": "musil2019", "Imbalzano et al. 2021": "imbalzano2021",
     "Kellner and Ceriotti 2024": "kellner2024", "Papadopoulos et al. 2008": "papadopoulos2008", "Lei et al. 2018": "lei2018",
     "Vovk, Gammerman and Shafer 2005": "vovk2005", "Tibshirani et al. 2019": "tibshirani2019", "Barber et al. 2021": "barber2021",
@@ -59,6 +59,7 @@ UNICODE = {
     "χ": r"\ensuremath{\chi}", "ψ": r"\ensuremath{\psi}", "ω": r"\ensuremath{\omega}", "Δ": r"\ensuremath{\Delta}",
     "Λ": r"\ensuremath{\Lambda}", "Γ": r"\ensuremath{\Gamma}", "Ψ": r"\ensuremath{\Psi}", "Φ": r"\ensuremath{\Phi}", "Ω": r"\ensuremath{\Omega}",
     "π": r"\ensuremath{\pi}", "ϱ": r"\ensuremath{\varrho}", "ϕ": r"\ensuremath{\phi}",
+    "§": r"\S{}", "µ": r"\ensuremath{\mu}", "¼": r"\ensuremath{\tfrac14}", "⅙": r"\ensuremath{\tfrac16}",
     "−": r"\ensuremath{-}", "×": r"\ensuremath{\times}", "±": r"\ensuremath{\pm}", "≤": r"\ensuremath{\leq}",
     "≥": r"\ensuremath{\geq}", "≈": r"\ensuremath{\approx}", "≠": r"\ensuremath{\neq}", "→": r"\ensuremath{\to}",
     "←": r"\ensuremath{\leftarrow}", "↔": r"\ensuremath{\leftrightarrow}", "∞": r"\ensuremath{\infty}", "√": r"\ensuremath{\surd}",

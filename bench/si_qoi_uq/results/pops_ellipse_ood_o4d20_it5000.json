@@ -1,0 +1,182 @@
+{
+ "model": "o4d20",
+ "info": {
+  "P": 5477,
+  "N": 228818,
+  "rank": 32,
+  "coverage_fraction": 1.0,
+  "objective": 1.2500578968756104,
+  "n_iter": 12190,
+  "fit_s": 13606.520647287369,
+  "leverage_pct": 50.0,
+  "delta_rel": 4.123191403233602e-05,
+  "max_iter": 5000,
+  "stages": [
+   {
+    "rho": 0.1,
+    "nit": 3463,
+    "success": true,
+    "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+    "fun": 288634.64652480284
+   },
+   {
+    "rho": 0.01,
+    "nit": 4662,
+    "success": true,
+    "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+    "fun": 286584.5148231604
+   },
+   {
+    "rho": 0.001,
+    "nit": 444,
+    "success": true,
+    "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+    "fun": 286556.12321500294
+   },
+   {
+    "rho": 0.0001,
+    "nit": 3621,
+    "success": true,
+    "message": "CONVERGENCE: RELATIVE REDUCTION OF F <= FACTR*EPSMCH",
+    "fun": 286035.74784728343
+   }
+  ],
+  "span_rank": 38,
+  "trace_outside_span": 0.9999999999359771
+ },
+ "lam_id_test": {
+  "ellipsoid": 1.1083303104063704,
+  "ellipsoid_span": 5.313677544664296
+ },
+ "id_test": {
+  "atoms": 17057,
+  "ellipsoid": {
+   "coverage": 0.8162631177815559,
+   "rms_d_over_sqrt3": 1.2111921450776408
+  },
+  "ellipsoid+lam": {
+   "coverage": 0.876531629243126,
+   "rms_d_over_sqrt3": 1.0928079235093335
+  },
+  "ellipsoid_span": {
+   "coverage": 0.050360555783549275,
+   "rms_d_over_sqrt3": 7.225421002043549
+  },
+  "ellipsoid_span+lam": {
+   "coverage": 0.8067655508002579,
+   "rms_d_over_sqrt3": 1.3597778452512463
+  }
+ },
+ "ood": {
+  "atoms": 6056,
+  "ellipsoid": {
+   "coverage": 0.6628137384412153,
+   "rms_d_over_sqrt3": 1.4352597910431097
+  },
+  "ellipsoid+lam": {
+   "coverage": 0.7387714663143989,
+   "rms_d_over_sqrt3": 1.294974772021592
+  },
+  "ellipsoid_span": {
+   "coverage": 0.017668428005284016,
+   "rms_d_over_sqrt3": 10.432094640388101
+  },
+  "ellipsoid_span+lam": {
+   "coverage": 0.5752972258916776,
+   "rms_d_over_sqrt3": 1.963253237085009
+  }
+ },
+ "ood_per_type": {
+  "crack_110_1-10": {
+   "atoms": 1400,
+   "ellipsoid": {
+    "coverage": 0.6907142857142857,
+    "rms_d_over_sqrt3": 1.3843563473360685
+   },
+   "ellipsoid+lam": {
+    "coverage": 0.755,
+    "rms_d_over_sqrt3": 1.2490467276208417
+   },
+   "ellipsoid_span": {
+    "coverage": 0.012857142857142857,
+    "rms_d_over_sqrt3": 10.907780045414627
+   },
+   "ellipsoid_span+lam": {
+    "coverage": 0.505,
+    "rms_d_over_sqrt3": 2.0527741764021084
+   }
+  },
+  "crack_111_1-10": {
+   "atoms": 1920,
+   "ellipsoid": {
+    "coverage": 0.5885416666666666,
+    "rms_d_over_sqrt3": 1.5962508853866022
+   },
+   "ellipsoid+lam": {
+    "coverage": 0.6729166666666667,
+    "rms_d_over_sqrt3": 1.4402302909151112
+   },
+   "ellipsoid_span": {
+    "coverage": 0.004166666666666667,
+    "rms_d_over_sqrt3": 13.542765495115054
+   },
+   "ellipsoid_span+lam": {
+    "coverage": 0.38125,
+    "rms_d_over_sqrt3": 2.5486615213815442
+   }
+  },
+  "screw_disloc": {
+   "atoms": 2736,
+   "ellipsoid": {
+    "coverage": 0.7006578947368421,
+    "rms_d_over_sqrt3": 1.3382544112298407
+   },
+   "ellipsoid+lam": {
+    "coverage": 0.7766812865497076,
+    "rms_d_over_sqrt3": 1.2074508823449648
+   },
+   "ellipsoid_span": {
+    "coverage": 0.029605263157894735,
+    "rms_d_over_sqrt3": 7.162330047053261
+   },
+   "ellipsoid_span+lam": {
+    "coverage": 0.7474415204678363,
+    "rms_d_over_sqrt3": 1.3479045325671448
+   }
+  }
+ },
+ "paper_methods_ood": {
+  "all": {
+   "headline": 0.9058784676354029,
+   "B1": 0.458553500660502,
+   "B2": 0.5878467635402906,
+   "B3": 0.031373844121532365
+  },
+  "per_type": {
+   "crack_110_1-10": {
+    "headline": 0.95,
+    "B1": 0.49,
+    "B2": 0.5021428571428571,
+    "B3": 0.03857142857142857
+   },
+   "crack_111_1-10": {
+    "headline": 0.8942708333333333,
+    "B1": 0.40989583333333335,
+    "B2": 0.3958333333333333,
+    "B3": 0.04010416666666667
+   },
+   "screw_disloc": {
+    "headline": 0.8914473684210527,
+    "B1": 0.4766081871345029,
+    "B2": 0.7664473684210527,
+    "B3": 0.021564327485380116
+   }
+  },
+  "id_test": {
+   "headline": 0.8788180805534385,
+   "B1": 0.6003986633053878,
+   "B2": 0.8356686404408747,
+   "B3": 0.053526411443981944
+  }
+ }
+}

@@ -1,0 +1,76 @@
+{
+ "o3d12": {
+  "hop_atom": 56,
+  "hop_disp_A": 0.7251065641460211,
+  "saddle": {
+   "gamma_hop": 1.5946134483250218,
+   "gamma_hop_pct_test": 97.08045845925757,
+   "gamma_max": 2.032488949271332,
+   "gamma_max_pct_test": 98.44329132690882,
+   "n_gamma_gt1": 4,
+   "support_ok_all": true,
+   "n_unsupported": 0,
+   "support_q_hop": 4.649826526641846,
+   "sdF_B1_hop": 0.26371561176502173,
+   "sdF_B1_hop_pct_test": 83.48634316017562,
+   "sdF_hl_hop": 0.3119699071757109,
+   "sdF_hl_hop_pct_test": 63.28334378742089,
+   "sdF_B1_max_pct_test": 83.48634316017562,
+   "sdF_hl_max_pct_test": 63.28334378742089
+  },
+  "minimum": {
+   "gamma_hop": 3.392095121787204,
+   "gamma_hop_pct_test": 99.80612419456007,
+   "gamma_max": 3.392095144234973,
+   "gamma_max_pct_test": 99.80612419456007,
+   "n_gamma_gt1": 4,
+   "support_ok_all": true,
+   "n_unsupported": 0,
+   "support_q_hop": 8.469018936157227,
+   "sdF_B1_hop": 0.2265960926166461,
+   "sdF_B1_hop_pct_test": 74.78474083366596,
+   "sdF_hl_hop": 0.41130256236040463,
+   "sdF_hl_hop_pct_test": 77.35644637053088,
+   "sdF_B1_max_pct_test": 74.78474083366596,
+   "sdF_hl_max_pct_test": 77.35644637053088
+  },
+  "test_frac_gamma_gt1": 0.0869019786736614
+ },
+ "o4d20": {
+  "hop_atom": 56,
+  "hop_disp_A": 0.9693358643509218,
+  "saddle": {
+   "gamma_hop": 1.024767471010895,
+   "gamma_hop_pct_test": 87.54633061527058,
+   "gamma_max": 1.024767471010895,
+   "gamma_max_pct_test": 87.54633061527058,
+   "n_gamma_gt1": 1,
+   "support_ok_all": true,
+   "n_unsupported": 0,
+   "support_q_hop": 15.583133697509766,
+   "sdF_B1_hop": 5.725467998631658e-09,
+   "sdF_B1_hop_pct_test": 0.0,
+   "sdF_hl_hop": 9.45174609903759e-09,
+   "sdF_hl_hop_pct_test": 0.0,
+   "sdF_B1_max_pct_test": 50.51605177624451,
+   "sdF_hl_max_pct_test": 54.49050578776301
+  },
+  "minimum": {
+   "gamma_hop": 0.3959632368836395,
+   "gamma_hop_pct_test": 51.00074128984433,
+   "gamma_max": 0.39596323954738744,
+   "gamma_max_pct_test": 51.00074128984433,
+   "n_gamma_gt1": 0,
+   "support_ok_all": true,
+   "n_unsupported": 0,
+   "support_q_hop": 5.781074047088623,
+   "sdF_B1_hop": 0.062330093442911405,
+   "sdF_B1_hop_pct_test": 54.62165706791355,
+   "sdF_hl_hop": 0.16312639119804404,
+   "sdF_hl_hop_pct_test": 62.64469407538348,
+   "sdF_B1_max_pct_test": 54.62165706791355,
+   "sdF_hl_max_pct_test": 62.64469407538348
+  },
+  "test_frac_gamma_gt1": 0.12869932143468096
+ }
+}
