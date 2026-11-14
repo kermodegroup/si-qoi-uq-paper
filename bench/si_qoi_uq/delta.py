@@ -23,8 +23,13 @@ differentiating through iterations.
 * Decohesion (rigid openings of the relaxed 5x1x1 bulk): linear in theta at fixed a0, plus the a0 term; the
   harness's cubic spline derivative is linear in the energies (fixed knots, s = 0).
 
-Discrete steps (the E(V) grid argmin, the decohesion max) are held at their index (fixed-index rule); the
-phase rows require that argmin to be the V0 point (else the volume grid itself moves with theta: no row).
+Discrete steps (the E(V) grid argmin, the decohesion max) are held at their index (fixed-index rule). A phase
+energy is the lowest point of the protocol's E(V) grid (constant-volume relaxations at V0 + i 0.025 V0 around the
+freely relaxed V0), a sampled stand-in for the minimum of the relaxed E(V) curve; its row is Phi at the argmin frame,
+the envelope theorem at that curve's minimum, which needs no volume term. Where the argmin is the V0 point this is
+exact (V0 is stationary). Where it is not (the free relaxation stopped within its loose stress tolerance away from
+the minimum, so the grid moves with theta through V0), the neglected term is of order the energy change per grid step
+at the argmin, recorded in the note; the committee check (delta_vs_committee, the 10 % rule) tests it.
 """
 import ase.io
 import ase.units
@@ -219,7 +224,7 @@ def energy_qoi_rows(lin, run_dir_of, a0, da0, th):
     out = {}
     E = lambda P, at: float(P @ th) + lin.e_const(at)
 
-    # phases: E(V) grid argmin (fixed index); the row exists when it is the V0 point of the grid
+    # phases: E(V) grid argmin (fixed index); the row is Phi at the argmin frame (module docstring)
     def phase(test):
         fr = _frames(run_dir_of(test))
         props = json.load(open(str(run_dir_of(test)) + "-properties.json"))
@@ -231,13 +236,18 @@ def energy_qoi_rows(lin, run_dir_of, a0, da0, th):
         v0 = fr[0].get_volume() / len(fr[0])
         at = grid[j]
         P, _ = scaling_rows(lin, at)
-        return E(P, at) / len(at), P / len(at), abs(vols[j] - v0) < 1e-6 * v0, EV[i, 1]
-    e_d, P_d, ok_d, ref_d = phase("bulk_diamond")
+        k0 = int(np.argmin(np.abs(EV[:, 0] - v0)))           # the V0 point of the grid
+        note = ""
+        if abs(vols[j] - v0) >= 1e-6 * v0:
+            step = 0.5 * abs(EV[min(i + 1, len(EV) - 1), 1] - EV[max(i - 1, 0), 1])
+            note = (f"argmin {i - k0:+d} grid steps from V0 ({1e3 * (EV[i, 1] - EV[k0, 1]):+.2f} meV/atom below the V0 point); "
+                    f"row at the argmin frame, neglected volume term ~ {1e3 * step:.2f} meV/atom per grid step")
+        return E(P, at) / len(at), P / len(at), note, EV[i, 1]
+    e_d, P_d, note_d, ref_d = phase("bulk_diamond")
     for ph in ("beta-Sn", "sh", "hex_diamond", "bc8", "st12", "hcp", "fcc", "bcc"):
-        e, P, ok, ref = phase(f"bulk_{ph}")
-        note = "" if (ok and ok_d) else "argmin not at the V0 point: grid moves with theta (no delta row)"
-        out[f"dE_{ph} (meV/at)"] = (1e3 * (e - e_d), 1e3 * (P - P_d) if not note else None, note,
-                                   1e3 * (ref - ref_d))
+        e, P, note, ref = phase(f"bulk_{ph}")
+        note = "; ".join(x for x in (note, note_d and f"diamond: {note_d}") if x)
+        out[f"dE_{ph} (meV/at)"] = (1e3 * (e - e_d), 1e3 * (P - P_d), note, 1e3 * (ref - ref_d))
 
     def defect(fr_bulk, fr_def, n_bulk):
         at_u, at = fr_bulk, fr_def

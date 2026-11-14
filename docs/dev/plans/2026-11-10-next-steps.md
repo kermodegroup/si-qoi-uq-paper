@@ -1261,3 +1261,13 @@ All four questions have answers. What is left is deciding what goes into the pap
 candidates are §3 (barrier: a new QoI and the clearest miss), §2e items 2–4 (ellipsoid: discussion paragraph, SI forces table,
 theory sentence), §2e's joint scores (d²/n and LS/n beside the hard count; the case for a correlated discrepancy term), §4
 (one sentence on λ_mv), §1 (DAS order probabilities, SI).
+
+## Phase-energy delta rows fixed (2026-11-14)
+
+bcc (o3d12) and hcp (o4d20) had no delta-method row: `delta.py` made a phase row only when the E(V) grid minimum fell on the
+freely relaxed V0 point, and for those two it fell 4 grid steps (o3d12 bcc, 10.1 meV/atom lower) and 1 step (o4d20 hcp,
+0.17 meV/atom lower) away. `energy_qoi_rows.phase()` now differentiates at the grid-minimum frame (envelope theorem; the note
+records the offset). Every delta-dependent result was rerun (`$SIQ_RUNS/cascade_phasefix.sh`). Both new rows fail the 10 %
+delta-vs-committee rule (o3d12 bcc ratio 1.51, o4d20 hcp 0.24: the committee's grid minimum hops between grid points on a
+flat E(V)), so the headline keeps the committee sigma for both and its numbers move only at roundoff. Flagged rows: 5 -> 7.
+The CR3-delta coverage rows now count 18 QoIs per model.
