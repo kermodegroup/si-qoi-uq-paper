@@ -763,8 +763,8 @@ of patterns e<sub>1</sub>, e<sub>4</sub>, e<sub>1</sub>+e<sub>2</sub>.</li>
 <li><b>Decohesion.</b> Rigid openings of the relaxed bulk: linear in θ at fixed \(a_0\) plus the \(a_0\) term; the cubic-spline
 derivative is linear in the energies.</li>
 <li><b>Discrete steps</b> (E(V)-grid argmin, maximum over a grid) are held at their index; γ<sub>us</sub> and phonons are
-committee-only. So is the bcc phase energy: for both models its E(V) minimum is not at the grid point of the freely relaxed
-volume, so the selected point changes with θ and has no derivative. The delta method therefore covers 17 of the 20 scored QoIs.</li>
+committee-only. So is one phase energy per model, bcc for o3d12 and hcp for o4d20: its E(V) minimum is not at the grid point
+of the freely relaxed volume, so the selected point changes with θ and has no derivative. The delta method therefore covers 17 of the 20 scored QoIs.</li>
 </ul>
 <p>Rows are checked against finite differences in θ (to ~10<sup>−5</sup>) and the values they imply reproduce the harness to
 ~10<sup>−10</sup> (energy QoIs) and 0.04 GPa (elastic constants).</p>
@@ -1067,6 +1067,18 @@ def fmt_t(m, t, k, fld="coverage", nd=2):
     """As fmv, on one held-out configuration type (force_methods_<m>.json ood.per_type)."""
     v = _fm.get(m, {}).get("ood", {}).get("per_type", {}).get(t, {}).get(k, {}).get(fld)
     return "–" if v is None else f"{v:.{nd}f}"
+# correlation-aware joint QoI scores (analysis/qoi_joint_score.py) and the whole-configuration scale (analysis/mv_conformal.py)
+_js = json.load(open(RES / "qoi_joint_score.json")) if (RES / "qoi_joint_score.json").exists() else {}
+_mv = {m: json.load(open(RES / f"mv_conformal_{m}.json"))["methods"]["cr3"] for m in ("o3d12", "o4d20") if (RES / f"mv_conformal_{m}.json").exists()}
+_jn = len(_js["models"]["o4d20"]["qois"]) if _js else 0
+_jband = _js.get("band_d2_over_n", [float("nan")] * 2)
+js = lambda m, k, f_, d=2: f"{_js['models'][m]['results'][k]['tau0.05'][f_]:.{d}f}"
+JS_ROWS = (("CR3 (delta)", "CR3 × λ<sub>F</sub> (headline)"), ("B1 (delta)", "B1: posterior × q̂"), ("B2lev50 (committee)", "B2: POPS box"),
+           ("ellipsoid L-BFGS (delta)", "POPS ellipsoid"), ("CR3 lam_mv (delta)", "CR3 × λ<sub>mv</sub>"))
+_ls_rest = lambda m: " / ".join(js(m, k + " +disc", "ls_over_n") for k, _ in JS_ROWS[1:4]) + " (B1 / B2 / ellipsoid)"
+jrows_b = "".join(f"<tr><td>{m}</td><td>{lab}</td>" + "".join(f"<td class=n>{js(m, k + sfx, f_, 0 if f_ == 'k95' else 2)}</td>"
+                                                          for sfx in ("", " +disc") for f_ in ("k95", "d2_over_n", "ls_over_n")) + "</tr>"
+                  for m in ("o3d12", "o4d20") for k, lab in JS_ROWS) if _js else ""
 sec("results", "3.4  Coverage and sharpness", f"""
 <div class="wrap"><table><caption>Table 3. Coverage of the DFT values (count [95 % credible interval of the coverage probability]) and sharpness, for the four methods of Figures 1 and 1b.</caption>
 <thead><tr><th>model</th><th>method</th><th>n</th><th>68 %</th><th>95 %</th><th>RMS z</th><th>median σ/tol</th><th>CRPS/tol</th></tr></thead>
@@ -1168,6 +1180,36 @@ strongly supported for o3d12 ({lbf_txt("o3d12", "CR3/lam_F+disc")} with the comm
 ({lbf_txt("o4d20", "CR3/lam_F+disc")} and {lbf_txt("o4d20", "CR3/lam_F+disc", "delta")}): o4d20's defect bias is small, so the term's
 extra width costs about as much as the misses it removes. The delta-method and committee covariances agree, and the ranking of the
 methods is the same for ε from 10<sup>−8</sup> to 10<sup>−4</sup>.</p>
+<p><b>Correlation-aware scores.</b> The QoI covariance of a parameter distribution is nearly singular, so the evidence above
+depends on its ridge. Table 4b gives two scores that depend on it less, on the {_jn} QoIs with delta-method rows, each σ with a floor
+of τ = 0.05 tolerances (τ²I added to the covariance; τ = 0.01 and 0.2 as checks): d²/n, the squared whitened error per QoI, which
+is χ²<sub>n</sub>/n for a calibrated Gaussian (95 % band [{_jband[0]:.2f}, {_jband[1]:.2f}]), and LS/n, the Gaussian log score per QoI
+(proper, lower is better). The discrepancy term enters as one shared bias per defect class, the three interstitials fully
+correlated. Without it, for o3d12, no method but the B2 committee is jointly calibrated (d²/n {js("o3d12", "CR3 (delta)", "d2_over_n")}
+for CR3, {js("o3d12", "B1 (delta)", "d2_over_n")} for B1, {js("o3d12", "ellipsoid L-BFGS (delta)", "d2_over_n")} for the ellipsoid),
+while with it CR3 is ({js("o3d12", "CR3 (delta) +disc", "d2_over_n")}); a correlated term is what makes the joint test pass. For
+o4d20 CR3 is inside the band with and without the term ({js("o4d20", "CR3 (delta)", "d2_over_n")},
+{js("o4d20", "CR3 (delta) +disc", "d2_over_n")}) and B1 is far outside ({js("o4d20", "B1 (delta)", "d2_over_n")},
+{js("o4d20", "B1 (delta) +disc", "d2_over_n")}). The POPS ellipsoid covers the most QoIs one at a time for o4d20
+({js("o4d20", "ellipsoid L-BFGS (delta)", "k95", 0)} of {_jn}) but is at the edge of the band jointly
+({js("o4d20", "ellipsoid L-BFGS (delta)", "d2_over_n")}): its narrower widths come with correlations that put the errors in
+directions it calls thin. With the term, the log score ranks CR3 first for both models ({js("o3d12", "CR3 (delta) +disc", "ls_over_n")}
+and {js("o4d20", "CR3 (delta) +disc", "ls_over_n")}, against {_ls_rest("o3d12")} and {_ls_rest("o4d20")} for the others).</p>
+<p>A scale fitted for whole configurations rather than per force component is the alternative to λ<sub>F</sub>. λ<sub>mv</sub>
+scales the CR3 shape so that the whole-configuration Mahalanobis regions of Section 2.8 (with their nugget) cover 90 % of the test
+configurations ({_mv["o4d20"]["lam_mv_all"]:.1f} against λ<sub>F</sub> = {_mv["o4d20"]["ref_scale"]:.1f} for o4d20). Propagated, it covers
+{_mv["o4d20"]["qoi_k95"]} of {_mv["o4d20"]["qoi_n"]} QoIs for o4d20 and is jointly calibrated without the discrepancy term (d²/n
+{js("o4d20", "CR3 lam_mv (delta)", "d2_over_n")}), but with the term its log score is worse than the headline's
+({js("o4d20", "CR3 lam_mv (delta) +disc", "ls_over_n")} against {js("o4d20", "CR3 (delta) +disc", "ls_over_n")}). For o3d12 it is
+{_mv["o3d12"]["lam_mv_all"]:.1f}, and its intervals are far too wide (median σ/tol {_mv["o3d12"]["qoi_median_sigma_over_tol"]:.1f}). The
+headline keeps λ<sub>F</sub>.</p>
+<div class="wrap"><table><caption>Table 4b. Correlation-aware scores of the {_jn} delta-method QoIs of Table 4 (all scored QoIs but the two
+stacking-fault energies and one phase energy per model, Section 2.7.2), tolerance units, covariance floor τ = 0.05: the count inside the
+95 % interval (with the floor, so it can differ from Table 3), d²/n and the log score per QoI, without and with the discrepancy term
+as a shared bias. B2 from its committee; the others by the delta method. λ<sub>mv</sub>: the CR3 shape at the whole-configuration
+scale (text).</caption>
+<thead><tr><th>model</th><th>method</th><th>95 %</th><th>d²/n</th><th>LS/n</th><th>95 % +disc</th><th>d²/n +disc</th><th>LS/n +disc</th></tr></thead>
+<tbody>{jrows_b}</tbody></table></div>
 <figure><img src="fig3_qoi_correlation.png" alt="QoI correlation matrix of the o4d20 CR3 committee"><figcaption>Figure 3. Correlation
 between the QoIs in the CR3 committee for o4d20 (K = 200 members).</figcaption></figure>
 <h3>3.6 Delta method, committees and nonlinearity</h3>
